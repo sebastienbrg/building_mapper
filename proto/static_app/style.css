@@ -56,7 +56,7 @@ body {
 }
 
 /* ==========================================================================
-   Header & Top KPIs
+   Header & Navigation Tabs
    ========================================================================== */
 header.app-header {
   height: var(--header-height);
@@ -68,6 +68,47 @@ header.app-header {
   padding: 0 1.25rem;
   z-index: 20;
   flex-shrink: 0;
+}
+
+/* Navigation Tabs Bar (Directly matching Streamlit top tabs) */
+nav.app-tabs-nav {
+  height: 44px;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  align-items: stretch;
+  padding: 0 1.25rem;
+  gap: 0.25rem;
+  z-index: 15;
+  flex-shrink: 0;
+  overflow-x: auto;
+}
+
+.nav-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0 1rem;
+  background: transparent;
+  border: none;
+  border-bottom: 3px solid transparent;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s ease;
+}
+
+.nav-tab:hover {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.nav-tab.active {
+  color: #ef4444; /* Coral red active indicator matching user screenshot */
+  border-bottom-color: #ef4444;
+  font-weight: 700;
 }
 
 .brand {
@@ -894,3 +935,212 @@ input[type="range"] {
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
+
+/* ==========================================================================
+   Tab Panes (Carte, Bâtiments, Bailleurs & SCI, Export, Sources, Pistes)
+   ========================================================================== */
+#main-content-area {
+  flex: 1;
+  display: flex;
+  position: relative;
+  overflow: hidden;
+}
+
+.tab-pane {
+  display: none;
+  width: 100%;
+  height: 100%;
+}
+
+.tab-pane.active {
+  display: flex;
+}
+
+#pane-map {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+}
+
+.content-pane {
+  flex: 1;
+  flex-direction: column;
+  overflow-y: auto;
+  padding: 1.5rem;
+  gap: 1.25rem;
+  background: var(--bg-primary);
+}
+
+/* Data Table Styling */
+.tz-table-header {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 0.85rem 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.tz-table-counts {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.tz-count-badge {
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: 0.25rem 0.6rem;
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+}
+
+.tz-count-badge b {
+  color: var(--accent-primary);
+}
+
+.data-table-container {
+  overflow-x: auto;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: var(--bg-secondary);
+  max-height: 65vh;
+}
+
+table.tz-data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+  text-align: left;
+}
+
+table.tz-data-table th {
+  position: sticky;
+  top: 0;
+  background: #1e293b;
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 0.65rem 0.85rem;
+  border-bottom: 2px solid var(--border-color);
+  z-index: 2;
+  white-space: nowrap;
+}
+
+table.tz-data-table td {
+  padding: 0.6rem 0.85rem;
+  border-bottom: 1px solid var(--border-color);
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+
+table.tz-data-table tr:hover {
+  background: rgba(56, 189, 248, 0.08);
+}
+
+table.tz-data-table tr.highlight-row {
+  background: rgba(234, 179, 8, 0.22) !important;
+}
+
+table.tz-data-table tr.highlight-row td {
+  color: #fef08a !important;
+  font-weight: 600;
+}
+
+.badge-dpe {
+  display: inline-block;
+  padding: 0.15rem 0.45rem;
+  border-radius: 3px;
+  font-weight: 700;
+  font-size: 0.75rem;
+  color: #0f172a;
+}
+
+.badge-risk {
+  display: inline-block;
+  padding: 0.15rem 0.45rem;
+  border-radius: 3px;
+  font-weight: 600;
+  font-size: 0.72rem;
+}
+
+/* Source & Potential Documentation Styles */
+.tz-tag-legend {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 0.85rem 1rem;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  font-size: 0.8rem;
+  margin-bottom: 1rem;
+}
+
+.tz-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  border: 1px solid var(--border-color);
+  background: rgba(15, 23, 42, 0.6);
+  cursor: help;
+}
+
+.tz-geo-section {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  margin-bottom: 1rem;
+  overflow: hidden;
+}
+
+.tz-geo-section summary {
+  padding: 0.85rem 1rem;
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  background: rgba(30, 41, 59, 0.9);
+  display: flex;
+  justify-content: space-between;
+}
+
+.tz-src-grid-3 {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 0.85rem;
+  padding: 1rem;
+}
+
+.tz-src-card {
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: 0.85rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  font-size: 0.78rem;
+}
+
+.tz-src-card-title {
+  font-weight: 700;
+  font-size: 0.85rem;
+  color: var(--text-primary);
+}
+
+.tz-src-meta {
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+

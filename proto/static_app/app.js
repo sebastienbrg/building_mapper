@@ -42,6 +42,7 @@ const state = {
   filterRentControl: false,
   map: null,
   selectedBuildingId: null,
+  activeTab: 'map',
   dataBaseUrl: '../../data/chunks/', // Local default, can be switched to GitHub Releases URL
 };
 
@@ -70,6 +71,10 @@ const OVERHEATING_COLORS = {
    ========================================================================== */
 document.addEventListener('DOMContentLoaded', async () => {
   initMap();
+  initTabs();
+  initBuildingsTableControls();
+  initLandlordsTabControls();
+  initExportTabControls();
   initEventListeners();
   await loadManifest();
   await loadTerritory();
@@ -556,6 +561,14 @@ function applyFilters() {
     ? filtered.slice(0, maxPolygons)
     : filtered;
   updateMapSource(mapBuildings);
+
+  // Synchronize active view
+  if (state.activeTab === 'buildings') {
+    renderBuildingsTable();
+  } else if (state.activeTab === 'landlords') {
+    renderLandlordsTab();
+  }
+  updateExportTab();
 }
 
 function updateKPIs(filtered) {
@@ -944,6 +957,634 @@ function exportFilteredGeoJSON() {
 }
 
 /* ==========================================================================
+   Navigation Tabs Management
+   ========================================================================== */
+function initTabs() {
+  document.querySelectorAll('.nav-tab').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const tabId = btn.getAttribute('data-tab');
+      switchTab(tabId);
+    });
+  });
+
+  const headerExportBtn = document.getElementById('btn-header-export');
+  if (headerExportBtn) {
+    headerExportBtn.addEventListener('click', () => {
+      switchTab('export');
+    });
+  }
+}
+
+function switchTab(tabId) {
+  state.activeTab = tabId;
+
+  // Update navigation tab highlights
+  document.querySelectorAll('.nav-tab').forEach(b => {
+    b.classList.toggle('active', b.getAttribute('data-tab') === tabId);
+  });
+
+  // Update visible pane
+  document.querySelectorAll('.tab-pane').forEach(p => {
+    p.classList.toggle('active', p.id === `pane-${tabId}`);
+  });
+
+  // Pane-specific activations
+  if (tabId === 'map') {
+    if (state.map) {
+      setTimeout(() => state.map.resize(), 50);
+    }
+  } else if (tabId === 'buildings') {
+    renderBuildingsTable();
+  } else if (tabId === 'landlords') {
+    renderLandlordsTab();
+  } else if (tabId === 'export') {
+    updateExportTab();
+  }
+}
+
+/* ==========================================================================
+   Tab 2: Buildings Data Table Logic
+   ========================================================================== */
+let buildingsTableRenderLimit = 150;
+
+function initBuildingsTableControls() {
+  const queryInput = document.getElementById('table-search-query');
+  const modeSelect = document.getElementById('table-search-mode');
+
+  if (queryInput) {
+    let timeout = null;
+    queryInput.addEventListener('input', () => {
+      clearTimeout(timeout);
+      timeout = setTimeout(() => {
+        buildingsTableRenderLimit = 150;
+        renderBuildingsTable();
+      }, 250);
+    });
+  }
+
+  if (modeSelect) {
+    modeSelect.addEventListener('change', () => {
+      renderBuildingsTable();
+    });
+  }
+}
+
+function renderBuildingsTable() {
+  const tbody = document.getElementById('table-buildings-body');
+  if (!tbody) return;
+
+  const query = (document.getElementById('table-search-query')?.value || '').trim().toLowerCase();
+  const searchMode = document.getElementById('table-search-mode')?.value || 'filter';
+
+  // Base list sorted by overheating score DESC, then dwellings DESC
+  const list = [...state.filteredBuildings].sort((a, b) => {
+    const sDiff = Number(b.score_surchauffe_ete || 0) - Number(a.score_surchauffe_ete || 0);
+    if (sDiff !== 0) return sDiff;
+    return Number(b.nb_log || 0) - Number(a.nb_log || 0);
+  });
+
+  const tokens = query ? query.split(/\s+/).filter(Boolean) : [];
+  const matchingSet = new Set();
+
+  if (tokens.length > 0) {
+    for (const b of list) {
+      const searchStr = `${b.adr || ''} ${b.batiment_groupe_id || ''} ${b.cp || ''} ${b.dpe || ''} ${b.concentration_prop_max_denomination || ''} ${b.siren_principal || ''} ${b.facteurs_surchauffe || ''} ${b.nom_copro || ''}`.toLowerCase();
+      const match = tokens.every(tok => searchStr.includes(tok));
+      if (match) matchingSet.add(b.batiment_groupe_id);
+    }
+  }
+
+  let displayRows = [];
+  if (tokens.length > 0) {
+    if (searchMode === 'filter') {
+      displayRows = list.filter(b => matchingSet.has(b.batiment_groupe_id));
+    } else {
+      // Highlight mode: matching rows first
+      const matches = list.filter(b => matchingSet.has(b.batiment_groupe_id));
+      const others = list.filter(b => !matchingSet.has(b.batiment_groupe_id));
+      displayRows = [...matches, ...others];
+    }
+  } else {
+    displayRows = list;
+  }
+
+  // Synthesis metrics
+  const statsSource = tokens.length > 0 && searchMode === 'filter' ? displayRows : list;
+  const tBats = statsSource.length;
+  let tLogs = 0;
+  let tFg = 0;
+  let tOverheat = 0;
+  let tPm = 0;
+
+  for (const b of statsSource) {
+    tLogs += Number(b.nb_log || 0);
+    if (b.dpe === 'F' || b.dpe === 'G') tFg += Number(b.nb_log || 1);
+    if (b.risque_surchauffe_ete === 'Élevé' || b.risque_surchauffe_ete === 'Critique') tOverheat++;
+    if (b.concentration_prop_max_denomination && b.concentration_prop_max_denomination !== 'NC') tPm++;
+  }
+
+  const elBats = document.getElementById('tbl-kpi-bats');
+  const elLogs = document.getElementById('tbl-kpi-logs');
+  const elFg = document.getElementById('tbl-kpi-fg');
+  const elOverheat = document.getElementById('tbl-kpi-overheat');
+  const elPm = document.getElementById('tbl-kpi-pm');
+  const elNote = document.getElementById('table-filter-note');
+
+  if (elBats) elBats.textContent = tBats.toLocaleString();
+  if (elLogs) elLogs.textContent = tLogs.toLocaleString();
+  if (elFg) elFg.textContent = tFg.toLocaleString();
+  if (elOverheat) elOverheat.textContent = tOverheat.toLocaleString();
+  if (elPm) elPm.textContent = tPm.toLocaleString();
+
+  if (elNote) {
+    if (tokens.length > 0) {
+      elNote.innerHTML = ` — <b>${matchingSet.size.toLocaleString()} / ${list.length.toLocaleString()}</b> bât. pour « <b>${escapeHtml(query)}</b> »`;
+    } else {
+      elNote.textContent = ` (sur ${state.buildings.length.toLocaleString()} bât. dans le territoire sélectionné)`;
+    }
+  }
+
+  // Render Table Rows
+  tbody.innerHTML = '';
+  const slice = displayRows.slice(0, buildingsTableRenderLimit);
+  const fragment = document.createDocumentFragment();
+
+  for (const b of slice) {
+    const isHighlighted = tokens.length > 0 && matchingSet.has(b.batiment_groupe_id);
+    const tr = document.createElement('tr');
+    if (isHighlighted && searchMode === 'highlight') {
+      tr.className = 'highlight-row';
+    }
+
+    const dpe = b.dpe || 'NC';
+    const dpeColor = DPE_COLORS[dpe] || DPE_COLORS['Inconnu'];
+    const risk = b.risque_surchauffe_ete || 'Faible';
+    const riskColor = OVERHEATING_COLORS[risk] || '#38bdf8';
+    const conc = b.concentration_prop_max_num != null ? Math.round(Number(b.concentration_prop_max_num)) : 0;
+
+    tr.innerHTML = `
+      <td><code style="font-size: 0.72rem;">${(b.batiment_groupe_id || '').slice(0, 16)}…</code></td>
+      <td><strong>${escapeHtml(b.adr || 'Adresse inconnue')}</strong></td>
+      <td>${b.cp || ''}</td>
+      <td>${b.nb_log || 1}</td>
+      <td><span class="badge-dpe" style="background: ${dpeColor};">${dpe}</span></td>
+      <td>${b.pct_dpe_fg ? Math.round(Number(b.pct_dpe_fg)) + '%' : '0%'}</td>
+      <td><span class="badge-risk" style="background: ${riskColor}22; color: ${riskColor}; border: 1px solid ${riskColor}55;">${risk}</span></td>
+      <td><strong>${b.score_surchauffe_ete || 0}</strong></td>
+      <td style="max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${escapeHtml(b.facteurs_surchauffe || '')}">${escapeHtml(b.facteurs_surchauffe || '—')}</td>
+      <td>${escapeHtml(b.type_isolation_plancher_haut || '—')}</td>
+      <td>${escapeHtml(b.type_fermeture || '—')}</td>
+      <td><strong>${escapeHtml(b.concentration_prop_max_denomination || '—')}</strong></td>
+      <td><code>${escapeHtml(b.siren_principal || '—')}</code></td>
+      <td>${conc > 0 ? conc + '%' : '—'}</td>
+      <td>${b.max_patrimoine_majic_bailleur ? Number(b.max_patrimoine_majic_bailleur).toLocaleString() + ' loc.' : '—'}</td>
+      <td>${b.loyer_max_t2_non_meuble_m2 ? Number(b.loyer_max_t2_non_meuble_m2).toFixed(1) + ' €' : (b.zone_encadrement_loyers ? 'Zoné' : 'Non')}</td>
+      <td>${b.est_logement_social_rpls ? '🏛️ Oui' : 'Non'}</td>
+      <td>
+        <button class="btn btn-secondary btn-sm btn-table-view" data-bid="${b.batiment_groupe_id}" style="font-size: 0.7rem; padding: 0.2rem 0.5rem; white-space: nowrap;">
+          🗺️ Voir
+        </button>
+      </td>
+    `;
+    fragment.appendChild(tr);
+  }
+
+  // Load more button if truncated
+  if (displayRows.length > buildingsTableRenderLimit) {
+    const trMore = document.createElement('tr');
+    trMore.innerHTML = `
+      <td colspan="18" style="text-align: center; padding: 0.75rem; background: var(--bg-card);">
+        <button class="btn btn-secondary btn-sm" id="btn-load-more-buildings">
+          Afficher 150 bâtiments de plus (${(displayRows.length - buildingsTableRenderLimit).toLocaleString()} restants)
+        </button>
+      </td>
+    `;
+    fragment.appendChild(trMore);
+  }
+
+  tbody.appendChild(fragment);
+
+  // Wire view buttons
+  tbody.querySelectorAll('.btn-table-view').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const bId = btn.getAttribute('data-bid');
+      viewBuildingOnMap(bId);
+    });
+  });
+
+  const btnMore = document.getElementById('btn-load-more-buildings');
+  if (btnMore) {
+    btnMore.addEventListener('click', () => {
+      buildingsTableRenderLimit += 150;
+      renderBuildingsTable();
+    });
+  }
+}
+
+function viewBuildingOnMap(bId) {
+  switchTab('map');
+  const b = state.buildings.find(item => item.batiment_groupe_id === bId);
+  if (b && state.map) {
+    if (b.geometry) {
+      const coords = getGeometryCenter(b.geometry);
+      if (coords) {
+        state.map.flyTo({ center: coords, zoom: 17, essential: true });
+      }
+    }
+    inspectBuilding(bId);
+  }
+}
+
+function getGeometryCenter(geom) {
+  if (!geom) return null;
+  if (geom.type === 'Point') return geom.coordinates;
+  if (geom.type === 'Polygon' && geom.coordinates && geom.coordinates[0]) {
+    const ring = geom.coordinates[0];
+    let sumX = 0, sumY = 0;
+    for (const pt of ring) {
+      sumX += pt[0];
+      sumY += pt[1];
+    }
+    return [sumX / ring.length, sumY / ring.length];
+  }
+  if (geom.type === 'MultiPolygon' && geom.coordinates && geom.coordinates[0] && geom.coordinates[0][0]) {
+    const ring = geom.coordinates[0][0];
+    let sumX = 0, sumY = 0;
+    for (const pt of ring) {
+      sumX += pt[0];
+      sumY += pt[1];
+    }
+    return [sumX / ring.length, sumY / ring.length];
+  }
+  return null;
+}
+
+/* ==========================================================================
+   Tab 3: Corporate Landlords & Live RNE Directory Logic
+   ========================================================================== */
+let currentLandlordsGrouped = [];
+
+function renderLandlordsTab() {
+  const tbody = document.getElementById('table-landlords-body');
+  const select = document.getElementById('select-landlord-to-inspect');
+  if (!tbody) return;
+
+  const bIdSet = new Set(state.filteredBuildings.map(b => b.batiment_groupe_id));
+  const matchedOwners = state.owners.filter(o => bIdSet.has(o.batiment_groupe_id) && o.denomination);
+
+  const groups = new Map();
+  for (const o of matchedOwners) {
+    const key = (o.siren || o.denomination).trim();
+    if (!groups.has(key)) {
+      groups.set(key, {
+        siren: o.siren ? String(o.siren).trim() : '',
+        denomination: o.denomination,
+        forme_juridique: o.forme_juridique || 'Personne Morale',
+        commune_siege: o.libelle_commune_proprietaire || '',
+        patrimoine_majic: Number(o.nb_locaux_open_dans_MAJIC || o.max_patrimoine_majic_bailleur || 0),
+        buildings: new Set(),
+        locauxCount: 0,
+      });
+    }
+    const g = groups.get(key);
+    g.buildings.add(o.batiment_groupe_id);
+    g.locauxCount += Number(o.nb_locaux_open_dans_batiment || 1);
+    const majic = Number(o.nb_locaux_open_dans_MAJIC || o.max_patrimoine_majic_bailleur || 0);
+    if (majic > g.patrimoine_majic) g.patrimoine_majic = majic;
+    if (!g.commune_siege && o.libelle_commune_proprietaire) {
+      g.commune_siege = o.libelle_commune_proprietaire;
+    }
+  }
+
+  currentLandlordsGrouped = Array.from(groups.values()).sort((a, b) => {
+    if (b.locauxCount !== a.locauxCount) return b.locauxCount - a.locauxCount;
+    return b.buildings.size - a.buildings.size;
+  });
+
+  tbody.innerHTML = '';
+  if (currentLandlordsGrouped.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; color: var(--text-muted); padding: 1.5rem;">Aucun propriétaire personne morale dans la sélection active.</td></tr>`;
+  } else {
+    for (const g of currentLandlordsGrouped.slice(0, 100)) {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td><strong>${escapeHtml(g.denomination)}</strong></td>
+        <td><span style="color: var(--text-secondary); font-size: 0.75rem;">${escapeHtml(g.forme_juridique)}</span></td>
+        <td><code>${escapeHtml(g.siren || 'NC')}</code></td>
+        <td><strong>${g.buildings.size.toLocaleString()}</strong></td>
+        <td><strong>${g.locauxCount.toLocaleString()}</strong></td>
+        <td>${g.patrimoine_majic > 0 ? g.patrimoine_majic.toLocaleString() + ' loc.' : '—'}</td>
+        <td>${escapeHtml(g.commune_siege || '—')}</td>
+        <td>
+          <button class="btn btn-secondary btn-sm btn-inspect-row" data-siren="${escapeHtml(g.siren)}" data-denom="${escapeHtml(g.denomination)}" style="font-size: 0.7rem; padding: 0.2rem 0.5rem; white-space: nowrap;">
+            🔎 Inspecter
+          </button>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    }
+  }
+
+  // Populate Select Dropdown
+  if (select) {
+    select.innerHTML = `<option value="">Sélectionner un bailleur du tableau ci-dessus (${currentLandlordsGrouped.length} disponibles)...</option>`;
+    for (const g of currentLandlordsGrouped.slice(0, 150)) {
+      const opt = document.createElement('option');
+      opt.value = g.siren || g.denomination;
+      opt.textContent = `${g.denomination} (SIREN: ${g.siren || 'N/A'} — ${g.buildings.size} bât. / ${g.locauxCount} locaux)`;
+      select.appendChild(opt);
+    }
+  }
+
+  // Wire Row Buttons
+  tbody.querySelectorAll('.btn-inspect-row').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const target = btn.getAttribute('data-siren') || btn.getAttribute('data-denom');
+      if (select) select.value = target;
+      inspectLandlordTarget(target);
+    });
+  });
+}
+
+function initLandlordsTabControls() {
+  const select = document.getElementById('select-landlord-to-inspect');
+  const inputManual = document.getElementById('input-manual-siren');
+  const btnInspect = document.getElementById('btn-inspect-landlord');
+
+  if (select) {
+    select.addEventListener('change', () => {
+      if (select.value) {
+        if (inputManual) inputManual.value = select.value;
+        inspectLandlordTarget(select.value);
+      }
+    });
+  }
+
+  if (btnInspect) {
+    btnInspect.addEventListener('click', () => {
+      const query = (inputManual?.value || select?.value || '').trim();
+      if (!query) {
+        alert("Veuillez saisir un nom ou un numéro SIREN à rechercher.");
+        return;
+      }
+      inspectLandlordTarget(query);
+    });
+  }
+
+  if (inputManual) {
+    inputManual.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        const query = inputManual.value.trim();
+        if (query) inspectLandlordTarget(query);
+      }
+    });
+  }
+}
+
+async function inspectLandlordTarget(target) {
+  const resultsDiv = document.getElementById('landlord-api-results');
+  const compInfoDiv = document.getElementById('landlord-company-info');
+  const dirigDiv = document.getElementById('landlord-dirigeants-info');
+  const bldgsTbody = document.getElementById('table-landlord-buildings-body');
+
+  if (!resultsDiv) return;
+  resultsDiv.style.display = 'block';
+  compInfoDiv.innerHTML = '<span class="spinner" style="display:inline-block; width:14px; height:14px;"></span> Interrogation de l\'API Annuaire des Entreprises...';
+  dirigDiv.innerHTML = '';
+  bldgsTbody.innerHTML = '';
+
+  try {
+    const res = await fetch(`https://recherche-entreprises.api.gouv.fr/search?q=${encodeURIComponent(target)}&per_page=1`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+
+    if (!data.results || data.results.length === 0) {
+      compInfoDiv.innerHTML = `<p style="color: #f59e0b;">Aucune entreprise trouvée au RNE pour « <strong>${escapeHtml(target)}</strong> ».</p>`;
+      return;
+    }
+
+    const comp = data.results[0];
+    const siren = comp.siren || target;
+    const nom = comp.nom_complet || target;
+    const siege = comp.siege?.adresse || 'Non renseignée';
+    const activite = comp.libelle_activite_principale || comp.activite_principale || 'Non renseignée';
+    const nature = comp.nature_juridique || '';
+
+    compInfoDiv.innerHTML = `
+      <div style="font-size: 1.05rem; font-weight: 700; color: #38bdf8; margin-bottom: 0.35rem;">
+        🏛️ ${escapeHtml(nom)}
+      </div>
+      <div style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 0.5rem; line-height: 1.5;">
+        <div><strong>SIREN :</strong> <code>${siren}</code> ${nature ? `(${escapeHtml(nature)})` : ''}</div>
+        <div><strong>Siège :</strong> 📍 ${escapeHtml(siege)}</div>
+        <div><strong>Activité :</strong> ${escapeHtml(activite)}</div>
+      </div>
+      <div style="font-size: 0.78rem;">
+        🔗 <a href="https://annuaire-entreprises.data.gouv.fr/entreprise/${siren}" target="_blank" style="color: var(--accent-primary); text-decoration: underline;">Fiche Officielle Annuaire des Entreprises</a>
+        &nbsp;|&nbsp;
+        <a href="https://www.pappers.fr/entreprise/${siren}" target="_blank" style="color: var(--accent-primary); text-decoration: underline;">Pappers.fr</a>
+      </div>
+    `;
+
+    const dirigeants = comp.dirigeants || [];
+    if (dirigeants.length === 0) {
+      dirigDiv.innerHTML = `
+        <div style="font-weight: 700; font-size: 0.85rem; color: var(--text-primary); margin-bottom: 0.35rem;">👤 Dirigeants & Gérants déclarés :</div>
+        <p style="font-size: 0.8rem; color: var(--text-muted); font-style: italic;">Aucun dirigeant nominatif listé dans l'INSEE / RNE pour cette entité.</p>
+      `;
+    } else {
+      let dHtml = `<div style="font-weight: 700; font-size: 0.85rem; color: var(--text-primary); margin-bottom: 0.35rem;">👤 Dirigeants & Gérants déclarés :</div><ul style="font-size: 0.8rem; line-height: 1.6; margin-left: 1.25rem;">`;
+      for (const d of dirigeants.slice(0, 8)) {
+        if (d.type_dirigeant === 'personne physique') {
+          const naiss = d.annee_de_naissance ? ` (né·e en ${d.annee_de_naissance})` : '';
+          dHtml += `<li><strong>${escapeHtml(d.prenoms || '')} ${escapeHtml(d.nom || '')}</strong>${naiss} — <em style="color: var(--text-secondary);">${escapeHtml(d.qualite || 'Dirigeant')}</em></li>`;
+        } else {
+          dHtml += `<li>🏢 <strong>${escapeHtml(d.denomination || 'Personne morale')}</strong> (<code>${d.siren || ''}</code>) — <em style="color: var(--text-secondary);">${escapeHtml(d.qualite || 'Dirigeant')}</em></li>`;
+        }
+      }
+      dHtml += `</ul>`;
+      dirigDiv.innerHTML = dHtml;
+    }
+
+    // Find all buildings owned by this landlord in active territory
+    const ownedBIds = new Set();
+    for (const o of state.owners) {
+      if ((o.siren && String(o.siren) === String(siren)) || (o.denomination && o.denomination.toLowerCase() === nom.toLowerCase())) {
+        ownedBIds.add(o.batiment_groupe_id);
+      }
+    }
+
+    const ownedBuildings = state.buildings.filter(b => ownedBIds.has(b.batiment_groupe_id));
+    if (ownedBuildings.length === 0) {
+      bldgsTbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--text-muted); padding: 1rem;">Aucun bâtiment lié directement dans le territoire actuellement chargé.</td></tr>`;
+    } else {
+      for (const b of ownedBuildings) {
+        const tr = document.createElement('tr');
+        const dpe = b.dpe || 'NC';
+        const dpeColor = DPE_COLORS[dpe] || DPE_COLORS['Inconnu'];
+        const risk = b.risque_surchauffe_ete || 'Faible';
+        const riskColor = OVERHEATING_COLORS[risk] || '#38bdf8';
+
+        tr.innerHTML = `
+          <td><strong>${escapeHtml(b.adr || 'Adresse inconnue')}</strong></td>
+          <td>${b.cp || ''}</td>
+          <td>${b.nb_log || 1}</td>
+          <td><span class="badge-dpe" style="background: ${dpeColor};">${dpe}</span></td>
+          <td>${b.pct_dpe_fg ? Math.round(Number(b.pct_dpe_fg)) + '%' : '0%'}</td>
+          <td><span class="badge-risk" style="background: ${riskColor}22; color: ${riskColor}; border: 1px solid ${riskColor}55;">${risk}</span></td>
+          <td>
+            <button class="btn btn-secondary btn-sm btn-view-landlord-bldg" data-bid="${b.batiment_groupe_id}" style="font-size: 0.7rem; padding: 0.2rem 0.5rem; white-space: nowrap;">
+              🗺️ Voir
+            </button>
+          </td>
+        `;
+        bldgsTbody.appendChild(tr);
+      }
+
+      bldgsTbody.querySelectorAll('.btn-view-landlord-bldg').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const bId = btn.getAttribute('data-bid');
+          viewBuildingOnMap(bId);
+        });
+      });
+    }
+
+  } catch (err) {
+    compInfoDiv.innerHTML = `<p style="color: #ef4444;">Erreur lors de la requête RNE : ${escapeHtml(err.message)}</p>`;
+  }
+}
+
+/* ==========================================================================
+   Tab 4: ZIP & Multi-format Export Logic
+   ========================================================================== */
+function updateExportTab() {
+  const countEl = document.getElementById('export-tab-count');
+  if (countEl) countEl.textContent = state.filteredBuildings.length.toLocaleString();
+}
+
+function initExportTabControls() {
+  const btnZip = document.getElementById('btn-export-full-zip');
+  const btnBldgs = document.getElementById('btn-export-tab-bldgs');
+  const btnOwners = document.getElementById('btn-export-tab-owners');
+  const btnGeojson = document.getElementById('btn-export-tab-geojson');
+
+  if (btnZip) btnZip.addEventListener('click', exportFilteredFullZip);
+  if (btnBldgs) btnBldgs.addEventListener('click', exportFilteredBuildingsExcel);
+  if (btnOwners) btnOwners.addEventListener('click', exportFilteredOwnersExcel);
+  if (btnGeojson) btnGeojson.addEventListener('click', exportFilteredGeoJSON);
+}
+
+async function exportFilteredFullZip() {
+  if (state.filteredBuildings.length === 0) {
+    alert("Aucun bâtiment dans la sélection à exporter.");
+    return;
+  }
+
+  if (typeof JSZip === 'undefined') {
+    alert("La librairie JSZip n'est pas encore disponible.");
+    return;
+  }
+
+  showLoading("Génération de l'archive complète export_tezeloma.zip...");
+
+  try {
+    const zip = new JSZip();
+    const dateStr = new Date().toISOString().slice(0, 10);
+
+    // 1. Excel Bâtiments
+    const bldgRows = state.filteredBuildings.map(b => {
+      const copy = { ...b };
+      delete copy.geometry;
+      delete copy.render_color;
+      return copy;
+    });
+    const wsBldgs = XLSX.utils.json_to_sheet(bldgRows);
+    const wbBldgs = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wbBldgs, wsBldgs, 'Batiments_Filtres');
+    const bldgArray = XLSX.write(wbBldgs, { bookType: 'xlsx', type: 'array' });
+    zip.file('tableur_batiments_groupe.xlsx', bldgArray);
+
+    // 2. Excel Bailleurs
+    const bIdSet = new Set(state.filteredBuildings.map(b => b.batiment_groupe_id));
+    const matchedOwners = state.owners.filter(o => bIdSet.has(o.batiment_groupe_id));
+    const wsOwners = XLSX.utils.json_to_sheet(matchedOwners);
+    const wbOwners = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wbOwners, wsOwners, 'Bailleurs_Filtres');
+    const ownersArray = XLSX.write(wbOwners, { bookType: 'xlsx', type: 'array' });
+    zip.file('tableur_proprietaires_detaille.xlsx', ownersArray);
+
+    // 3. GeoJSON
+    const features = state.filteredBuildings.map(b => ({
+      type: 'Feature',
+      geometry: b.geometry,
+      properties: { ...b, geometry: undefined },
+    }));
+    const geojson = {
+      type: 'FeatureCollection',
+      name: 'TeZeLoMa_Export',
+      crs: { type: 'name', properties: { name: 'urn:ogc:def:crs:OGC:1.3:CRS84' } },
+      features: features,
+    };
+    zip.file('carte_batiments.geojson', JSON.stringify(geojson, null, 2));
+
+    // 4. README.txt
+    const readmeContent = [
+      `========================================================================`,
+      `TeZeLoMa — Enquête Cartographique Foncier, Climat & Bailleurs`,
+      `========================================================================`,
+      `Date de génération : ${new Date().toLocaleString('fr-FR')}`,
+      `Bâtiments exportés : ${state.filteredBuildings.length.toLocaleString()}`,
+      `Bailleurs moraux    : ${matchedOwners.length.toLocaleString()}`,
+      `Territoire actif    : Mode ${state.activeTerritory.mode} (${state.activeTerritory.dep || state.activeTerritory.cp || state.activeTerritory.range?.join('-')})`,
+      ``,
+      `Contenu de cette archive :`,
+      `1. tableur_batiments_groupe.xlsx :`,
+      `   Tableau complet des bâtiments sélectionnés avec diagnostic DPE, score et facteurs`,
+      `   de surchauffe d'été, îlots de chaleur, encadrement des loyers, concentration foncière.`,
+      `2. tableur_proprietaires_detaille.xlsx :`,
+      `   1 ligne par couple (bâtiment × propriétaire personne morale) avec SIREN, forme juridique`,
+      `   et locaux possédés.`,
+      `3. carte_batiments.geojson :`,
+      `   Couche cartographique prête à être importée directement dans Framacarte, uMap ou QGIS.`,
+      ``,
+      `Sources consolidées : BDNB (CSTB), ADEME, IGN, DGFiP MAJIC, Data Grand Lyon, Cerema.`,
+      `========================================================================`,
+    ].join('\n');
+    zip.file('README.txt', readmeContent);
+
+    // Generate zip blob
+    const content = await zip.generateAsync({
+      type: 'blob',
+      compression: 'DEFLATE',
+      compressionOptions: { level: 6 },
+    });
+
+    const url = URL.createObjectURL(content);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `export_tezeloma_${dateStr}.zip`;
+    a.click();
+    URL.revokeObjectURL(url);
+
+  } catch (err) {
+    console.error('Error generating full zip export:', err);
+    alert(`Erreur lors de la génération du ZIP: ${err.message}`);
+  } finally {
+    hideLoading();
+  }
+}
+
+function escapeHtml(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+/* ==========================================================================
    Address Geocoding Search (BAN API)
    ========================================================================== */
 function initAddressSearch() {
@@ -1268,20 +1909,32 @@ function initEventListeners() {
     document.getElementById('modal-territory').classList.remove('open');
   });
 
-  document.getElementById('btn-open-export').addEventListener('click', () => {
-    document.getElementById('modal-export').classList.add('open');
-  });
-  document.getElementById('btn-close-export-modal').addEventListener('click', () => {
-    document.getElementById('modal-export').classList.remove('open');
-  });
-  document.getElementById('btn-close-export-footer').addEventListener('click', () => {
-    document.getElementById('modal-export').classList.remove('open');
-  });
+  const btnOpenExport = document.getElementById('btn-open-export');
+  if (btnOpenExport) {
+    btnOpenExport.addEventListener('click', () => {
+      document.getElementById('modal-export').classList.add('open');
+    });
+  }
+  const btnCloseExportModal = document.getElementById('btn-close-export-modal');
+  if (btnCloseExportModal) {
+    btnCloseExportModal.addEventListener('click', () => {
+      document.getElementById('modal-export').classList.remove('open');
+    });
+  }
+  const btnCloseExportFooter = document.getElementById('btn-close-export-footer');
+  if (btnCloseExportFooter) {
+    btnCloseExportFooter.addEventListener('click', () => {
+      document.getElementById('modal-export').classList.remove('open');
+    });
+  }
 
   // Export actions
-  document.getElementById('btn-export-buildings-excel').addEventListener('click', exportFilteredBuildingsExcel);
-  document.getElementById('btn-export-owners-excel').addEventListener('click', exportFilteredOwnersExcel);
-  document.getElementById('btn-export-geojson').addEventListener('click', exportFilteredGeoJSON);
+  const btnExportBldgs = document.getElementById('btn-export-buildings-excel');
+  if (btnExportBldgs) btnExportBldgs.addEventListener('click', exportFilteredBuildingsExcel);
+  const btnExportOwners = document.getElementById('btn-export-owners-excel');
+  if (btnExportOwners) btnExportOwners.addEventListener('click', exportFilteredOwnersExcel);
+  const btnExportGeo = document.getElementById('btn-export-geojson');
+  if (btnExportGeo) btnExportGeo.addEventListener('click', exportFilteredGeoJSON);
 
   // Data Base URL Configuration
   const inputBaseUrl = document.getElementById('input-data-base-url');

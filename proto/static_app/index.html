@@ -15,6 +15,7 @@
   <script src="vendor/maplibre-gl.js"></script>
   <script src="vendor/hyparquet.bundle.js"></script>
   <script src="vendor/xlsx.full.min.js"></script>
+  <script src="vendor/jszip.min.js"></script>
 </head>
 <body>
 
@@ -53,11 +54,21 @@
       <button class="btn btn-secondary btn-sm" id="btn-open-territory-manager">
         <span>📦</span> Données & Chunks
       </button>
-      <button class="btn btn-primary btn-sm" id="btn-open-export">
+      <button class="btn btn-primary btn-sm" id="btn-header-export">
         <span>📥</span> Exporter
       </button>
     </div>
   </header>
+
+  <!-- Main Navigation Tabs Bar (Directly matching Streamlit top tabs) -->
+  <nav class="app-tabs-nav" id="app-tabs-nav">
+    <button class="nav-tab active" data-tab="map">🗺️ Carte</button>
+    <button class="nav-tab" data-tab="buildings">📊 Bâtiments</button>
+    <button class="nav-tab" data-tab="landlords">🔍 Bailleurs & SCI</button>
+    <button class="nav-tab" data-tab="export">📦 Export ZIP</button>
+    <button class="nav-tab" data-tab="sources">📚 Sources de données</button>
+    <button class="nav-tab" data-tab="potential">🔭 Pistes de données</button>
+  </nav>
 
   <!-- Main Container -->
   <div class="main-container">
@@ -334,31 +345,360 @@
 
     </aside>
 
-    <!-- Map Area -->
-    <main id="map-container">
-      <div id="map"></div>
+    <!-- Main Content Area with 6 Tabs -->
+    <main id="main-content-area">
 
-      <!-- Floating Map Style Switcher -->
-      <div class="map-floating-panel">
-        <button class="map-style-btn active" data-style="dpe">🎨 Classe DPE</button>
-        <button class="map-style-btn" data-style="overheating">☀️ Surchauffe Été</button>
-        <button class="map-style-btn" data-style="concentration">🏢 Concentration Foncière</button>
-        <button class="map-style-btn" data-style="fieldwork" id="btn-style-fieldwork" style="display: none;">📋 Enquête Terrain</button>
-      </div>
+      <!-- TAB 1: 🗺️ CARTE -->
+      <div class="tab-pane active" id="pane-map">
+        <div id="map"></div>
 
-      <!-- Address Search Bar -->
-      <div class="map-search-bar">
-        <span>🔍</span>
-        <input type="text" id="input-address-search" placeholder="Rechercher une adresse (ex: 27 Rue Paul Chenavard)...">
-      </div>
+        <!-- Floating Map Style Switcher -->
+        <div class="map-floating-panel">
+          <button class="map-style-btn active" data-style="dpe">🎨 Classe DPE</button>
+          <button class="map-style-btn" data-style="overheating">☀️ Surchauffe Été</button>
+          <button class="map-style-btn" data-style="concentration">🏢 Concentration Foncière</button>
+          <button class="map-style-btn" data-style="fieldwork" id="btn-style-fieldwork" style="display: none;">📋 Enquête Terrain</button>
+        </div>
 
-      <!-- Map Legend -->
-      <div class="map-legend" id="map-legend">
-        <div class="legend-title" id="legend-title">Diagnostic Énergétique (DPE)</div>
-        <div class="legend-items" id="legend-items">
-          <!-- Dynamically populated -->
+        <!-- Address Search Bar -->
+        <div class="map-search-bar">
+          <span>🔍</span>
+          <input type="text" id="input-address-search" placeholder="Rechercher une adresse (ex: 27 Rue Paul Chenavard)...">
+        </div>
+
+        <!-- Map Legend -->
+        <div class="map-legend" id="map-legend">
+          <div class="legend-title" id="legend-title">Diagnostic Énergétique (DPE)</div>
+          <div class="legend-items" id="legend-items">
+            <!-- Dynamically populated -->
+          </div>
         </div>
       </div>
+
+      <!-- TAB 2: 📊 BÂTIMENTS -->
+      <div class="tab-pane content-pane" id="pane-buildings">
+        <!-- Search bar & Mode -->
+        <div style="display: flex; gap: 0.75rem; align-items: center;">
+          <input type="text" id="table-search-query" placeholder="🔎 Rechercher par adresse, ID BDNB, bailleur, SIREN, copropriété, facteur de surchauffe..." style="flex: 1; padding: 0.6rem 0.85rem; font-size: 0.85rem;">
+          <select id="table-search-mode" style="width: 220px; font-size: 0.82rem;">
+            <option value="filter">Filtrer les lignes</option>
+            <option value="highlight">Surligner les lignes</option>
+          </select>
+        </div>
+
+        <!-- Synthesis Count Header -->
+        <div class="tz-table-header">
+          <span>📊 <strong>Synthèse du tableau</strong> <span id="table-filter-note" style="color: var(--text-muted); font-size: 0.8rem;"></span></span>
+          <div class="tz-table-counts">
+            <span class="tz-count-badge">🏢 <b id="tbl-kpi-bats">0</b> bâtiments</span>
+            <span class="tz-count-badge">🚪 <b id="tbl-kpi-logs">0</b> logements</span>
+            <span class="tz-count-badge">❄️ <b id="tbl-kpi-fg">0</b> log. DPE F/G</span>
+            <span class="tz-count-badge">☀️ <b id="tbl-kpi-overheat">0</b> surchauffe</span>
+            <span class="tz-count-badge">🏛️ <b id="tbl-kpi-pm">0</b> avec bailleur PM</span>
+          </div>
+        </div>
+
+        <!-- Scrollable Table -->
+        <div class="data-table-container">
+          <table class="tz-data-table" id="table-buildings">
+            <thead>
+              <tr>
+                <th>ID BDNB</th>
+                <th>Adresse</th>
+                <th>CP</th>
+                <th>Logements</th>
+                <th>DPE</th>
+                <th>% F/G</th>
+                <th>Risque Été</th>
+                <th>Score (/100)</th>
+                <th>Facteurs</th>
+                <th>Isolation Toit</th>
+                <th>Volets</th>
+                <th>Principal Bailleur</th>
+                <th>SIREN</th>
+                <th>Conc. %</th>
+                <th>Patrimoine Local</th>
+                <th>Loyer Max T2</th>
+                <th>Parc Social</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="table-buildings-body">
+              <!-- Populated via app.js -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- TAB 3: 🔍 BAILLEURS & SCI -->
+      <div class="tab-pane content-pane" id="pane-landlords">
+        <div class="tz-table-header">
+          <span>🏛️ <strong>Top Propriétaires Personnes Morales dans la sélection active</strong></span>
+          <span style="font-size: 0.8rem; color: var(--text-muted);">Classés par nombre de locaux détenus</span>
+        </div>
+
+        <!-- Top Landlords Table -->
+        <div class="data-table-container" style="max-height: 280px;">
+          <table class="tz-data-table" id="table-top-landlords">
+            <thead>
+              <tr>
+                <th>Dénomination</th>
+                <th>Forme Juridique</th>
+                <th>SIREN</th>
+                <th>Bâtiments (sélection)</th>
+                <th>Locaux (sélection)</th>
+                <th>Patrimoine Total (locaux)</th>
+                <th>Commune du Siège</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="table-landlords-body">
+              <!-- Populated via app.js -->
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Landlord Inspection & SCI Lookup Card -->
+        <div class="card" style="margin-top: 1rem;">
+          <div class="card-title"><span>🔍</span> Inspecter les Dirigeants d'un Bailleur (API Annuaire des Entreprises / RNE)</div>
+          
+          <div style="display: flex; gap: 0.75rem; margin-bottom: 1rem;">
+            <select id="select-landlord-to-inspect" style="flex: 2; font-size: 0.82rem;">
+              <option value="">Sélectionner un bailleur du tableau ci-dessus...</option>
+            </select>
+            <input type="text" id="input-manual-siren" placeholder="Ou saisir un SIREN / nom (ex: 908120595)..." style="flex: 1; font-size: 0.82rem;">
+            <button class="btn btn-primary btn-sm" id="btn-inspect-landlord" style="white-space: nowrap;">
+              🔎 Interroger l'API
+            </button>
+          </div>
+
+          <!-- Live API Lookup Results -->
+          <div id="landlord-api-results" style="display: none; background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 1rem;">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+              <div id="landlord-company-info"></div>
+              <div id="landlord-dirigeants-info"></div>
+            </div>
+            
+            <div style="margin-top: 1rem;">
+              <strong style="font-size: 0.82rem; color: var(--text-secondary); display: block; margin-bottom: 0.5rem;">
+                🏢 Immeubles détenus par cette entité sur le territoire actif :
+              </strong>
+              <div class="data-table-container" style="max-height: 200px;">
+                <table class="tz-data-table" id="table-landlord-buildings">
+                  <thead>
+                    <tr>
+                      <th>Adresse</th>
+                      <th>CP</th>
+                      <th>Logements</th>
+                      <th>DPE</th>
+                      <th>% F/G</th>
+                      <th>Risque Surchauffe</th>
+                      <th>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody id="table-landlord-buildings-body"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB 4: 📦 EXPORT ZIP -->
+      <div class="tab-pane content-pane" id="pane-export">
+        <div class="card" style="max-width: 800px; margin: 0 auto; width: 100%;">
+          <div class="card-title" style="font-size: 1.1rem; color: var(--accent-primary);">
+            <span>📦</span> Export instantané de votre sélection (<span id="export-tab-count">0</span> bâtiments)
+          </div>
+
+          <p style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.6; margin-bottom: 1.5rem;">
+            Générez une archive ZIP complète ou téléchargez individuellement les fichiers prêts pour le militantisme de terrain, la cartographie externe ou le croisement statistique :
+          </p>
+
+          <ul style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.8; margin-left: 1.5rem; margin-bottom: 1.5rem;">
+            <li><code>tableur_batiments_groupe.xlsx</code> — <strong>1 ligne par bâtiment</strong> (DPE, score et facteurs de surchauffe d'été, îlot de chaleur, encadrement des loyers, concentration propriétaire, colonnes de terrain).</li>
+            <li><code>tableur_proprietaires_detaille.xlsx</code> — <strong>1 ligne par couple (bâtiment × propriétaire moral)</strong> avec SIREN, forme juridique, commune du siège et locaux détenus.</li>
+            <li><code>carte_batiments.geojson</code> — Couche géographique prête à être importée dans <strong>Framacarte / uMap</strong> ou <strong>QGIS</strong>.</li>
+          </ul>
+
+          <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
+            <button class="btn btn-primary" id="btn-export-full-zip" style="padding: 0.65rem 1.25rem; font-size: 0.95rem;">
+              <span>⚡</span> Télécharger l'archive complète (export_tezeloma.zip)
+            </button>
+            <button class="btn btn-secondary" id="btn-export-tab-bldgs">
+              <span>📊</span> Bâtiments (.xlsx)
+            </button>
+            <button class="btn btn-secondary" id="btn-export-tab-owners">
+              <span>🏢</span> Bailleurs (.xlsx)
+            </button>
+            <button class="btn btn-secondary" id="btn-export-tab-geojson">
+              <span>🗺️</span> Couche GeoJSON
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB 5: 📚 SOURCES DE DONNÉES -->
+      <div class="tab-pane content-pane" id="pane-sources">
+        <div class="tz-tag-legend">
+          <strong>🏷️ Étiquettes du mode de récupération :</strong>
+          <span class="tz-tag" title="Script local DuckDB ETL">⚙️ Build ETL</span>
+          <span class="tz-tag" title="Format colonne ultra-compact">🗄️ GeoParquet</span>
+          <span class="tz-tag" title="Tableaux bruts Open Data de l'État">📦 CSV Open Data</span>
+          <span class="tz-tag" title="Couche spatiale SIG par GPS">🗺️ WFS / Jointure</span>
+          <span class="tz-tag" title="Interrogation en direct sans stockage lourd">⚡ API REST</span>
+          <span class="tz-tag" title="Tableur de relevés importé">📋 Tableur terrain</span>
+        </div>
+
+        <!-- France Section -->
+        <details class="tz-geo-section" open>
+          <summary>
+            <span>🇫🇷 Échelle Nationale — France entière <small style="font-weight:400; color: var(--text-muted);">(Sources nationales sans découpage)</small></span>
+            <span class="accordion-chevron">▶</span>
+          </summary>
+          <div class="tz-src-grid-3">
+            <div class="tz-src-card">
+              <div class="tz-src-card-title">🔍 Annuaire & Dirigeants d'Entreprises / SCI (RNE & INSEE Sirene)</div>
+              <div><span class="tz-tag">⚡ API REST</span></div>
+              <div class="tz-src-meta"><b>Producteur :</b> DINUM / INSEE / INPI (<code>data.gouv.fr</code>)</div>
+              <div class="tz-src-meta"><b>Où on la récupère :</b> <code>GET https://recherche-entreprises.api.gouv.fr/search?q={SIREN}</code></div>
+              <div class="tz-src-meta"><b>Champs extraits :</b> <code>nom_complet</code>, <code>siren</code>, <code>siege.adresse</code>, <code>dirigeants</code></div>
+              <div class="tz-src-meta"><b>Usage :</b> Interrogation en direct dans l'onglet Bailleurs & SCI pour lever l'anonymat des gérants partout en France.</div>
+            </div>
+            <div class="tz-src-card">
+              <div class="tz-src-card-title">🏛️ Base de Données Nationale des Bâtiments (BDNB Open Data)</div>
+              <div><span class="tz-tag">📦 CSV Open Data</span> <span class="tz-tag">⚙️ Build ETL</span> <span class="tz-tag">🗄️ GeoParquet</span></div>
+              <div class="tz-src-meta"><b>Producteurs consolidés :</b> IGN (BD TOPO), ADEME (DPE), DGFiP (MAJIC), BAN, ANAH, RPLS, ANCT.</div>
+              <div class="tz-src-meta"><b>Producteur :</b> CSTB (Centre Scientifique et Technique du Bâtiment)</div>
+              <div class="tz-src-meta"><b>Usage :</b> Socle de tous les polygones, logements, copropriétés et propriétaires personnes morales.</div>
+            </div>
+          </div>
+        </details>
+
+        <!-- Dept 69 Section -->
+        <details class="tz-geo-section" open>
+          <summary>
+            <span>🦁 Département du Rhône (69) & Métropole de Lyon</span>
+            <span class="accordion-chevron">▶</span>
+          </summary>
+          <div class="tz-src-grid-3">
+            <div class="tz-src-card" style="border-left: 3px solid #d97706;">
+              <div class="tz-src-card-title">☀️ Îlots de Chaleur Urbains (ICU / LCZ)</div>
+              <div><span class="tz-tag">🗺️ WFS / Jointure</span> <span class="tz-tag">🗄️ GeoParquet</span></div>
+              <div class="tz-src-meta"><b>Producteur :</b> Métropole de Lyon (<b>Data Grand Lyon</b>)</div>
+              <div class="tz-src-meta"><b>Source :</b> WFS <code>metropole-de-lyon:ilots-de-chaleur-urbains</code> (29 657 polygones)</div>
+              <div class="tz-src-meta"><b>Usage :</b> Croisement spatial GPS sur centroïde ; bonus exposition nocturne dans Score Surchauffe.</div>
+            </div>
+            <div class="tz-src-card" style="border-left: 3px solid #d97706;">
+              <div class="tz-src-card-title">💶 Encadrement des Loyers (2025-2026)</div>
+              <div><span class="tz-tag">🗺️ WFS / Jointure</span> <span class="tz-tag">🗄️ GeoParquet</span></div>
+              <div class="tz-src-meta"><b>Producteur :</b> Préfecture du Rhône / Data Grand Lyon</div>
+              <div class="tz-src-meta"><b>Source :</b> WFS <code>car_care.carencadrmtloyer_2025_2026</code> (233 IRIS)</div>
+              <div class="tz-src-meta"><b>Usage :</b> Calcul automatique du loyer plafond légal (€/m²) pour Lyon (1er–9e) et Villeurbanne.</div>
+            </div>
+            <div class="tz-src-card" style="border-left: 3px solid #d97706;">
+              <div class="tz-src-card-title">🏢 Bailleurs Personnes Morales & MAJIC (69)</div>
+              <div><span class="tz-tag">📦 CSV Open Data</span> <span class="tz-tag">🗄️ GeoParquet</span></div>
+              <div class="tz-src-meta"><b>Tables BDNB :</b> <code>rel_batiment_groupe_proprietaire</code> + <code>proprietaire</code></div>
+              <div class="tz-src-meta"><b>Usage :</b> Mesure du patrimoine total des bailleurs sur l'ensemble du Rhône.</div>
+            </div>
+          </div>
+        </details>
+
+        <!-- Dept 38 Section -->
+        <details class="tz-geo-section" open>
+          <summary>
+            <span>⛰️ Département de l'Isère (38) & Grenoble Alpes Métropole</span>
+            <span class="accordion-chevron">▶</span>
+          </summary>
+          <div class="tz-src-grid-3">
+            <div class="tz-src-card" style="border-left: 3px solid #059669;">
+              <div class="tz-src-card-title">☀️ Local Climate Zones Cerema (Grenoble)</div>
+              <div><span class="tz-tag">🗺️ SIG / Shapefile</span> <span class="tz-tag">🗄️ GeoParquet</span></div>
+              <div class="tz-src-meta"><b>Producteur :</b> Cerema (<code>data.cerema.fr</code>)</div>
+              <div class="tz-src-meta"><b>Fichier :</b> <code>LCZ_SPOT_2022_Grenoble.shp</code> (Cartographie LCZ Spot 2022)</div>
+              <div class="tz-src-meta"><b>Usage :</b> Typologie urbaine et surchauffe estivale sur Grenoble et les communes périphériques.</div>
+            </div>
+            <div class="tz-src-card" style="border-left: 3px solid #059669;">
+              <div class="tz-src-card-title">💶 Encadrement des Loyers Grenoble (OLL 3800)</div>
+              <div><span class="tz-tag">🗺️ SIG KML / CSV</span> <span class="tz-tag">🗄️ GeoParquet</span></div>
+              <div class="tz-src-meta"><b>Producteur :</b> Observatoire Local des Loyers / DDT Isère</div>
+              <div class="tz-src-meta"><b>Source :</b> <code>L3800_zone_cal_2024_1.kml</code> + <code>Base_OP_2024_L3800.csv</code></div>
+              <div class="tz-src-meta"><b>Usage :</b> Zonage des loyers de référence sur Grenoble Métropole.</div>
+            </div>
+          </div>
+        </details>
+      </div>
+
+      <!-- TAB 6: 🔭 PISTES DE DONNÉES -->
+      <div class="tab-pane content-pane" id="pane-potential">
+        <details class="tz-geo-section" open>
+          <summary>
+            <span>🗺️ 1. Villes et Métropoles où répliquer TeZeLoMa</span>
+            <span class="accordion-chevron">▶</span>
+          </summary>
+          <div class="tz-src-grid-3">
+            <div class="tz-src-card" style="border-left: 3px solid #059669;">
+              <div class="tz-src-card-title">🦁 Reste de la Métropole de Lyon (69)</div>
+              <div class="tz-src-meta">Vénissieux, Vaulx-en-Velin, Bron, Saint-Priest, Caluire, Oullins... Déjà présents dans l'archive <code>dep69_csv.zip</code> et couverts par le WFS Îlots de Chaleur !</div>
+            </div>
+            <div class="tz-src-card" style="border-left: 3px solid #059669; background: rgba(5, 150, 105, 0.08);">
+              <div class="tz-src-card-title">⛰️ Grenoble Alpes Métropole (38) — ✅ ACTIF</div>
+              <div class="tz-src-meta">Intégré dans ce prototype (31 610 bâtiments / 23 183 propriétaires moraux) avec LCZ Cerema et encadrement des loyers.</div>
+            </div>
+            <div class="tz-src-card" style="border-left: 3px solid #2563eb;">
+              <div class="tz-src-card-title">🗼 Paris (75) & Seine-Saint-Denis (93)</div>
+              <div class="tz-src-meta">BDNB 75/93 + Encadrement DRIHL + Cartographie ICU de l'APUR et de l'Institut Paris Région.</div>
+            </div>
+            <div class="tz-src-card" style="border-left: 3px solid #2563eb;">
+              <div class="tz-src-card-title">🧱 Lille & Métropole Européenne (59)</div>
+              <div class="tz-src-meta">BDNB 59 (Lille, Roubaix, Tourcoing) + Encadrement des loyers MEL + Carte LCZ open data.</div>
+            </div>
+            <div class="tz-src-card" style="border-left: 3px solid #2563eb;">
+              <div class="tz-src-card-title">🍷 Bordeaux (33) & Montpellier (34)</div>
+              <div class="tz-src-meta">BDNB 33/34 + Zonages loyers Bordeaux Métropole & Montpellier 3M + Thermographies a'urba.</div>
+            </div>
+            <div class="tz-src-card" style="border-left: 3px solid #2563eb;">
+              <div class="tz-src-card-title">🌊 Pays Basque (64), Marseille (13), Toulouse (31)</div>
+              <div class="tz-src-meta">Encadrement actif au Pays Basque (24 communes) + Cartographie nationale LCZ Cerema (85 aires urbaines).</div>
+            </div>
+          </div>
+        </details>
+
+        <details class="tz-geo-section" open>
+          <summary>
+            <span>💡 2. Nouveaux jeux de données à croiser pour les enquêtes</span>
+            <span class="accordion-chevron">▶</span>
+          </summary>
+          <div class="tz-src-grid-3">
+            <div class="tz-src-card" style="border-top: 3px solid #dc2626;">
+              <div class="tz-src-card-title">🏖️ 1. Meublés Touristiques (Airbnb) & Fuite des Passoires G</div>
+              <div class="tz-src-meta">InsideAirbnb + Registre des numéros d'enregistrement pour démasquer les multipropriétaires qui basculent leurs passoires interdites à la location en meublés touristiques.</div>
+            </div>
+            <div class="tz-src-card" style="border-top: 3px solid #d97706;">
+              <div class="tz-src-card-title">🏚️ 2. Logements Vacants Longue Durée (Base LOVAC) & Péril</div>
+              <div class="tz-src-meta">Base LOVAC (DGFiP / Cerema) + Arrêtés de péril pour repérer la rétention spéculative et le cumul d'insalubrité.</div>
+            </div>
+            <div class="tz-src-card" style="border-top: 3px solid #7c3aed;">
+              <div class="tz-src-card-title">💶 3. Prix d'Achat & Spéculation Immobilière (DVF / DVF+)</div>
+              <div class="tz-src-meta">Ventes immobilières DGFiP depuis 2014 pour savoir quand et à quel prix une foncière a racheté un immeuble de passoires F/G.</div>
+            </div>
+            <div class="tz-src-card" style="border-top: 3px solid #0284c7;">
+              <div class="tz-src-card-title">🔊 4. Bruit Nocturne & Pollution de l'Air (Double peine d'été)</div>
+              <div class="tz-src-meta">Cartes de bruit stratégiques (> 65 dB la nuit) croisées avec la surchauffe : ouvrir les fenêtres la nuit devient impossible.</div>
+            </div>
+            <div class="tz-src-card" style="border-top: 3px solid #059669;">
+              <div class="tz-src-card-title">🌳 5. Refuges Climatiques & Carroyage Social INSEE (200m)</div>
+              <div class="tz-src-meta">Carreaux Filosofi (taux de pauvreté, personnes âgées isolées) pour prioriser le porte-à-porte militant en période de canicule.</div>
+            </div>
+            <div class="tz-src-card" style="border-top: 3px solid #4f46e5;">
+              <div class="tz-src-card-title">🕵️ 6. Bénéficiaires Effectifs (Holdings) & Aides ANAH</div>
+              <div class="tz-src-meta">Registre des bénéficiaires effectifs (INPI RBE) pour remonter les sociétés écrans et vérifier les aides perçues.</div>
+            </div>
+          </div>
+        </details>
+      </div>
+
     </main>
 
     <!-- Slide-in Building Inspector Drawer -->
