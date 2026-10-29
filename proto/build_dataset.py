@@ -1,21 +1,20 @@
 #!/usr/bin/env python3
 """
-TeZeLoMa Rebirth — Fast Standalone Data Pipeline (DuckDB + GeoParquet)
-======================================================================
-Replaces the legacy 663-line PostgreSQL N+1 script (`extraction_bdnb_lyon.py`,
-which ran ~350,000 SQL queries and output a 473 MB + 20 MB GeoPackage pair)
-with a standalone, <10-second DuckDB + GeoPandas pipeline reading directly from:
-  1. Official CSTB BDNB Open Data CSV archive (`open_data_millesime_2025-07-a_dep69_csv.zip`)
-  2. Official Data Grand Lyon Urban Heat Islands (`ilots_chaleur_urbains.geojson`)
-  3. Official Data Grand Lyon Rent Control Zones (`encadrement_loyers.geojson`)
+TeZeLoMa Rebirth — Multi-Department Fast Standalone Data Pipeline (DuckDB + GeoParquet)
+=======================================================================================
+Processes both:
+  - Département 69 (Rhône) : Lyon (1er-9e) + Villeurbanne
+      * CSTB BDNB 2025-07-a (`open_data_millesime_2025-07-a_dep69_csv.zip`)
+      * Data Grand Lyon Urban Heat Islands (`ilots_chaleur_urbains.geojson`)
+      * Data Grand Lyon Rent Control Zones (`encadrement_loyers.geojson`)
+  - Département 38 (Isère) : Grenoble + Principales communes de Grenoble-Alpes Métropole
+      * CSTB BDNB 2025-07-a (`open_data_millesime_2025-07-a_dep38_csv.zip`)
+      * Cerema Local Climate Zones / ICU Grenoble (`LCZ_SPOT_2022_Grenoble.shp`)
+      * Observatoire des Loyers / Zonage Encadrement Grenoble (`L3800_zone_cal_2024_1.kml` + `Base_OP_2024_L3800.csv`)
 
 Outputs to `data/processed/`:
-  1. `buildings.parquet`       (~10.5 MB) — 1 row per building (with EPSG:4326 geometry,
-                               DPE breakdown, ownership concentration, summer overheating
-                               indicators + ICU spatial join, rent control ceilings,
-                               copropriété/social housing/QPV/patrimoine flags)
-  2. `building_owners.parquet` (~1.1 MB)  — 1 row per (building, corporate owner) for
-                               instant owner search, SIREN lookup & detailed Excel export
+  1. `buildings.parquet`       — 1 row per building across Dept 69 & Dept 38
+  2. `building_owners.parquet` — 1 row per (building, corporate owner) across Dept 69 & Dept 38
 """
 
 import json
@@ -30,20 +29,51 @@ import pandas as pd
 from shapely import Point, wkt
 
 ROOT_DIR = Path(__file__).resolve().parent.parent
-ZIP_PATH = ROOT_DIR / "data" / "bdnb_2025_07_a_dep69" / "open_data_millesime_2025-07-a_dep69_csv.zip"
-EXTRACT_DIR = ROOT_DIR / "data" / "bdnb_2025_07_a_dep69" / "extracted_csv"
 GRANDLYON_DIR = ROOT_DIR / "data" / "grandlyon"
+GRENOBLE_DIR = ROOT_DIR / "data" / "grenoble"
 OUT_DIR = ROOT_DIR / "data" / "processed"
 
-# Default target scope: Lyon (1er-9e) + Villeurbanne
-TARGET_COMMUNES = (
-    "69381", "69382", "69383", "69384", "69385",
-    "69386", "69387", "69388", "69389", "69266",
-)
-TARGET_POSTAL_CODES = (
-    "69001", "69002", "69003", "69004", "69005",
-    "69006", "69007", "69008", "69009", "69100",
-)
+DEPT_CONFIGS = {
+    "69": {
+        "label": "69 — Rhône (Lyon & Villeurbanne)",
+        "zip_path": ROOT_DIR / "data" / "bdnb_2025_07_a_dep69" / "open_data_millesime_2025-07-a_dep69_csv.zip",
+        "extract_dir": ROOT_DIR / "data" / "bdnb_2025_07_a_dep69" / "extracted_csv",
+        "communes": (
+            "69381", "69382", "69383", "69384", "69385",
+            "69386", "69387", "69388", "69389", "69266",
+        ),
+        "postal_codes": (
+            "69001", "69002", "69003", "69004", "69005",
+            "69006", "69007", "69008", "69009", "69100",
+        ),
+    },
+    "38": {
+        "label": "38 — Isère (Grenoble & Métropole)",
+        "zip_path": ROOT_DIR / "data" / "bdnb_2025_07_a_dep38" / "open_data_millesime_2025-07-a_dep38_csv.zip",
+        "extract_dir": ROOT_DIR / "data" / "bdnb_2025_07_a_dep38" / "extracted_csv",
+        # Grenoble (38185) + key rent-controlled communes of Grenoble-Alpes Métropole
+        "communes": (
+            "38185",  # Grenoble (38000 / 38100)
+            "38421",  # Saint-Martin-d'Hères (38400)
+            "38151",  # Échirolles (38130)
+            "38169",  # Fontaine (38600)
+            "38229",  # Meylan (38240)
+            "38382",  # Saint-Égrève (38120)
+            "38485",  # Seyssinet-Pariset (38170)
+            "38474",  # Sassenage (38360)
+            "38317",  # Le Pont-de-Claix (38800)
+            "38158",  # Eybens (38320)
+            "38179",  # Gières (38610)
+            "38516",  # La Tronche (38700)
+            "38486",  # Seyssins (38180)
+        ),
+        "postal_codes": (
+            "38000", "38100", "38400", "38130", "38600",
+            "38240", "38120", "38170", "38360", "38800",
+            "38320", "38610", "38700", "38180",
+        ),
+    },
+}
 
 NEEDED_CSVS = [
     "csv/batiment_groupe.csv",
@@ -64,15 +94,35 @@ NEEDED_CSVS = [
     "csv/batiment_groupe_risques.csv",
 ]
 
+CEREMA_LCZ_LABELS = {
+    "1": "Ensemble très compact élevé",
+    "2": "Ensemble compact d'immeubles",
+    "3": "Ensemble compact bas",
+    "4": "Ensemble ouvert élevé",
+    "5": "Ensemble ouvert d'immeubles",
+    "6": "Ensemble ouvert bas (pavillonnaire)",
+    "7": "Bâti léger bas",
+    "8": "Grands bâtiments bas (activités/zones commerciales)",
+    "9": "Bâti très peu dense",
+    "10": "Zone industrielle lourde",
+    "A": "Espace densément boisé",
+    "B": "Arbres dispersés / parc",
+    "C": "Buissons / broussailles",
+    "D": "Végétation basse / prairies",
+    "E": "Roche ou sol nu minéral",
+    "F": "Sol nu ou sableux",
+    "G": "Eau (Isère / Drac)",
+}
 
-def extract_needed_csvs() -> None:
-    """Extract only the needed CSV tables from the BDNB zip if not already extracted."""
-    EXTRACT_DIR.mkdir(parents=True, exist_ok=True)
-    with zipfile.ZipFile(ZIP_PATH, "r") as z:
+
+def extract_needed_csvs(zip_path: Path, extract_dir: Path) -> None:
+    """Extract only the needed CSV tables from a BDNB zip if not already extracted."""
+    extract_dir.mkdir(parents=True, exist_ok=True)
+    with zipfile.ZipFile(zip_path, "r") as z:
         for member in NEEDED_CSVS:
-            target_file = EXTRACT_DIR / Path(member).name
+            target_file = extract_dir / Path(member).name
             if not target_file.exists():
-                print(f"  -> Extracting {member} ...")
+                print(f"  -> Extracting {member} from {zip_path.name} ...")
                 with z.open(member) as src, open(target_file, "wb") as dst:
                     dst.write(src.read())
 
@@ -80,7 +130,7 @@ def extract_needed_csvs() -> None:
 def enrich_with_grandlyon_spatial_layers(gdf_4326: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
     """
     Spatially join Grand Lyon Urban Heat Islands (ICU / LCZ) and Rent Control (Encadrement des loyers)
-    onto buildings using their centroids.
+    onto Dept 69 buildings using their centroids.
     """
     pts = gpd.GeoDataFrame(
         {"batiment_groupe_id": gdf_4326["batiment_groupe_id"].values},
@@ -88,10 +138,9 @@ def enrich_with_grandlyon_spatial_layers(gdf_4326: gpd.GeoDataFrame) -> gpd.GeoD
         crs="EPSG:4326",
     )
 
-    # 1. Urban Heat Islands (ICU / LCZ)
     icu_path = GRANDLYON_DIR / "ilots_chaleur_urbains.geojson"
     if icu_path.exists():
-        print("  -> Spatially joining Grand Lyon Urban Heat Islands (ICU / LCZ)...")
+        print("  -> [69] Spatially joining Grand Lyon Urban Heat Islands (ICU / LCZ)...")
         icu_gdf = gpd.read_file(icu_path)[
             ["lcz_lib", "lcz_code", "expo_jour", "expo_nuit", "vulnerabilite_jour", "vulnerabilite_nuit", "geometry"]
         ]
@@ -109,10 +158,9 @@ def enrich_with_grandlyon_spatial_layers(gdf_4326: gpd.GeoDataFrame) -> gpd.GeoD
         for c in ["icu_lcz_lib", "icu_lcz_code", "icu_expo_jour", "icu_expo_nuit", "icu_vulnerabilite_jour", "icu_vulnerabilite_nuit"]:
             gdf_4326[c] = None
 
-    # 2. Rent Control Zones (Encadrement des loyers 2025-2026)
     loyers_path = GRANDLYON_DIR / "encadrement_loyers.geojson"
     if loyers_path.exists():
-        print("  -> Spatially joining Grand Lyon Rent Control Zones (Encadrement des loyers 2025-2026)...")
+        print("  -> [69] Spatially joining Grand Lyon Rent Control Zones (Encadrement des loyers 2025-2026)...")
         loy_gdf = gpd.read_file(loyers_path)[["zonage", "valeurs", "geometry"]]
         joined_loy = gpd.sjoin(pts, loy_gdf, how="left", predicate="within").drop_duplicates(
             subset=["batiment_groupe_id"]
@@ -161,6 +209,172 @@ def enrich_with_grandlyon_spatial_layers(gdf_4326: gpd.GeoDataFrame) -> gpd.GeoD
         gdf_4326["loyer_ref_t2_non_meuble_m2"] = ref_t2_nm
         gdf_4326["loyer_max_t2_non_meuble_m2"] = max_t2_nm
         gdf_4326["loyer_max_t2_meuble_m2"] = max_t2_m
+    else:
+        gdf_4326["zone_encadrement_loyers"] = pd.Series([None] * len(gdf_4326), dtype="Int64")
+        gdf_4326["loyer_ref_t2_non_meuble_m2"] = np.nan
+        gdf_4326["loyer_max_t2_non_meuble_m2"] = np.nan
+        gdf_4326["loyer_max_t2_meuble_m2"] = np.nan
+
+    return gdf_4326
+
+
+def enrich_with_grenoble_spatial_layers(gdf_4326: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
+    """
+    Spatially join Cerema Local Climate Zones (`LCZ_SPOT_2022_Grenoble.shp`) and
+    Grenoble Rent Control / OLL Reference Zones (`L3800_zone_cal_2024_1.kml` + `Base_OP_2024_L3800.csv`)
+    onto Dept 38 buildings.
+    """
+    pts_4326 = gpd.GeoDataFrame(
+        {"batiment_groupe_id": gdf_4326["batiment_groupe_id"].values},
+        geometry=[Point(xy) for xy in zip(gdf_4326["lon"], gdf_4326["lat"])],
+        crs="EPSG:4326",
+    )
+
+    # 1. Cerema LCZ Grenoble (EPSG:2154)
+    lcz_shp = GRENOBLE_DIR / "LCZ_SPOT_2022_Grenoble.shp"
+    if lcz_shp.exists():
+        print("  -> [38] Spatially joining Cerema LCZ / Urban Heat Islands for Grenoble...")
+        pts_2154 = pts_4326.to_crs(epsg=2154)
+        minx, miny, maxx, maxy = pts_2154.total_bounds
+        lcz_gdf = gpd.read_file(
+            lcz_shp,
+            bbox=(minx - 500, miny - 500, maxx + 500, maxy + 500),
+        )[["lcz", "bur", "ver", "bsr", "geometry"]]
+        joined_lcz = gpd.sjoin(pts_2154, lcz_gdf, how="left", predicate="within").drop_duplicates(
+            subset=["batiment_groupe_id"]
+        )
+        lcz_map = joined_lcz.set_index("batiment_groupe_id")
+
+        lcz_codes = gdf_4326["batiment_groupe_id"].map(lcz_map["lcz"]).fillna("").astype(str).str.strip()
+        ver_vals = pd.to_numeric(gdf_4326["batiment_groupe_id"].map(lcz_map["ver"]), errors="coerce").fillna(50.0)
+
+        lcz_libs = [CEREMA_LCZ_LABELS.get(c, None) for c in lcz_codes]
+        expo_nuit = []
+        expo_jour = []
+        vuln_nuit = []
+        for c, ver in zip(lcz_codes, ver_vals):
+            if not c:
+                expo_nuit.append(None)
+                expo_jour.append(None)
+                vuln_nuit.append(None)
+            elif c in ("1", "2", "3", "8", "10"):
+                if ver < 25.0:
+                    expo_nuit.append("fort")
+                    expo_jour.append("fort")
+                    vuln_nuit.append("fort" if ver < 15.0 else "moyen")
+                else:
+                    expo_nuit.append("moyen")
+                    expo_jour.append("fort")
+                    vuln_nuit.append("moyen")
+            elif c in ("4", "5", "E"):
+                expo_nuit.append("moyen" if ver < 40.0 else "faible")
+                expo_jour.append("fort" if ver < 20.0 else "moyen")
+                vuln_nuit.append("moyen")
+            elif c in ("6", "7", "9", "F"):
+                expo_nuit.append("faible")
+                expo_jour.append("moyen" if ver < 35.0 else "faible")
+                vuln_nuit.append("faible")
+            else:
+                expo_nuit.append("effet rafraîchissant")
+                expo_jour.append("effet rafraîchissant")
+                vuln_nuit.append("faible")
+
+        gdf_4326["icu_lcz_code"] = [c if c else None for c in lcz_codes]
+        gdf_4326["icu_lcz_lib"] = lcz_libs
+        gdf_4326["icu_expo_jour"] = expo_jour
+        gdf_4326["icu_expo_nuit"] = expo_nuit
+        gdf_4326["icu_vulnerabilite_jour"] = expo_jour
+        gdf_4326["icu_vulnerabilite_nuit"] = vuln_nuit
+    else:
+        for c in ["icu_lcz_lib", "icu_lcz_code", "icu_expo_jour", "icu_expo_nuit", "icu_vulnerabilite_jour", "icu_vulnerabilite_nuit"]:
+            gdf_4326[c] = None
+
+    # 2. Grenoble Rent Control / OLL Reference Zones (L3800)
+    kml_path = GRENOBLE_DIR / "oll_3800" / "L3800_zone_cal_2024_1.kml"
+    csv_path = GRENOBLE_DIR / "oll_3800" / "Base_OP_2024_L3800.csv"
+    if kml_path.exists() and csv_path.exists():
+        print("  -> [38] Spatially joining Grenoble Rent Control / OLL Zones (L3800)...")
+        kml_gdf = gpd.read_file(kml_path)[["VAR4", "geometry"]]
+        joined_loy = gpd.sjoin(pts_4326, kml_gdf, how="left", predicate="within").drop_duplicates(
+            subset=["batiment_groupe_id"]
+        )
+        loy_map = joined_loy.set_index("batiment_groupe_id")
+        zone_codes = gdf_4326["batiment_groupe_id"].map(loy_map["VAR4"]).fillna("").astype(str)
+        # Extract zone number 1..6 from "L3800.1.01".."L3800.1.06"
+        zone_nums = [
+            int(zc.split(".")[-1]) if zc.startswith("L3800.") and zc.split(".")[-1].isdigit() else None
+            for zc in zone_codes
+        ]
+        gdf_4326["zone_encadrement_loyers"] = pd.Series(zone_nums, dtype="Int64")
+
+        # Load reference rent lookup table from Base_OP_2024_L3800.csv
+        oll_df = pd.read_csv(csv_path, sep=";", encoding="latin1")
+        oll_t2 = oll_df[
+            oll_df["Zone_calcul"].notna()
+            & oll_df["Zone_complementaire"].isna()
+            & oll_df["anciennete_locataire_local"].isna()
+            & oll_df["anciennete_locataire_homogene"].isna()
+            & (oll_df["nombre_pieces_homogene"] == "Appart 2P")
+            & oll_df["loyer_median"].notna()
+        ].copy()
+        oll_t2["loyer_num"] = (
+            oll_t2["loyer_median"].astype(str).str.replace(",", ".", regex=False).astype(float)
+        )
+
+        # Build lookup {(zone_code, epoque_key): loyer_ref} and fallback {zone_code: loyer_ref}
+        zone_fallback = {}
+        zone_epoque_lookup = {}
+        for _, r in oll_t2.iterrows():
+            zc = str(r["Zone_calcul"]).strip()
+            ep = r["epoque_construction_homogene"]
+            val = float(r["loyer_num"])
+            if pd.isna(ep) or str(ep).strip() == "":
+                zone_fallback[zc] = val
+            else:
+                zone_epoque_lookup[(zc, str(ep).strip())] = val
+
+        annees = pd.to_numeric(gdf_4326["annee_construction"], errors="coerce")
+        ref_t2_nm = []
+        max_t2_nm = []
+        max_t2_m = []
+        for zc, annee in zip(zone_codes, annees):
+            if not zc or zc not in zone_fallback:
+                ref_t2_nm.append(np.nan)
+                max_t2_nm.append(np.nan)
+                max_t2_m.append(np.nan)
+                continue
+
+            if pd.isna(annee) or annee < 1946:
+                ep_key = "1. Avant 1946"
+            elif annee <= 1970:
+                ep_key = "2. Entre 1946-1970"
+            elif annee <= 1990:
+                ep_key = "3. Entre 1971-1990"
+            elif annee <= 2005:
+                ep_key = "4. Entre 1991-2005"
+            else:
+                ep_key = "5. Après 2005"
+
+            ref_val = zone_epoque_lookup.get((zc, ep_key), zone_fallback.get(zc, np.nan))
+            if pd.notna(ref_val):
+                maj_nm = round(ref_val * 1.20, 2)
+                maj_m = round(maj_nm * 1.12, 2)
+                ref_t2_nm.append(round(ref_val, 2))
+                max_t2_nm.append(maj_nm)
+                max_t2_m.append(maj_m)
+            else:
+                ref_t2_nm.append(np.nan)
+                max_t2_nm.append(np.nan)
+                max_t2_m.append(np.nan)
+
+        gdf_4326["loyer_ref_t2_non_meuble_m2"] = ref_t2_nm
+        gdf_4326["loyer_max_t2_non_meuble_m2"] = max_t2_nm
+        gdf_4326["loyer_max_t2_meuble_m2"] = max_t2_m
+    else:
+        gdf_4326["zone_encadrement_loyers"] = pd.Series([None] * len(gdf_4326), dtype="Int64")
+        gdf_4326["loyer_ref_t2_non_meuble_m2"] = np.nan
+        gdf_4326["loyer_max_t2_non_meuble_m2"] = np.nan
+        gdf_4326["loyer_max_t2_meuble_m2"] = np.nan
 
     return gdf_4326
 
@@ -168,7 +382,7 @@ def enrich_with_grandlyon_spatial_layers(gdf_4326: gpd.GeoDataFrame) -> gpd.GeoD
 def compute_overheating_metrics(df: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
     """
     Compute a transparent, explainable Summer Overheating Vulnerability Score (0-100)
-    combining building envelope defects (BDNB/DPE) AND Urban Heat Island exposure (Grand Lyon ICU).
+    combining building envelope defects (BDNB/DPE) AND Urban Heat Island exposure (ICU / LCZ).
     """
     scores = np.zeros(len(df), dtype=float)
     has_envelope_or_dpe = np.zeros(len(df), dtype=bool)
@@ -266,7 +480,7 @@ def compute_overheating_metrics(df: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
                 scores[i] += 8
                 factors_list[i].append(f"{pfg:.0f}% de logements DPE F/G")
 
-    # 8. Urban Heat Island (ICU Grand Lyon — Daytime & Nighttime exposure, up to +20 pts)
+    # 8. Urban Heat Island (ICU / Cerema LCZ — Daytime & Nighttime exposure, up to +20 pts)
     icu_j = df.get("icu_expo_jour", pd.Series([None] * len(df))).fillna("").astype(str).str.lower()
     icu_n = df.get("icu_expo_nuit", pd.Series([None] * len(df))).fillna("").astype(str).str.lower()
     icu_vn = df.get("icu_vulnerabilite_nuit", pd.Series([None] * len(df))).fillna("").astype(str).str.lower()
@@ -288,7 +502,6 @@ def compute_overheating_metrics(df: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
         scores[i] += min(icu_pts, 20)
 
     scores = np.clip(np.round(scores, 0), 0, 100)
-    # Assign score if we have either building envelope/DPE info OR high ICU exposure
     has_icu = (icu_j != "") | (icu_n != "")
     final_scores = [int(s) if (hd or hi) else None for s, hd, hi in zip(scores, has_envelope_or_dpe, has_icu)]
 
@@ -305,7 +518,7 @@ def compute_overheating_metrics(df: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
         else:
             risk_labels.append("Faible")
 
-    df["score_surchauffe_ete"] = pd.Series(final_scores, dtype="Int64")
+    df["score_surchauffe_ete"] = pd.Series(final_scores, dtype="Int64", index=df.index)
     df["risque_surchauffe_ete"] = risk_labels
     df["facteurs_surchauffe"] = [
         " • ".join(f) if f else "Aucun facteur majeur identifié"
@@ -314,20 +527,17 @@ def compute_overheating_metrics(df: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
     return df
 
 
-def main() -> None:
-    t0 = time.time()
-    print("1. Checking extracted BDNB CSV tables...")
-    extract_needed_csvs()
-    OUT_DIR.mkdir(parents=True, exist_ok=True)
+def process_department(dept_code: str, cfg: dict) -> tuple[gpd.GeoDataFrame, pd.DataFrame]:
+    """Run DuckDB extraction, geometry projection, spatial joins, and overheating scoring for one department."""
+    t_dep = time.time()
+    print(f"\n=== Processing Department {dept_code} ({cfg['label']}) ===")
+    extract_needed_csvs(cfg["zip_path"], cfg["extract_dir"])
 
-    print("2. Running DuckDB join & aggregation across 16 BDNB tables...")
     con = duckdb.connect(database=":memory:")
+    csv_dir = str(cfg["extract_dir"])
+    communes_sql = ", ".join(f"'{c}'" for c in cfg["communes"])
+    cp_sql = ", ".join(f"'{c}'" for c in cfg["postal_codes"])
 
-    csv_dir = str(EXTRACT_DIR)
-    communes_sql = ", ".join(f"'{c}'" for c in TARGET_COMMUNES)
-    cp_sql = ", ".join(f"'{c}'" for c in TARGET_POSTAL_CODES)
-
-    # Create filtered base buildings table for Lyon + Villeurbanne
     con.execute(f"""
         CREATE TABLE bg_base AS
         SELECT
@@ -341,7 +551,6 @@ def main() -> None:
         WHERE code_commune_insee IN ({communes_sql})
     """)
 
-    # Addresses
     con.execute(f"""
         CREATE TABLE bg_adr_raw AS
         SELECT
@@ -378,10 +587,10 @@ def main() -> None:
         GROUP BY batiment_groupe_id
     """)
 
-    # Corporate Owners table (1 row per building x corporate owner)
     con.execute(f"""
         CREATE TABLE building_owners AS
         SELECT
+            '{dept_code}' AS departement,
             r.batiment_groupe_id,
             r.personne_id,
             p.siren,
@@ -397,7 +606,6 @@ def main() -> None:
             ON r.personne_id = p.personne_id
     """)
 
-    # Deduplicate per (batiment_groupe_id, personne_id) for concentration calculation
     con.execute("""
         CREATE TABLE owners_per_building AS
         WITH dedup AS (
@@ -442,10 +650,10 @@ def main() -> None:
         GROUP BY d.batiment_groupe_id
     """)
 
-    # Join all building-level tables together
     con.execute(f"""
         CREATE TABLE buildings_joined AS
         SELECT
+            '{dept_code}' AS departement,
             b.batiment_groupe_id,
             b.geom_groupe,
             b.code_commune_insee,
@@ -455,16 +663,13 @@ def main() -> None:
             ba.adr,
             ba.cp,
             ba.nb_adresses,
-            -- FFO (Fichiers Fonciers)
             TRY_CAST(ffo.nb_log AS INTEGER) AS nb_log,
             TRY_CAST(ffo.nb_niveau AS INTEGER) AS nb_niveau,
             TRY_CAST(ffo.annee_construction AS INTEGER) AS annee_construction,
             ffo.usage_niveau_1_txt,
             ffo.mat_mur_txt,
             ffo.mat_toit_txt,
-            -- Synthese propriete usage
             syn.usage_principal_bdnb_open,
-            -- Representative DPE & Summer Overheating / Envelope columns
             UPPER(NULLIF(TRIM(dpe.classe_bilan_dpe), '')) AS dpe,
             UPPER(NULLIF(TRIM(dpe.classe_emission_ges), '')) AS classe_ges,
             TRY_CAST(dpe.conso_5_usages_ep_m2 AS DOUBLE) AS conso_ep_m2,
@@ -495,7 +700,6 @@ def main() -> None:
             dpe.type_plancher_haut_deperditif,
             TRY_CAST(dpe.u_plancher_haut_deperditif AS DOUBLE) AS u_plancher_haut_deperditif,
             dpe.classe_inertie,
-            -- Statistical DPE counts
             TRY_CAST(stat.nb_classe_bilan_dpe_a AS INTEGER) AS nb_dpe_a,
             TRY_CAST(stat.nb_classe_bilan_dpe_b AS INTEGER) AS nb_dpe_b,
             TRY_CAST(stat.nb_classe_bilan_dpe_c AS INTEGER) AS nb_dpe_c,
@@ -503,7 +707,6 @@ def main() -> None:
             TRY_CAST(stat.nb_classe_bilan_dpe_e AS INTEGER) AS nb_dpe_e,
             TRY_CAST(stat.nb_classe_bilan_dpe_f AS INTEGER) AS nb_dpe_f,
             TRY_CAST(stat.nb_classe_bilan_dpe_g AS INTEGER) AS nb_dpe_g,
-            -- Ownership aggregation
             own.formes_juridiques_list,
             own.denominations_list,
             COALESCE(own.concentration_prop_max_denomination, 'NC') AS concentration_prop_max_denomination,
@@ -514,24 +717,18 @@ def main() -> None:
             COALESCE(own.nb_proprietaires_open, 0) AS nb_proprietaires_open,
             COALESCE(own.max_patrimoine_majic_bailleur, 0) AS max_patrimoine_majic_bailleur,
             own.concentration_prop_max_num,
-            -- Copropriete (RNIC)
             rnc.numero_immat_principal AS immat_copro,
             rnc.l_nom_copro AS nom_copro,
             rnc.l_siret AS siret_copro,
             TRY_CAST(rnc.nb_lot_tot AS INTEGER) AS nb_lots_copro,
-            -- Social Housing (RPLS)
             CASE WHEN rpls.batiment_groupe_id IS NOT NULL THEN TRUE ELSE FALSE END AS est_logement_social_rpls,
             TRY_CAST(rpls.nb_log AS INTEGER) AS nb_log_sociaux_rpls,
             rpls.classe_ener_principale AS dpe_principal_rpls,
-            -- Priority Neighborhood (QPV)
             qpv.nom_quartier AS quartier_qpv,
-            -- Height (BDTOPO)
             TRY_CAST(topo.hauteur_mean AS DOUBLE) AS hauteur_moyenne_m,
-            -- Urbanisme / Heritage protection (PLU / ABF)
             urb.zone_plu_bati_patrimonial,
             urb.contrainte_urbanisme_ac1,
             urb.monument_historique,
-            -- Climate Risks (Clay / Radon)
             risq.alea_argile,
             risq.alea_radon
         FROM bg_base b
@@ -562,10 +759,8 @@ def main() -> None:
 
     df_buildings = con.execute("SELECT * FROM buildings_joined").df()
     df_owners = con.execute("SELECT * FROM building_owners").df()
-    print(f"   Joined {len(df_buildings):,} buildings and {len(df_owners):,} building-owner links in {time.time() - t0:.1f}s")
+    print(f"  -> [{dept_code}] Joined {len(df_buildings):,} buildings and {len(df_owners):,} owner links in {time.time() - t_dep:.1f}s")
 
-    # Compute DPE percentages (matching legacy fields + clean numeric columns)
-    print("3. Computing DPE shares & ownership concentration...")
     nb_log_num = pd.to_numeric(df_buildings["nb_log"], errors="coerce")
     valid_log = nb_log_num.notna() & (nb_log_num > 0)
 
@@ -582,7 +777,6 @@ def main() -> None:
         total_dpe_counted += np.where(cnt_col.notna(), cnt_col, 0.0)
         has_any_dpe |= cnt_col.notna()
 
-    # Passoires F+G combined share
     df_buildings["nb_dpe_fg"] = (
         pd.to_numeric(df_buildings["nb_dpe_f"], errors="coerce").fillna(0)
         + pd.to_numeric(df_buildings["nb_dpe_g"], errors="coerce").fillna(0)
@@ -603,7 +797,6 @@ def main() -> None:
         f"{v:.2f}" if pd.notna(v) else "NC" for v in pct_inconnu_num
     ]
 
-    # Normalize formes_juridiques list (if building has no corporate owner rows, it is ["personne_physique"])
     formes_clean = []
     for fj_list in df_buildings["formes_juridiques_list"]:
         if fj_list is None or (not isinstance(fj_list, (list, np.ndarray)) and pd.isna(fj_list)):
@@ -617,7 +810,6 @@ def main() -> None:
     df_buildings["formes_juridiques_ivec"] = formes_clean
     df_buildings["formes_juridiques"] = [str(x) for x in formes_clean]
 
-    # Concentration prop max (only when nb_log >= 1, matching legacy script)
     conc_num = np.where(
         valid_log & df_buildings["concentration_prop_max_num"].notna(),
         df_buildings["concentration_prop_max_num"],
@@ -628,8 +820,6 @@ def main() -> None:
         str(v) if pd.notna(v) else "NC" for v in conc_num
     ]
 
-    # Convert WKT EPSG:2154 geometry to EPSG:4326 and compute centroids
-    print("4. Reprojecting building geometries (EPSG:2154 -> EPSG:4326) and computing centroids...")
     geoms_2154 = [wkt.loads(g) if isinstance(g, str) and g else None for g in df_buildings["geom_groupe"]]
     gdf = gpd.GeoDataFrame(
         df_buildings.drop(columns=["geom_groupe", "formes_juridiques_list", "denominations_list"]),
@@ -642,28 +832,44 @@ def main() -> None:
     gdf_4326["lon"] = np.round(centroids_4326.x, 6)
     gdf_4326["lat"] = np.round(centroids_4326.y, 6)
 
-    # Spatially join Grand Lyon ICU + Rent Control
-    print("5. Enriching with Grand Lyon Urban Heat Islands (ICU) & Rent Control zones...")
-    gdf_4326 = enrich_with_grandlyon_spatial_layers(gdf_4326)
+    if dept_code == "69":
+        gdf_4326 = enrich_with_grandlyon_spatial_layers(gdf_4326)
+    elif dept_code == "38":
+        gdf_4326 = enrich_with_grenoble_spatial_layers(gdf_4326)
 
-    # Compute Summer Overheating score & factors (combining BDNB envelope + Grand Lyon ICU)
-    print("6. Computing composite Summer Overheating Vulnerability Scores...")
     gdf_4326 = compute_overheating_metrics(gdf_4326)
+    return gdf_4326, df_owners
 
-    # Save GeoParquet & Owners Parquet
+
+def main() -> None:
+    t0 = time.time()
+    OUT_DIR.mkdir(parents=True, exist_ok=True)
+
+    gdfs = []
+    owner_dfs = []
+    for dept_code, cfg in DEPT_CONFIGS.items():
+        if cfg["zip_path"].exists():
+            gdf_dep, df_own_dep = process_department(dept_code, cfg)
+            gdfs.append(gdf_dep)
+            owner_dfs.append(df_own_dep)
+        else:
+            print(f"WARNING: {cfg['zip_path']} not found, skipping dept {dept_code}")
+
+    gdf_all = gpd.GeoDataFrame(pd.concat(gdfs, ignore_index=True), crs="EPSG:4326")
+    df_owners_all = pd.concat(owner_dfs, ignore_index=True)
+
     buildings_parquet_path = OUT_DIR / "buildings.parquet"
     owners_parquet_path = OUT_DIR / "building_owners.parquet"
 
-    print("7. Writing compressed Parquet files...")
-    gdf_4326.to_parquet(buildings_parquet_path, compression="zstd", index=False)
-    df_owners.to_parquet(owners_parquet_path, compression="zstd", index=False)
+    print("\nWriting combined compressed Parquet files (Dept 69 + Dept 38)...")
+    gdf_all.to_parquet(buildings_parquet_path, compression="zstd", index=False)
+    df_owners_all.to_parquet(owners_parquet_path, compression="zstd", index=False)
 
     b_size_mb = buildings_parquet_path.stat().st_size / (1024 * 1024)
     o_size_mb = owners_parquet_path.stat().st_size / (1024 * 1024)
     print(f"Done in {time.time() - t0:.1f}s!")
-    print(f"  -> {buildings_parquet_path}: {b_size_mb:.2f} MB ({len(gdf_4326):,} buildings)")
-    print(f"  -> {owners_parquet_path}: {o_size_mb:.2f} MB ({len(df_owners):,} owner links)")
-    print(f"  -> Total size: {b_size_mb + o_size_mb:.2f} MB (down from 472.0 MB in legacy GPKGs = {100 * (1 - (b_size_mb + o_size_mb) / 472.0):.1f}% reduction!)")
+    print(f"  -> {buildings_parquet_path}: {b_size_mb:.2f} MB ({len(gdf_all):,} buildings total)")
+    print(f"  -> {owners_parquet_path}: {o_size_mb:.2f} MB ({len(df_owners_all):,} owner links total)")
 
 
 if __name__ == "__main__":

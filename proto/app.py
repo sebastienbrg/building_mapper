@@ -11,6 +11,7 @@ Run with:
 """
 
 from io import BytesIO
+import ipaddress
 from pathlib import Path
 import zipfile
 
@@ -35,6 +36,38 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
+
+def enforce_local_network_only() -> None:
+    """Reject any request that does not originate directly from localhost or RFC1918 private LAN."""
+    headers = getattr(st.context, "headers", None) or {}
+    # Block reverse-proxy / tunnel forwarding headers (ngrok, Cloudflare Tunnel, etc.)
+    for hdr in ("X-Forwarded-For", "X-Real-Ip", "Forwarded", "CF-Connecting-IP"):
+        val = headers.get(hdr) or headers.get(hdr.lower())
+        if val:
+            first_hop = val.split(",")[0].strip()
+            try:
+                ip_obj = ipaddress.ip_address(first_hop)
+                if not (ip_obj.is_loopback or ip_obj.is_private):
+                    st.error("🔒 Accès refusé : cette application est strictement limitée au réseau local (LAN).")
+                    st.stop()
+            except ValueError:
+                st.error("🔒 Accès refusé : en-tête de transfert externe non autorisé.")
+                st.stop()
+
+    client_ip = getattr(st.context, "ip_address", None)
+    if client_ip:
+        try:
+            ip_obj = ipaddress.ip_address(str(client_ip).strip())
+            if not (ip_obj.is_loopback or ip_obj.is_private):
+                st.error(f"🔒 Accès refusé ({client_ip}) : réservé au réseau local (192.168.x.x / localhost).")
+                st.stop()
+        except ValueError:
+            st.error("🔒 Accès refusé : adresse IP non reconnue.")
+            st.stop()
+
+
+enforce_local_network_only()
+
 # Compact full-bleed layout CSS: maximize map width & height, zero tab jump, clean sidebar spacing
 st.markdown(
     """
@@ -43,6 +76,9 @@ st.markdown(
             background: transparent !important;
             height: 1.2rem !important;
             min-height: 1.2rem !important;
+        }
+        [data-testid="stAppDeployButton"] {
+            display: none !important;
         }
         .block-container {
             padding-top: 0.45rem !important;
@@ -213,39 +249,169 @@ st.markdown(
             min-height: calc(100vh - 216px) !important;
             max-height: calc(100vh - 216px) !important;
         }
-        /* Data sources architecture cards */
-        .tz-arch-grid {
+        /* Geographical data sources hierarchy & non-technical tooltip tags */
+        .tz-tag-legend {
+            background: #f8fafc;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            padding: 0.45rem 0.75rem;
+            margin-bottom: 0.65rem;
+            font-size: 0.79rem;
+            color: #334155;
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 0.4rem 0.55rem;
+        }
+        .tz-tag {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.25rem;
+            padding: 0.16rem 0.52rem;
+            border-radius: 999px;
+            font-size: 0.73rem;
+            font-weight: 600;
+            cursor: help;
+            border: 1px solid transparent;
+            white-space: nowrap;
+        }
+        .tz-tag-etl { background: #ede9fe; color: #5b21b6; border-color: #c4b5fd; }
+        .tz-tag-parquet { background: #dbeafe; color: #1e40af; border-color: #93c5fd; }
+        .tz-tag-csv { background: #e0f2fe; color: #0369a1; border-color: #7dd3fc; }
+        .tz-tag-wfs { background: #fce7f3; color: #9d174d; border-color: #f9a8d4; }
+        .tz-tag-api { background: #dcfce7; color: #166534; border-color: #86efac; }
+        .tz-tag-xlsx { background: #fef3c7; color: #92400e; border-color: #fcd34d; }
+        .tz-tag::after {
+            content: attr(data-tooltip);
+            position: absolute;
+            left: 0;
+            top: calc(100% + 6px);
+            width: 310px;
+            white-space: normal;
+            background: #0f172a;
+            color: #f8fafc;
+            font-size: 0.75rem;
+            font-weight: 400;
+            line-height: 1.38;
+            padding: 0.5rem 0.65rem;
+            border-radius: 6px;
+            box-shadow: 0 10px 25px rgba(15, 23, 42, 0.28);
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+            transition: opacity 0.14s ease;
+            z-index: 9999;
+        }
+        .tz-tag:hover::after {
+            opacity: 1;
+            visibility: visible;
+        }
+        details.tz-geo-section {
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            background: #ffffff;
+            margin-bottom: 0.75rem;
+            overflow: visible;
+        }
+        details.tz-geo-section > summary {
+            list-style: none;
+            cursor: pointer;
+            padding: 0.55rem 0.85rem;
+            font-size: 0.92rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-radius: 7px;
+            user-select: none;
+        }
+        details.tz-geo-section > summary::-webkit-details-marker {
+            display: none;
+        }
+        details.tz-geo-france > summary {
+            background: #eff6ff;
+            color: #1e3a8a;
+            border-left: 5px solid #2563eb;
+        }
+        details.tz-geo-rhone > summary {
+            background: #ecfdf5;
+            color: #064e3b;
+            border-left: 5px solid #059669;
+        }
+        details.tz-geo-lyon {
+            margin: 0.65rem 0 0.2rem 1.25rem;
+            border: 2px solid #f59e0b;
+            border-left: 6px solid #d97706;
+            border-radius: 8px;
+            background: #fffbeb;
+        }
+        details.tz-geo-lyon > summary {
+            background: #fef3c7;
+            color: #78350f;
+            padding: 0.5rem 0.85rem;
+            font-size: 0.89rem;
+        }
+        .tz-geo-body {
+            padding: 0.65rem 0.85rem 0.75rem 0.85rem;
+            border-top: 1px solid #e2e8f0;
+        }
+        .tz-src-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 0.5rem;
+        }
+        .tz-src-grid-3 {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
-            gap: 0.75rem;
-            margin-bottom: 0.75rem;
+            gap: 0.5rem;
         }
-        .tz-arch-card {
+        .tz-src-card {
             background: #f8fafc;
             border: 1px solid #e2e8f0;
-            border-top: 3px solid #1b4332;
             border-radius: 6px;
-            padding: 0.65rem 0.8rem;
-            font-size: 0.82rem;
-        }
-        .tz-arch-card h4 {
-            margin: 0 0 0.35rem 0;
-            font-size: 0.9rem;
-            color: #1b4332;
-        }
-        .tz-badge {
-            display: inline-block;
-            padding: 1px 6px;
-            border-radius: 4px;
-            font-size: 0.72rem;
-            font-weight: 600;
-            background: #e2e8f0;
+            padding: 0.5rem 0.68rem;
+            font-size: 0.79rem;
             color: #1e293b;
-            margin-right: 4px;
         }
-        .tz-badge-live { background: #dcfce7; color: #166534; }
-        .tz-badge-static { background: #dbeafe; color: #1e40af; }
-        .tz-badge-field { background: #fef3c7; color: #92400e; }
+        .tz-src-card-title {
+            font-weight: 700;
+            font-size: 0.84rem;
+            color: #0f172a;
+            margin-bottom: 0.22rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.4rem;
+        }
+        .tz-src-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.28rem;
+            margin-bottom: 0.32rem;
+        }
+        .tz-src-meta {
+            font-size: 0.75rem;
+            color: #475569;
+            line-height: 1.35;
+            margin: 0.12rem 0;
+        }
+        .tz-src-meta code {
+            font-size: 0.72rem;
+            background: #e2e8f0;
+            padding: 1px 4px;
+            border-radius: 3px;
+            color: #0f172a;
+        }
+        .tz-geo-hint {
+            font-size: 0.76rem;
+            font-weight: 500;
+            color: #475569;
+            background: rgba(255,255,255,0.75);
+            padding: 0.12rem 0.5rem;
+            border-radius: 999px;
+            border: 1px solid rgba(148,163,184,0.4);
+        }
     </style>
     """,
     unsafe_allow_html=True,
@@ -281,13 +447,13 @@ ICU_COLORS = {
 # Cached Data Loaders & Helpers
 # ---------------------------------------------------------------------------
 @st.cache_data(show_spinner="Chargement de la base bâtiments optimisée (GeoParquet)...")
-def load_buildings() -> gpd.GeoDataFrame:
+def load_buildings(_mtime: float) -> gpd.GeoDataFrame:
     gdf = gpd.read_parquet(BUILDINGS_PARQUET)
     return gdf
 
 
 @st.cache_data(show_spinner="Chargement de la table des propriétaires (Parquet)...")
-def load_owners() -> pd.DataFrame:
+def load_owners(_mtime: float) -> pd.DataFrame:
     return pd.read_parquet(OWNERS_PARQUET)
 
 
@@ -393,8 +559,8 @@ def get_feature_color(props: dict, color_mode: str) -> str:
 # ---------------------------------------------------------------------------
 # Load Base Data
 # ---------------------------------------------------------------------------
-gdf_base = load_buildings()
-df_owners = load_owners()
+gdf_base = load_buildings(BUILDINGS_PARQUET.stat().st_mtime)
+df_owners = load_owners(OWNERS_PARQUET.stat().st_mtime)
 
 # ---------------------------------------------------------------------------
 # All-Collapsible Compact Sidebar
@@ -452,11 +618,37 @@ with st.sidebar:
 
     # 1. Core Building & DPE Filters
     with st.expander("🎯 1. Localisation & DPE", expanded=True):
-        all_cps = sorted(gdf_base["cp"].dropna().unique().astype(int).tolist())
+        dept_choice = st.selectbox(
+            "Département / Territoire",
+            [
+                "69 — Rhône (Lyon & Villeurbanne)",
+                "38 — Isère (Grenoble & Métropole)",
+                "Tous (69 + 38)",
+            ],
+            index=0,
+        )
+        if dept_choice.startswith("69"):
+            active_depts = ["69"]
+            default_cps = [69001, 69007]
+        elif dept_choice.startswith("38"):
+            active_depts = ["38"]
+            default_cps = [38000, 38100]
+        else:
+            active_depts = ["69", "38"]
+            default_cps = [69001, 69007, 38000, 38100]
+
+        dept_sub_cps = sorted(
+            gdf_base[gdf_base["departement"].isin(active_depts)]["cp"]
+            .dropna()
+            .unique()
+            .astype(int)
+            .tolist()
+        )
+        default_cps = [c for c in default_cps if c in dept_sub_cps]
         sel_cps = st.multiselect(
             "Code postal (OU)",
-            options=all_cps,
-            default=[69001, 69007],
+            options=dept_sub_cps,
+            default=default_cps,
         )
 
         dpe_options = ["A", "B", "C", "D", "E", "F", "G", "Non renseigné"]
@@ -599,7 +791,7 @@ with st.sidebar:
 # ---------------------------------------------------------------------------
 # Apply Vectorized Filtering (Instant — < 20ms)
 # ---------------------------------------------------------------------------
-mask = pd.Series(True, index=gdf_work.index)
+mask = gdf_work["departement"].isin(active_depts)
 
 if fieldwork_df is not None and fieldwork_mode.startswith("Restreint"):
     mask &= gdf_work["batiment_groupe_id"].isin(set(fieldwork_df["batiment_groupe_id"]))
@@ -694,6 +886,7 @@ gdf_filtered = gdf_work[mask].copy()
 # Compact Header & Responsive KPI Pill Strip (No Truncation)
 # ---------------------------------------------------------------------------
 total_bats = len(gdf_filtered)
+total_dept_bats = int(gdf_work["departement"].isin(active_depts).sum())
 total_logs = int(gdf_filtered["nb_log"].fillna(0).sum())
 total_fg_logs = int(gdf_filtered["nb_dpe_fg"].fillna(0).sum())
 crit_overheat = int((gdf_filtered["risque_surchauffe_ete"].isin(["Critique", "Élevé"])).sum())
@@ -706,7 +899,7 @@ st.markdown(
     <div class="tz-header-bar">
         <span class="tz-topbar-title">🏠 TeZeLoMa</span>
         <div class="tz-kpi-strip">
-            <div class="tz-kpi-pill">🏢 <b>{fmt_int(total_bats)}</b>/{fmt_int(len(gdf_work))} bât.</div>
+            <div class="tz-kpi-pill">🏢 <b>{fmt_int(total_bats)}</b>/{fmt_int(total_dept_bats)} bât.</div>
             <div class="tz-kpi-pill">🚪 <b>{fmt_int(total_logs)}</b> log.</div>
             <div class="tz-kpi-pill">❄️ <b>{fmt_int(total_fg_logs)}</b> F/G</div>
             <div class="tz-kpi-pill">☀️ <b>{fmt_int(crit_overheat)}</b> surchauffe</div>
@@ -721,13 +914,14 @@ st.markdown(
 # ---------------------------------------------------------------------------
 # Main Navigation Tabs (Short Labels + Fixed Height Panel -> Zero Layout Jump)
 # ---------------------------------------------------------------------------
-tab_map, tab_table, tab_landlords, tab_export, tab_sources = st.tabs(
+tab_map, tab_table, tab_landlords, tab_export, tab_sources, tab_potential = st.tabs(
     [
         "🗺️ Carte",
         "📊 Bâtiments",
         "🔍 Bailleurs & SCI",
         "📦 Export ZIP",
         "📚 Sources de données",
+        "🔭 Pistes de données",
     ]
 )
 
@@ -952,7 +1146,7 @@ with tab_table:
     filter_note = (
         f" — <b>{fmt_int(int(row_mask.sum()))} / {fmt_int(len(df_table))}</b> bât. pour « <b>{table_query}</b> »"
         if table_query
-        else f" (sur {fmt_int(len(gdf_work))} bât. Lyon & Villeurbanne)"
+        else f" (sur {fmt_int(total_dept_bats)} bât. dans le territoire sélectionné)"
     )
 
     st.markdown(
@@ -1119,122 +1313,350 @@ with tab_export:
 
 
 with tab_sources:
-    st.markdown(
-        """
-        <div class="tz-arch-grid">
-            <div class="tz-arch-card">
-                <h4>1️⃣ Sources Open Data Amont (Build ETL)</h4>
-                <p style="margin:0 0 6px 0;"><span class="tz-badge tz-badge-static">Archive S3 CSTB</span> <b>BDNB Millésime 2025-07-a (Dép. 69)</b><br/>
-                <code>open-data.s3.fr-par.scw.cloud/.../dep69_csv.zip</code><br/>
-                16 tables croisées (IGN BD TOPO, Fichiers Fonciers MAJIC, ADEME DPE, BAN, RNIC, RPLS, QPV, PLU).</p>
-                <p style="margin:0;"><span class="tz-badge tz-badge-static">WFS Grand Lyon</span> <b>Data Grand Lyon (OGC WFS 2.0)</b><br/>
-                <code>data.grandlyon.com/geoserver/metropole-de-lyon/ows</code><br/>
-                Couches spatiales <code>ilots-de-chaleur-urbains</code> (LCZ / ICU) & <code>carencadrmtloyer_2025_2026</code>.</p>
+    TAG_DEFS = {
+        "etl": (
+            "tz-tag-etl",
+            "⚙️ Fabriquer les archives de données (Build ETL)",
+            "Étape de préparation (script proto/build_dataset.py) qui télécharge les gros fichiers bruts officiels, les nettoie, les relie entre eux et fabrique nos fichiers locaux prêts à l'emploi en 5 secondes.",
+        ),
+        "parquet": (
+            "tz-tag-parquet",
+            "🗄️ Fichier de données local (GeoParquet)",
+            "Base de données ultra-compacte enregistrée dans un simple fichier sur l'ordinateur (buildings.parquet, 10 Mo). Remplace un serveur lourd (Postgres) et affiche les 32 378 bâtiments instantanément.",
+        ),
+        "csv": (
+            "tz-tag-csv",
+            "📦 Archive de tables brutes (CSV Open Data)",
+            "Grosse archive publique (505 Mo) publiée deux fois par an par l'État (CSTB), contenant 16 grands tableaux bruts avant leur nettoyage et recoupement.",
+        ),
+        "wfs": (
+            "tz-tag-wfs",
+            "🗺️ Carte croisée par GPS (WFS / Jointure spatiale)",
+            "Carte publique téléchargée sur Data Grand Lyon. Notre outil repère automatiquement dans quelle zone (îlot de chaleur ou zone de loyers) se situe chaque immeuble grâce à ses coordonnées GPS.",
+        ),
+        "api": (
+            "tz-tag-api",
+            "⚡ Interrogation en direct sur Internet (API REST)",
+            "Demande envoyée en temps réel aux serveurs officiels de l'État (data.gouv.fr) au moment où vous cliquez sur un bailleur, sans stocker les millions d'entreprises françaises sur l'ordinateur.",
+        ),
+        "xlsx": (
+            "tz-tag-xlsx",
+            "📋 Tableur militant fusionné (.xlsx)",
+            "Votre propre fichier Excel de suivi terrain importé dans la barre latérale. Ses colonnes sont rattachées automatiquement aux immeubles grâce à l'identifiant batiment_groupe_id.",
+        ),
+    }
+
+    def tag_html(*keys: str) -> str:
+        out = []
+        for k in keys:
+            cls, label, tip = TAG_DEFS[k]
+            out.append(f'<span class="tz-tag {cls}" data-tooltip="{tip}" title="{tip}">{label} ℹ️</span>')
+        return "".join(out)
+
+    sources_html = f"""
+<div class="tz-tag-legend">
+    <b>🏷️ Étiquettes du mode de récupération</b> <span style="color:#64748b;">(survolez une étiquette avec la souris pour lire l'explication non-technique) :</span>
+    {tag_html("etl", "parquet", "csv", "wfs", "api", "xlsx")}
+</div>
+
+<!-- 1. INDEPENDENT FRANCE-WIDE SECTION -->
+<details class="tz-geo-section tz-geo-france" open>
+    <summary>
+        <span>🇫🇷 Échelle Nationale — France entière <span style="font-weight:400;font-size:0.82rem;">(Section indépendante : sources nationales sans découpage départemental)</span></span>
+        <span class="tz-geo-hint">2 sources nationales ▼</span>
+    </summary>
+    <div class="tz-geo-body">
+        <div class="tz-src-grid">
+            <div class="tz-src-card">
+                <div class="tz-src-card-title">
+                    <span>🔍 Annuaire & Dirigeants d'Entreprises / SCI (RNE & INSEE Sirene)</span>
+                </div>
+                <div class="tz-src-tags">{tag_html("api")}</div>
+                <div class="tz-src-meta"><b>Producteur :</b> DINUM / INSEE / INPI (<code>data.gouv.fr</code> — couverture France entière)</div>
+                <div class="tz-src-meta"><b>Où on la récupère :</b> <code>GET https://recherche-entreprises.api.gouv.fr/search?q={{SIREN}}</code></div>
+                <div class="tz-src-meta"><b>Champs extraits :</b> <code>nom_complet</code>, <code>siren</code>, <code>siege.adresse</code>, <code>libelle_activite_principale</code>, <code>dirigeants</code> (<code>nom</code>, <code>prenoms</code>, <code>annee_de_naissance</code>, <code>qualite</code>)</div>
+                <div class="tz-src-meta"><b>Pourquoi à l'échelle France :</b> Une SCI ou foncière qui possède un immeuble à Lyon a souvent son siège social à Paris ou ailleurs en France. L'interrogation nationale en direct lève l'anonymat des gérants partout en France.</div>
             </div>
-            <div class="tz-arch-card">
-                <h4>2️⃣ Base Locale Optimisée (Static File DB)</h4>
-                <p style="margin:0 0 6px 0;"><span class="tz-badge tz-badge-static">GeoParquet ZSTD</span> <b>Pipeline DuckDB (<code>proto/build_dataset.py</code>)</b><br/>
-                Remplace les 350 000 requêtes Postgres + 472 Mo de GeoPackages Dropbox par 2 fichiers locaux générés en <b>5,3 s</b> :</p>
-                <ul style="margin:0;padding-left:1.1rem;">
-                    <li><code>data/processed/buildings.parquet</code> (<b>10,3 Mo</b> — 32 378 bâtiments, 112 colonnes + géométries EPSG:4326)</li>
-                    <li><code>data/processed/building_owners.parquet</code> (<b>1,1 Mo</b> — 47 785 liens bâtiment × propriétaire morale)</li>
-                </ul>
-            </div>
-            <div class="tz-arch-card">
-                <h4>3️⃣ Enrichissement Temps Réel & Terrain</h4>
-                <p style="margin:0 0 6px 0;"><span class="tz-badge tz-badge-live">API REST Live</span> <b>API Recherche d'Entreprises (data.gouv.fr)</b><br/>
-                <code>https://recherche-entreprises.api.gouv.fr/search?q={SIREN}</code><br/>
-                Interrogation à la volée (sans clé API) du RNE / INSEE pour identifier les gérants/dirigeants physiques des SCI.</p>
-                <p style="margin:0;"><span class="tz-badge tz-badge-field">Terrain (.xlsx / Parquet)</span> <b>Données Militantes & Relevés</b><br/>
-                Import <code>.xlsx</code> fusionné sur <code>batiment_groupe_id</code> + persistance locale dans <code>fieldwork_saved.parquet</code>.</p>
+            <div class="tz-src-card">
+                <div class="tz-src-card-title">
+                    <span>🏛️ Grands Référentiels Nationaux Amont (IGN, ADEME, DGFiP, ANAH, ANCT)</span>
+                </div>
+                <div class="tz-src-tags">{tag_html("csv", "etl")}</div>
+                <div class="tz-src-meta"><b>Producteurs nationaux :</b> IGN (BD TOPO), ADEME (Observatoire DPE), DGFiP (Fichiers Fonciers & MAJIC), BAN (Adresses), ANAH (RNIC Copropriétés), Ministère du Logement (RPLS), ANCT (Quartiers QPV).</div>
+                <div class="tz-src-meta"><b>Où on les récupère :</b> Consolidés à l'échelle nationale par le <b>CSTB</b> dans la <b>Base de Données Nationale des Bâtiments (BDNB)</b>, puis téléchargés sous forme d'archive départementale (voir <b>Département du Rhône 69</b> ci-dessous).</div>
             </div>
         </div>
-        """,
-        unsafe_allow_html=True,
-    )
+    </div>
+</details>
 
-    sources_catalog = pd.DataFrame(
-        [
-            {
-                "Couche / Domaine": "Bâtiments & Emprises",
-                "Type": "Static CSV -> GeoParquet",
-                "Source / Producteur": "CSTB BDNB 2025-07-a (IGN BD TOPO)",
-                "Table / Endpoint": "batiment_groupe.csv + batiment_groupe_bdtopo_bat.csv",
-                "Champs clés extraits": "batiment_groupe_id, geom_groupe (EPSG:4326), code_commune_insee, s_geom_groupe, hauteur_mean",
-                "Usage dans TeZeLoMa": "Polygones cartographiques, identifiant pivot unique, hauteur",
-            },
-            {
-                "Couche / Domaine": "Adresses Postales",
-                "Type": "Static CSV -> GeoParquet",
-                "Source / Producteur": "CSTB BDNB 2025-07-a (BAN)",
-                "Table / Endpoint": "rel_batiment_groupe_adresse.csv + adresse.csv",
-                "Champs clés extraits": "adr (numéro, voie), cp (69001..69009, 69100), nb_adresses",
-                "Usage dans TeZeLoMa": "Filtre par arrondissement/commune, recherche et affichage popup",
-            },
-            {
-                "Couche / Domaine": "Logements & Structure",
-                "Type": "Static CSV -> GeoParquet",
-                "Source / Producteur": "CSTB BDNB 2025-07-a (DGFiP Fichiers Fonciers)",
-                "Table / Endpoint": "batiment_groupe_ffo_bat.csv",
-                "Champs clés extraits": "nb_log, nb_niveau, annee_construction, mat_mur_txt, mat_toit_txt",
-                "Usage dans TeZeLoMa": "Taille de l'immeuble, époque de construction (pour encadrement des loyers)",
-            },
-            {
-                "Couche / Domaine": "DPE & Enveloppe Thermique (Hiver + Été)",
-                "Type": "Static CSV -> GeoParquet",
-                "Source / Producteur": "CSTB BDNB 2025-07-a (ADEME DPE)",
-                "Table / Endpoint": "batiment_groupe_dpe_representatif_logement.csv + dpe_statistique_logement.csv",
-                "Champs clés extraits": "classe_bilan_dpe (A-G), nb_dpe_a..g, type_isolation_plancher_haut, u_plancher_haut_deperditif, type_isolation_mur_exterieur, type_fermeture (volets), classe_inertie, traversant, surface_vitree_horizontal (Velux)",
-                "Usage dans TeZeLoMa": "Ciblage passoires F/G + Calcul du Score de Surchauffe d'Été (0-100)",
-            },
-            {
-                "Couche / Domaine": "Îlots de Chaleur Urbains (ICU / LCZ)",
-                "Type": "WFS GeoJSON -> Spatial Join",
-                "Source / Producteur": "Métropole de Lyon (Data Grand Lyon)",
-                "Table / Endpoint": "WFS metropole-de-lyon:ilots-de-chaleur-urbains (data/grandlyon/ilots_chaleur_urbains.geojson)",
-                "Champs clés extraits": "icu_lcz_lib, icu_expo_jour, icu_expo_nuit, icu_vulnerabilite_jour, icu_vulnerabilite_nuit",
-                "Usage dans TeZeLoMa": "Croisement spatial sur centroïde bâtiment + Bonus exposition nocturne dans Score Surchauffe",
-            },
-            {
-                "Couche / Domaine": "Encadrement des Loyers 2025-2026",
-                "Type": "WFS GeoJSON -> Spatial Join",
-                "Source / Producteur": "Métropole de Lyon (Data Grand Lyon)",
-                "Table / Endpoint": "WFS metropole-de-lyon:car_care.carencadrmtloyer_2025_2026 (data/grandlyon/encadrement_loyers.geojson)",
-                "Champs clés extraits": "zone_encadrement_loyers (1-4), loyer_ref_t2_non_meuble_m2, loyer_max_t2_non_meuble_m2, loyer_max_t2_meuble_m2",
-                "Usage dans TeZeLoMa": "Calcul automatique du loyer plafond légal (€/m²) selon zone IRIS et année de construction",
-            },
-            {
-                "Couche / Domaine": "Propriétaires Personnes Morales (MAJIC)",
-                "Type": "Static CSV -> Parquet Normalisé",
-                "Source / Producteur": "CSTB BDNB 2025-07-a (DGFiP MAJIC PM)",
-                "Table / Endpoint": "rel_batiment_groupe_proprietaire.csv + proprietaire.csv -> building_owners.parquet",
-                "Champs clés extraits": "personne_id, siren, forme_juridique (SCI, SA...), denomination, nb_locaux_open_dans_batiment, nb_locaux_open_dans_MAJIC",
-                "Usage dans TeZeLoMa": "Concentration par immeuble, multipropriétaires dans le Rhône, export détaillé",
-            },
-            {
-                "Couche / Domaine": "Dirigeants & Gérants de SCI",
-                "Type": "Live REST API (JSON)",
-                "Source / Producteur": "DINUM / INSEE Sirene / INPI RNE (data.gouv.fr)",
-                "Table / Endpoint": "GET https://recherche-entreprises.api.gouv.fr/search?q={SIREN}",
-                "Champs clés extraits": "nom_complet, siege.adresse, dirigeants (nom, prenoms, annee_de_naissance, qualite)",
-                "Usage dans TeZeLoMa": "Levée d'anonymat en direct dans l'onglet '🔍 Bailleurs & SCI'",
-            },
-            {
-                "Couche / Domaine": "Copropriétés, Parc Social, QPV & PLU",
-                "Type": "Static CSV -> GeoParquet",
-                "Source / Producteur": "CSTB BDNB 2025-07-a (ANAH RNIC, RPLS, ANCT, GPU PLU)",
-                "Table / Endpoint": "batiment_groupe_rnc.csv, _rpls.csv, _qpv.csv, _urbanisme.csv",
-                "Champs clés extraits": "immat_copro, nom_copro, est_logement_social_rpls, quartier_qpv, zone_plu_bati_patrimonial, monument_historique",
-                "Usage dans TeZeLoMa": "Filtres sociaux/QPV et vérification des contraintes patrimoniales ABF/PLU",
-            },
-            {
-                "Couche / Domaine": "Relevés & Enquêtes de Terrain",
-                "Type": "Upload Utilisateur -> Parquet Local",
-                "Source / Producteur": "Association TeZeLoMa / Militant·es",
-                "Table / Endpoint": "Import .xlsx (clé: batiment_groupe_id) -> data/processed/fieldwork_saved.parquet",
-                "Champs clés extraits": "Toutes colonnes personnalisées du tableur importé",
-                "Usage dans TeZeLoMa": "Fusion dynamique, génération automatique de filtres dédiés et export combiné",
-            },
-        ]
-    )
-    st.dataframe(sources_catalog, width="stretch", height=360, hide_index=True)
+<!-- 2. DEPARTMENTAL SECTION: RHONE (69) WITH NESTED LYON SUBSECTION -->
+<details class="tz-geo-section tz-geo-rhone" open>
+    <summary>
+        <span>🗺️ Département du Rhône (69) <span style="font-weight:400;font-size:0.82rem;">(Sources départementales + sous-section imbriquée Ville de Lyon)</span></span>
+        <span class="tz-geo-hint">6 tables départementales + 1 sous-section locale ▼</span>
+    </summary>
+    <div class="tz-geo-body">
+        <div style="margin-bottom:0.4rem;font-size:0.79rem;color:#064e3b;">
+            <b>📦 A. Sources à l'échelle de tout le Département du Rhône (69)</b> — Archive <code>open_data_millesime_2025-07-a_dep69_csv.zip</code> (CSTB BDNB, 505 Mo) compilée dans <code>buildings.parquet</code> (10,3 Mo) et <code>building_owners.parquet</code> (1,1 Mo) :
+        </div>
+        <div class="tz-src-grid-3">
+            <div class="tz-src-card">
+                <div class="tz-src-card-title">🏢 1. Bâtiments & Emprises GPS (69)</div>
+                <div class="tz-src-tags">{tag_html("csv", "etl", "parquet")}</div>
+                <div class="tz-src-meta"><b>Tables :</b> <code>batiment_groupe.csv</code> + <code>_bdtopo_bat.csv</code> (IGN)</div>
+                <div class="tz-src-meta"><b>Champs :</b> <code>batiment_groupe_id</code>, <code>geom_groupe</code>, <code>s_geom_groupe</code>, <code>hauteur_mean</code></div>
+                <div class="tz-src-meta"><b>Usage :</b> Polygones sur la carte et identifiant pivot unique.</div>
+            </div>
+            <div class="tz-src-card">
+                <div class="tz-src-card-title">🏛️ 2. Propriétaires & Patrimoine 69 (MAJIC)</div>
+                <div class="tz-src-tags">{tag_html("csv", "etl", "parquet")}</div>
+                <div class="tz-src-meta"><b>Tables :</b> <code>rel_batiment_groupe_proprietaire.csv</code> + <code>proprietaire.csv</code></div>
+                <div class="tz-src-meta"><b>Champs :</b> <code>siren</code>, <code>denomination</code>, <code>forme_juridique</code>, <code>nb_locaux_open_dans_MAJIC</code></div>
+                <div class="tz-src-meta"><b>Intérêt 69 :</b> Mesure le patrimoine total du bailleur sur <b>tout le Rhône</b> (même hors Lyon).</div>
+            </div>
+            <div class="tz-src-card">
+                <div class="tz-src-card-title">🌡️ 3. DPE Hiver & Enveloppe Été (ADEME 69)</div>
+                <div class="tz-src-tags">{tag_html("csv", "etl", "parquet")}</div>
+                <div class="tz-src-meta"><b>Tables :</b> <code>_dpe_representatif_logement.csv</code> + <code>_statistique_logement.csv</code></div>
+                <div class="tz-src-meta"><b>Champs :</b> <code>classe_bilan_dpe</code> (A–G), <code>type_isolation_plancher_haut</code>, <code>type_fermeture</code> (volets), <code>classe_inertie</code></div>
+                <div class="tz-src-meta"><b>Usage :</b> Passoires F/G + Score de Surchauffe d'Été (/100).</div>
+            </div>
+            <div class="tz-src-card">
+                <div class="tz-src-card-title">🚪 4. Logements & Époque (FFO 69)</div>
+                <div class="tz-src-tags">{tag_html("csv", "etl", "parquet")}</div>
+                <div class="tz-src-meta"><b>Table :</b> <code>batiment_groupe_ffo_bat.csv</code> (DGFiP Fichiers Fonciers)</div>
+                <div class="tz-src-meta"><b>Champs :</b> <code>nb_log</code>, <code>nb_niveau</code>, <code>annee_construction</code>, <code>mat_mur_txt</code>, <code>mat_toit_txt</code></div>
+                <div class="tz-src-meta"><b>Usage :</b> Taille d'immeuble et époque pour le calcul du loyer plafond.</div>
+            </div>
+            <div class="tz-src-card">
+                <div class="tz-src-card-title">📍 5. Adresses Postales (BAN 69)</div>
+                <div class="tz-src-tags">{tag_html("csv", "etl", "parquet")}</div>
+                <div class="tz-src-meta"><b>Tables :</b> <code>rel_batiment_groupe_adresse.csv</code> + <code>adresse.csv</code></div>
+                <div class="tz-src-meta"><b>Champs :</b> <code>adr</code> (numéro + voie), <code>cp</code> (code postal), <code>nb_adresses</code></div>
+                <div class="tz-src-meta"><b>Usage :</b> Recherche par rue et filtre par code postal.</div>
+            </div>
+            <div class="tz-src-card">
+                <div class="tz-src-card-title">⚖️ 6. Copros, Parc Social, QPV & PLU (69)</div>
+                <div class="tz-src-tags">{tag_html("csv", "etl", "parquet")}</div>
+                <div class="tz-src-meta"><b>Tables :</b> <code>_rnc.csv</code> (ANAH), <code>_rpls.csv</code>, <code>_qpv.csv</code> (ANCT), <code>_urbanisme.csv</code></div>
+                <div class="tz-src-meta"><b>Champs :</b> <code>nom_copro</code>, <code>est_logement_social_rpls</code>, <code>quartier_qpv</code>, <code>monument_historique</code></div>
+                <div class="tz-src-meta"><b>Usage :</b> Filtres QPV, parc social vs privé et contraintes ABF/PLU.</div>
+            </div>
+        </div>
+        <details class="tz-geo-section tz-geo-lyon">
+            <summary>
+                <span>↳ 🦁 B. Sous-section imbriquée : Lyon (& Villeurbanne — 69001 à 69009, 69100) <span style="font-weight:400;font-size:0.81rem;">— Cliquer pour déplier les sources spécifiques à Lyon</span></span>
+                <span class="tz-geo-hint">3 sources locales spécifiques ▼</span>
+            </summary>
+            <div class="tz-geo-body" style="background:#fffdf5;">
+                <div class="tz-src-grid-3">
+                    <div class="tz-src-card" style="border-left:3px solid #d97706;">
+                        <div class="tz-src-card-title">☀️ 1. Îlots de Chaleur Urbains (ICU / LCZ)</div>
+                        <div class="tz-src-tags">{tag_html("wfs", "etl", "parquet")}</div>
+                        <div class="tz-src-meta"><b>Producteur :</b> Métropole de Lyon (<b>Data Grand Lyon</b>)</div>
+                        <div class="tz-src-meta"><b>Source :</b> WFS <code>metropole-de-lyon:ilots-de-chaleur-urbains</code> &rarr; <code>ilots_chaleur_urbains.geojson</code> (29 657 zones)</div>
+                        <div class="tz-src-meta"><b>Champs :</b> <code>icu_lcz_lib</code>, <code>icu_expo_jour</code>, <code>icu_expo_nuit</code>, <code>icu_vulnerabilite_nuit</code></div>
+                        <div class="tz-src-meta"><b>Usage à Lyon :</b> Croisement GPS par rue ; ajoute jusqu'à +15 pts au Score Surchauffe la nuit.</div>
+                    </div>
+                    <div class="tz-src-card" style="border-left:3px solid #d97706;">
+                        <div class="tz-src-card-title">💶 2. Encadrement des Loyers (2025-2026)</div>
+                        <div class="tz-src-tags">{tag_html("wfs", "etl", "parquet")}</div>
+                        <div class="tz-src-meta"><b>Producteur :</b> Préfecture / Métropole (<b>Data Grand Lyon</b>)</div>
+                        <div class="tz-src-meta"><b>Source :</b> WFS <code>car_care.carencadrmtloyer_2025_2026</code> &rarr; <code>encadrement_loyers.geojson</code> (233 IRIS)</div>
+                        <div class="tz-src-meta"><b>Champs :</b> <code>zone_encadrement_loyers</code> (1–4), <code>loyer_max_t2_non_meuble_m2</code>, <code>loyer_max_t2_meuble_m2</code></div>
+                        <div class="tz-src-meta"><b>Spécifique Lyon :</b> Seules Lyon (1er–9e) & Villeurbanne ont l'encadrement légal des loyers dans le 69.</div>
+                    </div>
+                    <div class="tz-src-card" style="border-left:3px solid #d97706;">
+                        <div class="tz-src-card-title">📋 3. Périmètre & Relevés Militants (.xlsx)</div>
+                        <div class="tz-src-tags">{tag_html("xlsx", "parquet")}</div>
+                        <div class="tz-src-meta"><b>Producteur :</b> Association / Collectif <b>TeZeLoMa</b></div>
+                        <div class="tz-src-meta"><b>Fichiers :</b> Filtrage INSEE <code>69381..69389</code> & <code>69266</code> (32 378 bât.) + <code>fieldwork_saved.parquet</code></div>
+                        <div class="tz-src-meta"><b>Champs :</b> Toutes les colonnes personnalisées de votre tableur <code>.xlsx</code> (clé <code>batiment_groupe_id</code>)</div>
+                        <div class="tz-src-meta"><b>Usage :</b> Fusion terrain en direct, filtres dédiés et export combiné.</div>
+                    </div>
+                </div>
+            </div>
+        </details>
+    </div>
+</details>
+
+<!-- 3. DEPARTMENTAL SECTION: ISERE (38) WITH NESTED GRENOBLE SUBSECTION -->
+<details class="tz-geo-section tz-geo-rhone" open>
+    <summary>
+        <span>⛰️ Département de l'Isère (38) <span style="font-weight:400;font-size:0.82rem;">(Sources départementales 38 + sous-section imbriquée Ville de Grenoble)</span></span>
+        <span class="tz-geo-hint">6 tables départementales + 1 sous-section locale ▼</span>
+    </summary>
+    <div class="tz-geo-body">
+        <div style="margin-bottom:0.4rem;font-size:0.79rem;color:#064e3b;">
+            <b>📦 A. Sources à l'échelle du Département de l'Isère (38)</b> — Archive <code>open_data_millesime_2025-07-a_dep38_csv.zip</code> (CSTB BDNB, 611 Mo, SHA-256 vérifié) compilée dans <code>buildings.parquet</code> (31 610 bâtiments) et <code>building_owners.parquet</code> (23 183 liens propriétaires personnes morales) :
+        </div>
+        <div class="tz-src-grid-3">
+            <div class="tz-src-card">
+                <div class="tz-src-card-title">🏢 1. Bâtiments & Emprises GPS (38)</div>
+                <div class="tz-src-tags">{tag_html("csv", "etl", "parquet")}</div>
+                <div class="tz-src-meta"><b>Tables BDNB 38 :</b> <code>batiment_groupe.csv</code> + <code>_bdtopo_bat.csv</code> (IGN)</div>
+                <div class="tz-src-meta"><b>Champs :</b> <code>batiment_groupe_id</code>, <code>geom_groupe</code>, <code>hauteur_mean</code></div>
+            </div>
+            <div class="tz-src-card">
+                <div class="tz-src-card-title">🏛️ 2. Propriétaires & Patrimoine 38 (MAJIC)</div>
+                <div class="tz-src-tags">{tag_html("csv", "etl", "parquet")}</div>
+                <div class="tz-src-meta"><b>Tables BDNB 38 :</b> <code>rel_batiment_groupe_proprietaire.csv</code> + <code>proprietaire.csv</code></div>
+                <div class="tz-src-meta"><b>Intérêt 38 :</b> Compte le patrimoine total du bailleur sur <b>toute l'Isère (38)</b> (<code>nb_locaux_open_dans_MAJIC</code>).</div>
+            </div>
+            <div class="tz-src-card">
+                <div class="tz-src-card-title">🌡️ 3. DPE Hiver & Enveloppe Été (ADEME 38)</div>
+                <div class="tz-src-tags">{tag_html("csv", "etl", "parquet")}</div>
+                <div class="tz-src-meta"><b>Tables BDNB 38 :</b> <code>_dpe_representatif_logement.csv</code> + <code>_statistique_logement.csv</code></div>
+                <div class="tz-src-meta"><b>Champs :</b> DPE A–G, isolation toiture/murs, volets (<code>type_fermeture</code>), inertie, traversant.</div>
+            </div>
+        </div>
+        <details class="tz-geo-section tz-geo-lyon" open>
+            <summary>
+                <span>↳ 🏔️ B. Sous-section imbriquée : Grenoble (& Métropole — 38000, 38100, 38400, 38130...) <span style="font-weight:400;font-size:0.81rem;">— Sources spécifiques à Grenoble</span></span>
+                <span class="tz-geo-hint">3 sources locales spécifiques ▼</span>
+            </summary>
+            <div class="tz-geo-body" style="background:#fffdf5;">
+                <div class="tz-src-grid-3">
+                    <div class="tz-src-card" style="border-left:3px solid #d97706;">
+                        <div class="tz-src-card-title">☀️ 1. Zones Climatiques Locales & ICU (Cerema Grenoble)</div>
+                        <div class="tz-src-tags">{tag_html("wfs", "etl", "parquet")}</div>
+                        <div class="tz-src-meta"><b>Producteur :</b> <b>Cerema</b> (<code>data.gouv.fr</code> — <code>lcz-spot-2022-grenoble.zip</code>)</div>
+                        <div class="tz-src-meta"><b>Fichier :</b> <code>data/grenoble/LCZ_SPOT_2022_Grenoble.shp</code> (93 Mo)</div>
+                        <div class="tz-src-meta"><b>Champs :</b> <code>lcz</code> (types urbains 1–10 et végétalisés A–G), <code>ver</code> (% végétation), <code>bur</code> (% bâti) &rarr; convertis en <code>icu_expo_nuit</code> / <code>icu_expo_jour</code>.</div>
+                        <div class="tz-src-meta"><b>Usage à Grenoble :</b> Cible les quartiers en cuvette à forte minéralisation nocturne.</div>
+                    </div>
+                    <div class="tz-src-card" style="border-left:3px solid #d97706;">
+                        <div class="tz-src-card-title">💶 2. Zonage & Loyers de Référence Grenoble (L3800)</div>
+                        <div class="tz-src-tags">{tag_html("wfs", "etl", "parquet")}</div>
+                        <div class="tz-src-meta"><b>Producteur :</b> Observatoire des Loyers / Préfecture 38 (<code>Base_OP_2024_L3800.zip</code>)</div>
+                        <div class="tz-src-meta"><b>Fichiers :</b> <code>L3800_zone_cal_2024_1.kml</code> (Zones 1 à 6) + <code>Base_OP_2024_L3800.csv</code></div>
+                        <div class="tz-src-meta"><b>Champs :</b> <code>zone_encadrement_loyers</code> (Zones 1–3 Grenoble, Zones 4–6 Métropole), <code>loyer_ref_t2_non_meuble_m2</code>, <code>loyer_max_t2_non_meuble_m2</code> (+20%).</div>
+                    </div>
+                    <div class="tz-src-card" style="border-left:3px solid #d97706;">
+                        <div class="tz-src-card-title">📋 3. Périmètre Grenoble & Métropole (31 610 bât.)</div>
+                        <div class="tz-src-tags">{tag_html("xlsx", "parquet")}</div>
+                        <div class="tz-src-meta"><b>Communes :</b> Grenoble (<code>38000</code>, <code>38100</code> — 7 349 bât. / 102 399 log.) + 12 communes de la Métropole (Saint-Martin-d'Hères, Échirolles, Fontaine, Meylan, Saint-Égrève...).</div>
+                        <div class="tz-src-meta"><b>Usage :</b> Sélectionnez <code>38 — Isère (Grenoble & Métropole)</code> dans le filtre n°1 à gauche !</div>
+                    </div>
+                </div>
+            </div>
+        </details>
+    </div>
+</details>
+"""
+    clean_sources_html = "\n".join(line.strip() for line in sources_html.splitlines() if line.strip())
+    st.markdown(clean_sources_html, unsafe_allow_html=True)
+
+
+with tab_potential:
+    potential_html = f"""
+<div class="tz-tag-legend">
+    <b>🔭 Explorer & étendre TeZeLoMa</b> <span style="color:#64748b;">— 1) Départements & villes où l'outil est réplicable tel quel • 2) Nouveaux jeux de données à croiser pour les enquêtes militantes :</span>
+</div>
+
+<!-- SECTION 1: DEPARTEMENTS & CITIES WITH SIMILAR DATASETS -->
+<details class="tz-geo-section tz-geo-france" open>
+    <summary>
+        <span>🗺️ 1. Départements & Villes disposant de jeux de données similaires <span style="font-weight:400;font-size:0.82rem;">(Où répliquer TeZeLoMa en France ?)</span></span>
+        <span class="tz-geo-hint">Socle 100% France + 7 métropoles complètes ▼</span>
+    </summary>
+    <div class="tz-geo-body">
+        <div style="margin-bottom:0.5rem;font-size:0.8rem;color:#1e3a8a;background:#eff6ff;padding:0.45rem 0.7rem;border-radius:6px;border:1px solid #bfdbfe;">
+            💡 <b>Bonne nouvelle : 85 % des données de TeZeLoMa existent déjà pour les 96 départements métropolitains !</b> L'archive CSTB BDNB (<code>open_data_millesime_2025-07-a_depXX_csv.zip</code> : DPE, isolation, volets, propriétaires personnes morales MAJIC, copropriétés, QPV) et l'API Recherche d'Entreprises ont exactement la même structure partout en France. Seules les couches <b>Encadrement des loyers</b> et <b>Îlots de chaleur (ICU)</b> dépendent des portails locaux :
+        </div>
+        <div class="tz-src-grid-3">
+            <div class="tz-src-card" style="border-left:3px solid #059669;">
+                <div class="tz-src-card-title">🦁 1. Reste de la Métropole de Lyon (69)</div>
+                <div class="tz-src-tags">{tag_html("csv", "wfs", "parquet")}</div>
+                <div class="tz-src-meta"><b>Communes :</b> Vénissieux (<code>69200</code>), Vaulx-en-Velin (<code>69120</code>), Bron (<code>69500</code>), Saint-Priest (<code>69800</code>), Caluire (<code>69300</code>), Oullins (<code>69600</code>)...</div>
+                <div class="tz-src-meta"><b>Déjà téléchargé :</b> Présent dans notre archive <code>dep69_csv.zip</code> ET couvert par notre fichier <code>ilots_chaleur_urbains.geojson</code> (Grand Lyon) !</div>
+                <div class="tz-src-meta"><b>Effort :</b> <b>Immédiat (0 téléchargement)</b> — il suffit d'ajouter leurs codes INSEE dans <code>proto/build_dataset.py</code>.</div>
+            </div>
+            <div class="tz-src-card" style="border-left:3px solid #059669;background:#f0fdf4;">
+                <div class="tz-src-card-title">⛰️ 2. Grenoble-Alpes Métropole — Isère (38) ✅ ACTIF</div>
+                <div class="tz-src-tags">{tag_html("csv", "wfs", "parquet")}</div>
+                <div class="tz-src-meta"><b>Statut :</b> <b>✅ Intégré dans ce prototype (31 610 bâtiments / 23 183 liens bailleurs) !</b></div>
+                <div class="tz-src-meta"><b>Données actives :</b> BDNB <code>dep38_csv.zip</code> + LCZ Cerema <code>LCZ_SPOT_2022_Grenoble.shp</code> + Zonage loyers <code>L3800_zone_cal_2024_1.kml</code>.</div>
+                <div class="tz-src-meta"><b>Comment l'utiliser :</b> Choisissez <b>38 — Isère (Grenoble & Métropole)</b> dans le panneau de gauche.</div>
+            </div>
+            <div class="tz-src-card" style="border-left:3px solid #2563eb;">
+                <div class="tz-src-card-title">🗼 3. Paris (75) & Seine-Saint-Denis (93)</div>
+                <div class="tz-src-tags">{tag_html("csv", "wfs")}</div>
+                <div class="tz-src-meta"><b>BDNB Dépt. 75 / 93 :</b> <code>dep75_csv.zip</code>, <code>dep93_csv.zip</code> (Plaine Commune & Est Ensemble)</div>
+                <div class="tz-src-meta"><b>Encadrement des loyers :</b> Open Data DRIHL / <code>opendata.paris.fr</code> (zones et loyers de référence).</div>
+                <div class="tz-src-meta"><b>Îlots de chaleur :</b> <b>APUR</b> & <b>Institut Paris Région</b> (LCZ + aléa surchauffe diurne/nocturne en Open Data).</div>
+            </div>
+            <div class="tz-src-card" style="border-left:3px solid #2563eb;">
+                <div class="tz-src-card-title">🧱 4. Lille & Métropole Européenne (59 — Nord)</div>
+                <div class="tz-src-tags">{tag_html("csv", "wfs")}</div>
+                <div class="tz-src-meta"><b>BDNB Dépt. 59 :</b> <code>open_data_millesime_2025-07-a_dep59_csv.zip</code> (Lille, Hellemmes, Lomme, Roubaix, Tourcoing)</div>
+                <div class="tz-src-meta"><b>Encadrement des loyers :</b> Open Data <code>opendata.lillemetropole.fr</code> (zonage officiel MEL).</div>
+                <div class="tz-src-meta"><b>Îlots de chaleur :</b> Carte LCZ & îlots de chaleur de la MEL en Open Data WFS/GeoJSON.</div>
+            </div>
+            <div class="tz-src-card" style="border-left:3px solid #2563eb;">
+                <div class="tz-src-card-title">🍷 5. Bordeaux Métropole (33) & Montpellier (34)</div>
+                <div class="tz-src-tags">{tag_html("csv", "wfs")}</div>
+                <div class="tz-src-meta"><b>BDNB Dépt. 33 & 34 :</b> <code>dep33_csv.zip</code> (Gironde) & <code>dep34_csv.zip</code> (Hérault)</div>
+                <div class="tz-src-meta"><b>Encadrement des loyers :</b> Portails <code>opendata.bordeaux-metropole.fr</code> et <code>data.montpellier3m.fr</code>.</div>
+                <div class="tz-src-meta"><b>Îlots de chaleur :</b> Thermographie aérienne & cartes LCZ publiées par Bordeaux Métropole (a'urba) et Montpellier 3M.</div>
+            </div>
+            <div class="tz-src-card" style="border-left:3px solid #2563eb;">
+                <div class="tz-src-card-title">🌊 6. Pays Basque (64) & Autres grandes villes (13, 31, 42, 44, 67)</div>
+                <div class="tz-src-tags">{tag_html("csv", "wfs")}</div>
+                <div class="tz-src-meta"><b>Pays Basque (64) :</b> Encadrement des loyers actif depuis <b>novembre 2024</b> (24 communes : Bayonne, Biarritz, Anglet...).</div>
+                <div class="tz-src-meta"><b>Marseille (13), Saint-Étienne (42), Toulouse (31), Nantes (44), Strasbourg (67) :</b> BDNB complète + <b>Cartographie nationale LCZ du Cerema</b> (<code>data.cerema.fr</code>, couvrant 85 aires urbaines françaises !).</div>
+            </div>
+        </div>
+    </div>
+</details>
+
+<!-- SECTION 2: OTHER TYPES OF DATASETS WORTH LOOKING AT -->
+<details class="tz-geo-section tz-geo-rhone" open>
+    <summary>
+        <span>💡 2. Autres types de jeux de données à croiser <span style="font-weight:400;font-size:0.82rem;">(Nouvelles pistes pour renforcer les enquêtes sur les passoires & les bailleurs)</span></span>
+        <span class="tz-geo-hint">6 pistes d'enrichissement à fort impact ▼</span>
+    </summary>
+    <div class="tz-geo-body">
+        <div class="tz-src-grid-3">
+            <div class="tz-src-card" style="border-top:3px solid #dc2626;">
+                <div class="tz-src-card-title">🏖️ 1. Meublés Touristiques (Airbnb) & Fuite des Passoires G</div>
+                <div class="tz-src-tags">{tag_html("csv", "wfs")}</div>
+                <div class="tz-src-meta"><b>Sources :</b> <b>InsideAirbnb Lyon</b> (<code>insideairbnb.com/get-the-data</code>) + Registre des numéros d'enregistrement meublés de tourisme (Ville de Lyon).</div>
+                <div class="tz-src-meta"><b>Pourquoi c'est stratégique :</b> Depuis l'interdiction de louer les DPE G (janvier 2025), de nombreux multipropriétaires basculent leurs passoires en Airbnb pour contourner la loi. Le croisement GPS + bailleur permet de les démasquer.</div>
+            </div>
+            <div class="tz-src-card" style="border-top:3px solid #d97706;">
+                <div class="tz-src-card-title">🏚️ 2. Logements Vacants Longue Durée (Base LOVAC) & Péril</div>
+                <div class="tz-src-tags">{tag_html("csv", "etl")}</div>
+                <div class="tz-src-meta"><b>Sources :</b> Base <b>LOVAC</b> (DGFiP / Cerema sur <code>data.gouv.fr</code>) + Arrêtés de mise en sécurité / insalubrité (Ville de Lyon, Métropole & ARS).</div>
+                <div class="tz-src-meta"><b>Pourquoi c'est stratégique :</b> Repérer les immeubles où une SCI laisse délibérément des logements vides depuis plus de 2 ans (rétention spéculative) ou cumule passoires thermiques et arrêtés de péril.</div>
+            </div>
+            <div class="tz-src-card" style="border-top:3px solid #7c3aed;">
+                <div class="tz-src-card-title">💶 3. Prix d'Achat & Spéculation Immobilière (DVF / DVF+)</div>
+                <div class="tz-src-tags">{tag_html("csv", "parquet")}</div>
+                <div class="tz-src-meta"><b>Sources :</b> <b>Demandes de Valeurs Foncières (DVF Etalab / DGFiP)</b> — <code>app.dvf.etalab.gouv.fr</code> (toutes les ventes immobilières depuis 2014).</div>
+                <div class="tz-src-meta"><b>Pourquoi c'est stratégique :</b> Savoir exactement <b>quand et à quel prix</b> une SCI ou un marchand de biens a racheté un immeuble entier de passoires F/G, et détecter les opérations d'achat-revente à la découpe.</div>
+            </div>
+            <div class="tz-src-card" style="border-top:3px solid #0284c7;">
+                <div class="tz-src-card-title">🔊 4. Bruit Nocturne & Pollution de l'Air (Double peine d'été)</div>
+                <div class="tz-src-tags">{tag_html("wfs", "parquet")}</div>
+                <div class="tz-src-meta"><b>Sources :</b> <b>Cartes de Bruit Stratégiques (CBS)</b> sur <b>Data Grand Lyon</b> (niveau sonore nocturne <code>Ln</code> en dB) + <b>Atmo Auvergne-Rhône-Alpes</b> (NO2, PM2.5).</div>
+                <div class="tz-src-meta"><b>Pourquoi c'est stratégique :</b> En été, le seul moyen de rafraîchir un logement la nuit est d'ouvrir les fenêtres. Si l'immeuble donne sur un axe très bruyant la nuit (> 65 dB), ouvrir les fenêtres est impossible : le logement devient un piège thermique absolu.</div>
+            </div>
+            <div class="tz-src-card" style="border-top:3px solid #059669;">
+                <div class="tz-src-card-title">🌳 5. Canopée Fine, Refuges Climatiques & Carroyage Social INSEE</div>
+                <div class="tz-src-tags">{tag_html("wfs", "csv")}</div>
+                <div class="tz-src-meta"><b>Sources :</b> Couches <code>arbres-alignement</code>, <code>parcs-jardins</code> & <code>lieux-frais</code> (<b>Data Grand Lyon</b>) + <b>INSEE Filosofi</b> (carreaux de 200 m × 200 m).</div>
+                <div class="tz-src-meta"><b>Pourquoi c'est stratégique :</b> Croiser les immeubles en surchauffe critique avec le taux de pauvreté, la part des personnes âgées isolées (> 75 ans) et l'éloignement aux îlots de fraîcheur pour cibler le porte-à-porte.</div>
+            </div>
+            <div class="tz-src-card" style="border-top:3px solid #4f46e5;">
+                <div class="tz-src-card-title">🕵️ 6. Bénéficiaires Effectifs (Holdings) & Aides ANAH perçues</div>
+                <div class="tz-src-tags">{tag_html("api", "csv")}</div>
+                <div class="tz-src-meta"><b>Sources :</b> <b>Registre des Bénéficiaires Effectifs (INPI RBE / Pappers API)</b> + Open Data <b>ANAH / Éco-rénovons Lyon</b> (subventions de travaux).</div>
+                <div class="tz-src-meta"><b>Pourquoi c'est stratégique :</b> Remonter les montages de sociétés écrans (SCI détenue par une holding SAS) jusqu'aux actionnaires physiques réels, et vérifier si un bailleur a touché des aides publiques sans rénover.</div>
+            </div>
+        </div>
+    </div>
+</details>
+"""
+    clean_potential_html = "\n".join(line.strip() for line in potential_html.splitlines() if line.strip())
+    st.markdown(clean_potential_html, unsafe_allow_html=True)
