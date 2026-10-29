@@ -70,6 +70,15 @@ const OVERHEATING_COLORS = {
    Initialization
    ========================================================================== */
 document.addEventListener('DOMContentLoaded', async () => {
+  if (typeof window !== 'undefined' && window.location.hostname.endsWith('github.io')) {
+    const pathParts = window.location.pathname.split('/').filter(Boolean);
+    const repoName = pathParts[0] || 'building_mapper';
+    const ownerName = window.location.hostname.split('.')[0] || 'sebastienbrg';
+    state.dataBaseUrl = `https://raw.githubusercontent.com/${ownerName}/${repoName}/data-release/data/chunks/`;
+    const inputBaseUrl = document.getElementById('input-data-base-url');
+    if (inputBaseUrl) inputBaseUrl.value = state.dataBaseUrl;
+  }
+
   initMap();
   initTabs();
   initBuildingsTableControls();
@@ -1955,7 +1964,7 @@ function initEventListeners() {
 
   document.getElementById('link-source-github').addEventListener('click', (e) => {
     e.preventDefault();
-    inputBaseUrl.value = 'https://raw.githubusercontent.com/sebastienbrg/tezeloma-assessment/data-release/data/chunks/';
+    inputBaseUrl.value = 'https://raw.githubusercontent.com/sebastienbrg/building_mapper/data-release/data/chunks/';
     document.getElementById('btn-save-data-url').click();
   });
 
