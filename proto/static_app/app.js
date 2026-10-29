@@ -29,6 +29,17 @@ const state = {
   minPctFg: 0,
   minConcentration: 0,
   minLog: 1,
+  bgDimPct: 20,
+  maxPolygons: 3000,
+  onlyUninsulatedRoof: false,
+  onlyNoShutters: false,
+  minOverheatScore: 0,
+  ownerSearchText: '',
+  minPatrimoine: 0,
+  filterQpv: false,
+  filterSocialOnly: false,
+  filterExcludeSocial: false,
+  filterRentControl: false,
   map: null,
   selectedBuildingId: null,
   dataBaseUrl: '../../data/chunks/', // Local default, can be switched to GitHub Releases URL
@@ -190,6 +201,7 @@ function initMap() {
     });
 
     updateLegend();
+    setMapDim(state.bgDimPct);
   });
 }
 
@@ -425,9 +437,20 @@ function applyFilters() {
     minPctFg,
     minConcentration,
     minLog,
+    onlyUninsulatedRoof,
+    onlyNoShutters,
+    minOverheatScore,
+    ownerSearchText,
+    minPatrimoine,
+    filterQpv,
+    filterSocialOnly,
+    filterExcludeSocial,
+    filterRentControl,
     fieldwork,
+    maxPolygons,
   } = state;
 
+  const searchLower = (ownerSearchText || '').toLowerCase().trim();
   const filtered = [];
 
   for (let i = 0; i < state.buildings.length; i++) {
@@ -441,13 +464,50 @@ function applyFilters() {
     const pctFg = Number(b.pct_dpe_fg || 0);
     if (pctFg < minPctFg) continue;
 
-    // 3. Overheating filter
+    // 3. Overheating risk filter
     const risk = b.risque_surchauffe_ete || 'Faible';
     if (!selectedOverheating.has(risk)) continue;
+
+    // 3b. Overheating score min
+    if (minOverheatScore > 0 && Number(b.score_surchauffe_ete || 0) < minOverheatScore) continue;
+
+    // 3c. Uninsulated roof
+    if (onlyUninsulatedRoof) {
+      const roof = String(b.type_isolation_plancher_haut || '').toLowerCase();
+      if (roof && roof !== 'non isole' && roof !== 'nc') continue;
+    }
+
+    // 3d. No shutters
+    if (onlyNoShutters) {
+      const shutters = String(b.type_fermeture || '').toLowerCase();
+      if (shutters.includes('volet') || shutters.includes('persienne') || shutters.includes('jalousie')) continue;
+    }
 
     // 4. Landlord Concentration filter
     const conc = Number(b.concentration_prop_max_num || 0);
     if (conc < minConcentration) continue;
+
+    // 4b. Min Patrimoine
+    if (minPatrimoine > 0 && Number(b.max_patrimoine_majic_bailleur || 0) < minPatrimoine) continue;
+
+    // 4c. Owner Name / SIREN text search
+    if (searchLower) {
+      const denom = String(b.concentration_prop_max_denomination || '').toLowerCase();
+      const siren = String(b.siren_principal || '').toLowerCase();
+      let match = denom.includes(searchLower) || siren.includes(searchLower);
+      if (!match) {
+        const bOwners = state.ownersByBuilding.get(b.batiment_groupe_id) || [];
+        for (let oIdx = 0; oIdx < bOwners.length; oIdx++) {
+          const o = bOwners[oIdx];
+          if (String(o.denomination || '').toLowerCase().includes(searchLower) ||
+              String(o.siren || '').includes(searchLower)) {
+            match = true;
+            break;
+          }
+        }
+      }
+      if (!match) continue;
+    }
 
     // 5. Min Dwellings filter
     const nbLog = Number(b.nb_log || 0);
@@ -465,6 +525,12 @@ function applyFilters() {
       }
       if (!hasMatch) continue;
     }
+
+    // 7. Urbanisme & Social
+    if (filterQpv && (!b.quartier_qpv || b.quartier_qpv === 'None')) continue;
+    if (filterSocialOnly && !b.est_logement_social_rpls) continue;
+    if (filterExcludeSocial && b.est_logement_social_rpls) continue;
+    if (filterRentControl && Number(b.zone_encadrement_loyers || 0) <= 0) continue;
 
     // Color computation based on mapStyleMode
     let renderColor = DPE_COLORS[dpe] || DPE_COLORS['Inconnu'];
@@ -484,7 +550,12 @@ function applyFilters() {
 
   state.filteredBuildings = filtered;
   updateKPIs(filtered);
-  updateMapSource(filtered);
+
+  // Apply max polygons limit to map display
+  const mapBuildings = (maxPolygons && maxPolygons < filtered.length)
+    ? filtered.slice(0, maxPolygons)
+    : filtered;
+  updateMapSource(mapBuildings);
 }
 
 function updateKPIs(filtered) {
@@ -540,6 +611,14 @@ function updateMapSource(buildings) {
     type: 'FeatureCollection',
     features: features,
   });
+}
+
+function setMapDim(dimPct) {
+  if (!state.map || !state.map.getLayer('osm-tiles-layer')) return;
+  const opacity = Math.max(0.1, 1.0 - (dimPct / 100) * 0.85);
+  const saturation = -Math.min(1.0, (dimPct / 100) * 1.2);
+  state.map.setPaintProperty('osm-tiles-layer', 'raster-opacity', opacity);
+  state.map.setPaintProperty('osm-tiles-layer', 'raster-saturation', saturation);
 }
 
 function updateLegend() {
@@ -995,18 +1074,140 @@ function initEventListeners() {
     applyFilters();
   });
 
-  // Map Style Mode buttons
+  // Map Style Mode buttons & Select
+  const colorSelect = document.getElementById('select-color-mode');
+  if (colorSelect) {
+    colorSelect.addEventListener('change', (e) => {
+      state.mapStyleMode = e.target.value;
+      document.querySelectorAll('.map-style-btn').forEach(b => {
+        b.classList.toggle('active', b.getAttribute('data-style') === state.mapStyleMode);
+      });
+      updateLegend();
+      applyFilters();
+    });
+  }
+
   document.querySelectorAll('.map-style-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       document.querySelectorAll('.map-style-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       state.mapStyleMode = btn.getAttribute('data-style');
+      if (colorSelect) colorSelect.value = state.mapStyleMode;
       updateLegend();
       applyFilters();
     });
   });
 
-  // Reset Filters
+  // Background Dimming Slider
+  const bgDimSlider = document.getElementById('slider-bg-dim');
+  if (bgDimSlider) {
+    bgDimSlider.addEventListener('input', (e) => {
+      state.bgDimPct = parseInt(e.target.value, 10);
+      document.getElementById('label-bg-dim').textContent = `${state.bgDimPct}%`;
+      setMapDim(state.bgDimPct);
+    });
+  }
+
+  // Max Polygons Select
+  const maxPolySelect = document.getElementById('select-max-polygons');
+  if (maxPolySelect) {
+    maxPolySelect.addEventListener('change', (e) => {
+      state.maxPolygons = parseInt(e.target.value, 10);
+      applyFilters();
+    });
+  }
+
+  // Roof & Shutters Checkboxes
+  const roofChk = document.getElementById('filter-roof-uninsulated');
+  if (roofChk) {
+    roofChk.addEventListener('change', (e) => {
+      state.onlyUninsulatedRoof = e.target.checked;
+      applyFilters();
+    });
+  }
+
+  const shuttersChk = document.getElementById('filter-no-shutters');
+  if (shuttersChk) {
+    shuttersChk.addEventListener('change', (e) => {
+      state.onlyNoShutters = e.target.checked;
+      applyFilters();
+    });
+  }
+
+  // Score Overheat Slider
+  const scoreOverheatSlider = document.getElementById('filter-score-overheat');
+  if (scoreOverheatSlider) {
+    scoreOverheatSlider.addEventListener('input', (e) => {
+      state.minOverheatScore = parseInt(e.target.value, 10);
+      document.getElementById('label-min-score-overheat').textContent = `≥ ${state.minOverheatScore}`;
+      applyFilters();
+    });
+  }
+
+  // Owner search text input
+  let searchTimeout = null;
+  const ownerSearchInput = document.getElementById('filter-owner-search');
+  if (ownerSearchInput) {
+    ownerSearchInput.addEventListener('input', (e) => {
+      clearTimeout(searchTimeout);
+      searchTimeout = setTimeout(() => {
+        state.ownerSearchText = e.target.value;
+        applyFilters();
+      }, 250);
+    });
+  }
+
+  // Min Patrimoine Input
+  const patrimoineInput = document.getElementById('filter-min-patrimoine');
+  if (patrimoineInput) {
+    patrimoineInput.addEventListener('input', (e) => {
+      state.minPatrimoine = parseInt(e.target.value, 10) || 0;
+      applyFilters();
+    });
+  }
+
+  // Urbanisme & Social Checkboxes
+  const qpvChk = document.getElementById('filter-qpv');
+  if (qpvChk) {
+    qpvChk.addEventListener('change', (e) => {
+      state.filterQpv = e.target.checked;
+      applyFilters();
+    });
+  }
+
+  const socialOnlyChk = document.getElementById('filter-social-only');
+  if (socialOnlyChk) {
+    socialOnlyChk.addEventListener('change', (e) => {
+      state.filterSocialOnly = e.target.checked;
+      if (state.filterSocialOnly && excludeSocialChk) {
+        excludeSocialChk.checked = false;
+        state.filterExcludeSocial = false;
+      }
+      applyFilters();
+    });
+  }
+
+  const excludeSocialChk = document.getElementById('filter-exclude-social');
+  if (excludeSocialChk) {
+    excludeSocialChk.addEventListener('change', (e) => {
+      state.filterExcludeSocial = e.target.checked;
+      if (state.filterExcludeSocial && socialOnlyChk) {
+        socialOnlyChk.checked = false;
+        state.filterSocialOnly = false;
+      }
+      applyFilters();
+    });
+  }
+
+  const rentControlChk = document.getElementById('filter-rent-control');
+  if (rentControlChk) {
+    rentControlChk.addEventListener('change', (e) => {
+      state.filterRentControl = e.target.checked;
+      applyFilters();
+    });
+  }
+
+  // Reset Filters Button
   document.getElementById('btn-reset-filters').addEventListener('click', () => {
     state.selectedDpes = new Set(['F', 'G']);
     state.selectedOverheating = new Set(['Élevé', 'Modéré', 'Faible']);
@@ -1014,14 +1215,30 @@ function initEventListeners() {
     state.minPctFg = 0;
     state.minConcentration = 0;
     state.minLog = 1;
+    state.onlyUninsulatedRoof = false;
+    state.onlyNoShutters = false;
+    state.minOverheatScore = 0;
+    state.ownerSearchText = '';
+    state.minPatrimoine = 0;
+    state.filterQpv = false;
+    state.filterSocialOnly = false;
+    state.filterExcludeSocial = false;
+    state.filterRentControl = false;
 
     pctFgSlider.value = 0;
     concSlider.value = 0;
     minLogSlider.value = 1;
-    document.getElementById('label-pct-fg').textContent = '0%';
-    document.getElementById('label-concentration').textContent = '≥ 0%';
-    document.getElementById('label-min-log').textContent = '≥ 1';
+    if (roofChk) roofChk.checked = false;
+    if (shuttersChk) shuttersChk.checked = false;
+    if (qpvChk) qpvChk.checked = false;
+    if (socialOnlyChk) socialOnlyChk.checked = false;
+    if (excludeSocialChk) excludeSocialChk.checked = false;
+    if (rentControlChk) rentControlChk.checked = false;
+    if (scoreOverheatSlider) scoreOverheatSlider.value = 0;
+    if (ownerSearchInput) ownerSearchInput.value = '';
+    if (patrimoineInput) patrimoineInput.value = 0;
 
+    document.getElementById('label-min-score-overheat').textContent = '≥ 0';
     document.querySelectorAll('#filter-dpe .pill-btn').forEach(btn => {
       const d = btn.getAttribute('data-dpe');
       btn.classList.toggle('active', d === 'F' || d === 'G');

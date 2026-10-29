@@ -62,161 +62,274 @@
   <!-- Main Container -->
   <div class="main-container">
     
-    <!-- Sidebar: Filters & Controls -->
+    <!-- Sidebar: Folding Categorical Controls -->
     <aside class="app-sidebar">
       
-      <!-- Territory Section -->
-      <div class="sidebar-section">
-        <div class="section-title">
-          <span>Territoire d'Étude</span>
-          <span class="status-badge status-cached" id="territory-badge">Prêt</span>
-        </div>
+      <div class="sidebar-header-bar">
+        <span class="sidebar-header-title">Filtres & Contrôles</span>
+        <button class="btn btn-secondary btn-sm" id="btn-reset-filters" style="font-size: 0.7rem; padding: 0.2rem 0.5rem;">
+          ↺ Réinitialiser
+        </button>
+      </div>
 
-        <div class="territory-selector">
-          <div class="selector-tabs">
-            <button class="tab-btn active" data-mode="dep">Département</button>
-            <button class="tab-btn" data-mode="cp">Code Postal</button>
-            <button class="tab-btn" data-mode="range">Plage de CP</button>
-          </div>
+      <div class="accordion-group">
 
-          <!-- Mode: Department -->
-          <div class="tab-content" id="tab-dep">
+        <!-- Expander: Affichage Carte & Fond -->
+        <details class="accordion-item" open id="acc-display">
+          <summary class="accordion-header">
+            <span class="accordion-title-wrap">
+              <span>🎨</span> Affichage Carte & Fond
+            </span>
+            <span class="accordion-chevron">▶</span>
+          </summary>
+          <div class="accordion-body">
             <div class="form-group">
-              <select id="select-dept">
-                <option value="69">69 — Rhône (Lyon & Villeurbanne)</option>
-                <option value="38">38 — Isère (Grenoble & Métropole)</option>
+              <label>Coloration des bâtiments</label>
+              <select id="select-color-mode">
+                <option value="dpe">Étiquette DPE (A → G)</option>
+                <option value="overheating">Risque Surchauffe d'Été</option>
+                <option value="concentration">Concentration Propriétaire (%)</option>
+                <option value="fieldwork" id="opt-fieldwork-mode" style="display: none;">Enquête de Terrain</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label>
+                <span>Estomper le fond de carte</span>
+                <strong id="label-bg-dim">20%</strong>
+              </label>
+              <input type="range" id="slider-bg-dim" min="0" max="90" step="5" value="20">
+            </div>
+
+            <div class="form-group">
+              <label>Limite de polygones affichés</label>
+              <select id="select-max-polygons">
+                <option value="1500">1 500 bâtiments (très rapide)</option>
+                <option value="3000" selected>3 000 bâtiments (recommandé)</option>
+                <option value="5000">5 000 bâtiments</option>
+                <option value="999999">Tous les bâtiments du territoire</option>
               </select>
             </div>
           </div>
+        </details>
 
-          <!-- Mode: Single Postal Code -->
-          <div class="tab-content" id="tab-cp" style="display: none;">
-            <div class="form-group">
-              <select id="select-cp">
-                <option value="">Sélectionner un code postal...</option>
-              </select>
+        <!-- Expander 1: Localisation & DPE -->
+        <details class="accordion-item" open id="acc-location">
+          <summary class="accordion-header">
+            <span class="accordion-title-wrap">
+              <span>🎯</span> 1. Localisation & DPE
+            </span>
+            <span class="accordion-chevron">▶</span>
+          </summary>
+          <div class="accordion-body">
+            <div class="territory-selector">
+              <div class="selector-tabs">
+                <button class="tab-btn active" data-mode="dep">Département</button>
+                <button class="tab-btn" data-mode="cp">Code Postal</button>
+                <button class="tab-btn" data-mode="range">Plage de CP</button>
+              </div>
+
+              <!-- Mode: Department -->
+              <div class="tab-content" id="tab-dep">
+                <div class="form-group">
+                  <select id="select-dept">
+                    <option value="69">69 — Rhône (Lyon & Villeurbanne)</option>
+                    <option value="38">38 — Isère (Grenoble & Métropole)</option>
+                  </select>
+                </div>
+              </div>
+
+              <!-- Mode: Single Postal Code -->
+              <div class="tab-content" id="tab-cp" style="display: none;">
+                <div class="form-group">
+                  <select id="select-cp">
+                    <option value="">Sélectionner un code postal...</option>
+                  </select>
+                </div>
+              </div>
+
+              <!-- Mode: Postal Code Range -->
+              <div class="tab-content" id="tab-range" style="display: none;">
+                <div class="form-group">
+                  <div class="range-inputs">
+                    <input type="number" id="input-range-start" placeholder="Ex: 69001" min="10000" max="99999">
+                    <span>à</span>
+                    <input type="number" id="input-range-end" placeholder="Ex: 69009" min="10000" max="99999">
+                  </div>
+                </div>
+              </div>
+
+              <button class="btn btn-primary btn-block" id="btn-load-territory">
+                <span>⚡</span> Charger ce territoire
+              </button>
+
+              <div class="territory-status">
+                <span id="territory-status-text">Territoire actif : 69</span>
+                <span id="territory-size-text" style="color: var(--text-muted);">~10.3 Mo</span>
+              </div>
             </div>
-          </div>
 
-          <!-- Mode: Postal Code Range -->
-          <div class="tab-content" id="tab-range" style="display: none;">
-            <div class="form-group">
-              <div class="range-inputs">
-                <input type="number" id="input-range-start" placeholder="Ex: 69001" min="10000" max="99999">
-                <span>à</span>
-                <input type="number" id="input-range-end" placeholder="Ex: 69009" min="10000" max="99999">
+            <!-- DPE Filter Pills -->
+            <div class="form-group" style="margin-top: 0.5rem;">
+              <label>DPE représentatif (OU)</label>
+              <div class="filter-pill-group" id="filter-dpe">
+                <button class="pill-btn dpe-a" data-dpe="A">A</button>
+                <button class="pill-btn dpe-b" data-dpe="B">B</button>
+                <button class="pill-btn dpe-c" data-dpe="C">C</button>
+                <button class="pill-btn dpe-d" data-dpe="D">D</button>
+                <button class="pill-btn dpe-e" data-dpe="E">E</button>
+                <button class="pill-btn dpe-f active" data-dpe="F">F</button>
+                <button class="pill-btn dpe-g active" data-dpe="G">G</button>
+                <button class="pill-btn" data-dpe="Inconnu">NC</button>
+              </div>
+            </div>
+
+            <!-- 2-col inputs -->
+            <div class="grid-2">
+              <div class="form-group">
+                <label>Logements min.</label>
+                <input type="number" id="filter-min-log" min="1" max="500" value="1">
+              </div>
+              <div class="form-group">
+                <label>% DPE F+G min.</label>
+                <input type="number" id="filter-pct-fg" min="0" max="100" step="10" value="0">
               </div>
             </div>
           </div>
+        </details>
 
-          <button class="btn btn-primary btn-block" id="btn-load-territory">
-            <span>⚡</span> Charger ce territoire
-          </button>
+        <!-- Expander 2: Surchauffe Été & ICU -->
+        <details class="accordion-item" id="acc-overheating">
+          <summary class="accordion-header">
+            <span class="accordion-title-wrap">
+              <span>☀️</span> 2. Surchauffe Été & ICU
+            </span>
+            <span class="accordion-chevron">▶</span>
+          </summary>
+          <div class="accordion-body">
+            <div class="form-group">
+              <label>Risque été</label>
+              <div class="filter-pill-group" id="filter-overheating">
+                <button class="pill-btn active" data-val="Élevé" style="border-color: #ef4444;">Élevé 🔥</button>
+                <button class="pill-btn active" data-val="Modéré" style="border-color: #f59e0b;">Modéré</button>
+                <button class="pill-btn active" data-val="Faible">Faible</button>
+              </div>
+            </div>
 
-          <div class="territory-status">
-            <span id="territory-status-text">Territoire actif : 69 (Lyon & Villeurbanne)</span>
-            <span id="territory-size-text" style="color: var(--text-muted);">~10.3 Mo</span>
+            <div class="grid-2">
+              <label class="checkbox-label">
+                <input type="checkbox" id="filter-roof-uninsulated"> Toit non isolé
+              </label>
+              <label class="checkbox-label">
+                <input type="checkbox" id="filter-no-shutters"> Sans volets
+              </label>
+            </div>
+
+            <div class="form-group" style="margin-top: 0.4rem;">
+              <label>
+                <span>Score surchauffe min. (0–100)</span>
+                <strong id="label-min-score-overheat">≥ 0</strong>
+              </label>
+              <input type="range" id="filter-score-overheat" min="0" max="100" step="5" value="0">
+            </div>
           </div>
-        </div>
-      </div>
+        </details>
 
-      <!-- Filters Section -->
-      <div class="sidebar-section">
-        <div class="section-title">
-          <span>Filtres Thermiques & Bailleurs</span>
-          <button class="btn btn-secondary btn-sm" id="btn-reset-filters" style="font-size: 0.68rem; padding: 0.15rem 0.4rem;">Réinitialiser</button>
-        </div>
+        <!-- Expander 3: Propriétaires & Bailleurs -->
+        <details class="accordion-item" id="acc-owners">
+          <summary class="accordion-header">
+            <span class="accordion-title-wrap">
+              <span>🏢</span> 3. Propriétaires & Bailleurs
+            </span>
+            <span class="accordion-chevron">▶</span>
+          </summary>
+          <div class="accordion-body">
+            <div class="form-group">
+              <label>Nom bailleur / SCI / SIREN</label>
+              <input type="text" id="filter-owner-search" placeholder="Ex: FONCIERE, SCI, 908120595...">
+            </div>
 
-        <!-- DPE Filter -->
-        <div class="form-group">
-          <label>Classe DPE Représentative</label>
-          <div class="filter-pill-group" id="filter-dpe">
-            <button class="pill-btn dpe-a" data-dpe="A">A</button>
-            <button class="pill-btn dpe-b" data-dpe="B">B</button>
-            <button class="pill-btn dpe-c" data-dpe="C">C</button>
-            <button class="pill-btn dpe-d" data-dpe="D">D</button>
-            <button class="pill-btn dpe-e" data-dpe="E">E</button>
-            <button class="pill-btn dpe-f active" data-dpe="F">F</button>
-            <button class="pill-btn dpe-g active" data-dpe="G">G</button>
-            <button class="pill-btn" data-dpe="Inconnu">NC</button>
+            <div class="form-group">
+              <label>
+                <span>Forme juridique</span>
+                <span id="label-legal-mode" style="cursor: pointer; color: var(--accent-primary); font-size: 0.72rem;">Mode Inclusif ⇄</span>
+              </label>
+              <div class="filter-pill-group" id="filter-legal">
+                <button class="pill-btn active" data-val="SCI">SCI</button>
+                <button class="pill-btn active" data-val="Bailleur social">Bailleur Social</button>
+                <button class="pill-btn active" data-val="Société commerciale">Société Commerciale</button>
+                <button class="pill-btn active" data-val="Personne physique">Pers. Physique</button>
+              </div>
+            </div>
+
+            <div class="grid-2">
+              <div class="form-group">
+                <label>Conc. bailleur %</label>
+                <input type="number" id="filter-concentration" min="0" max="100" step="10" value="0">
+              </div>
+              <div class="form-group">
+                <label>Patrimoine min.</label>
+                <input type="number" id="filter-min-patrimoine" min="0" max="10000" step="10" value="0">
+              </div>
+            </div>
           </div>
-        </div>
+        </details>
 
-        <!-- Thermal Slum Share -->
-        <div class="form-group">
-          <label>
-            <span>Part minimale de DPE F/G</span>
-            <strong id="label-pct-fg">0%</strong>
-          </label>
-          <input type="range" id="filter-pct-fg" min="0" max="100" step="5" value="0">
-        </div>
-
-        <!-- Summer Overheating -->
-        <div class="form-group">
-          <label>Risque Surchauffe Été</label>
-          <div class="filter-pill-group" id="filter-overheating">
-            <button class="pill-btn active" data-val="Élevé" style="border-color: #ef4444;">Élevé 🔥</button>
-            <button class="pill-btn active" data-val="Modéré" style="border-color: #f59e0b;">Modéré</button>
-            <button class="pill-btn active" data-val="Faible">Faible</button>
+        <!-- Expander 4: Urbanisme & Social -->
+        <details class="accordion-item" id="acc-urban">
+          <summary class="accordion-header">
+            <span class="accordion-title-wrap">
+              <span>⚖️</span> 4. Urbanisme & Social
+            </span>
+            <span class="accordion-chevron">▶</span>
+          </summary>
+          <div class="accordion-body">
+            <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+              <label class="checkbox-label">
+                <input type="checkbox" id="filter-qpv"> En Quartier Prioritaire (QPV)
+              </label>
+              <label class="checkbox-label">
+                <input type="checkbox" id="filter-social-only"> Uniquement parc social (RPLS)
+              </label>
+              <label class="checkbox-label">
+                <input type="checkbox" id="filter-exclude-social"> Exclure parc social (cibler privé)
+              </label>
+              <label class="checkbox-label">
+                <input type="checkbox" id="filter-rent-control"> Soumis à encadrement des loyers
+              </label>
+            </div>
           </div>
-        </div>
+        </details>
 
-        <!-- Landlord Concentration -->
-        <div class="form-group">
-          <label>
-            <span>Concentration Foncière Maximale</span>
-            <strong id="label-concentration">≥ 0%</strong>
-          </label>
-          <input type="range" id="filter-concentration" min="0" max="100" step="10" value="0">
-        </div>
+        <!-- Expander 5: Terrain (.xlsx) -->
+        <details class="accordion-item" id="acc-fieldwork">
+          <summary class="accordion-header">
+            <span class="accordion-title-wrap">
+              <span>📋</span> 5. Terrain (.xlsx)
+            </span>
+            <span class="status-badge" id="fieldwork-badge" style="display: none;">0 liés</span>
+            <span class="accordion-chevron">▶</span>
+          </summary>
+          <div class="accordion-body">
+            <div class="dropzone" id="fieldwork-dropzone">
+              <div class="dropzone-icon">📋</div>
+              <div class="dropzone-text">
+                <strong>Déposer un fichier .xlsx de terrain</strong><br>
+                (clé : <code>batiment_groupe_id</code>)
+              </div>
+              <input type="file" id="fieldwork-file-input" accept=".xlsx,.xls,.csv" style="display: none;">
+            </div>
 
-        <!-- Legal Forms -->
-        <div class="form-group">
-          <label>
-            <span>Statut Juridique des Propriétaires</span>
-            <span id="label-legal-mode" style="cursor: pointer; color: var(--accent-primary); font-size: 0.72rem;">Mode Inclusif ⇄</span>
-          </label>
-          <div class="filter-pill-group" id="filter-legal">
-            <button class="pill-btn active" data-val="SCI">SCI</button>
-            <button class="pill-btn active" data-val="Bailleur social">Bailleur Social</button>
-            <button class="pill-btn active" data-val="Société commerciale">Société Commerciale</button>
-            <button class="pill-btn active" data-val="Personne physique">Personne Physique</button>
+            <div id="fieldwork-info" style="display: none; margin-top: 0.5rem; font-size: 0.78rem;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.4rem;">
+                <strong id="fieldwork-filename" style="color: var(--accent-primary);">fichier.xlsx</strong>
+                <button class="btn btn-secondary btn-sm" id="btn-clear-fieldwork" style="font-size: 0.68rem; padding: 0.15rem 0.35rem;">Retirer</button>
+              </div>
+              <p id="fieldwork-stats" style="color: var(--text-secondary);"></p>
+            </div>
           </div>
-        </div>
+        </details>
 
-        <!-- Dwellings count -->
-        <div class="form-group">
-          <label>
-            <span>Nombre de logements minimum</span>
-            <strong id="label-min-log">≥ 1</strong>
-          </label>
-          <input type="range" id="filter-min-log" min="1" max="50" step="1" value="1">
-        </div>
-      </div>
-
-      <!-- Fieldwork Section -->
-      <div class="sidebar-section">
-        <div class="section-title">
-          <span>Enquête de Terrain</span>
-          <span class="status-badge" id="fieldwork-badge" style="display: none;">0 liés</span>
-        </div>
-        
-        <div class="dropzone" id="fieldwork-dropzone">
-          <div class="dropzone-icon">📋</div>
-          <div class="dropzone-text">
-            <strong>Déposer un fichier .xlsx de terrain</strong><br>
-            (clé : <code>batiment_groupe_id</code>)
-          </div>
-          <input type="file" id="fieldwork-file-input" accept=".xlsx,.xls,.csv" style="display: none;">
-        </div>
-
-        <div id="fieldwork-info" style="display: none; margin-top: 0.75rem; font-size: 0.78rem;">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.4rem;">
-            <strong id="fieldwork-filename" style="color: var(--accent-primary);">fichier.xlsx</strong>
-            <button class="btn btn-secondary btn-sm" id="btn-clear-fieldwork" style="font-size: 0.68rem; padding: 0.15rem 0.35rem;">Retirer</button>
-          </div>
-          <p id="fieldwork-stats" style="color: var(--text-secondary);"></p>
-        </div>
       </div>
 
     </aside>
