@@ -1,0 +1,12 @@
+# Runtime ("Prod") dependencies for proto/app.py
+# Pinned Streamlit version to protect custom CSS selectors (data-testid / data-baseweb)
+streamlit==1.66.1
+streamlit-folium>=0.23.0,<0.28.0
+folium>=0.18.0,<0.21.0
+pandas>=2.2.0,<4.0.0
+numpy>=2.0.0,<3.0.0
+geopandas>=1.0.0,<2.0.0
+pyarrow>=17.0.0,<27.0.0
+xlsxwriter>=3.2.0,<4.0.0
+openpyxl>=3.1.5,<4.0.0
+requests>=2.32.0,<3.0.0

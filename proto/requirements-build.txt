@@ -1,0 +1,6 @@
+# Offline ETL (proto/build_dataset.py) & Dev/Test dependencies
+-r requirements.txt
+
+duckdb>=1.1.0,<3.0.0
+shapely>=2.0.0,<3.0.0
+playwright>=1.60.0,<2.0.0
