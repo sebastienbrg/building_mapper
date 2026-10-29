@@ -871,6 +871,15 @@ def main() -> None:
     print(f"  -> {buildings_parquet_path}: {b_size_mb:.2f} MB ({len(gdf_all):,} buildings total)")
     print(f"  -> {owners_parquet_path}: {o_size_mb:.2f} MB ({len(df_owners_all):,} owner links total)")
 
+    # Generate postal-code and department chunks + manifest for standalone static UI
+    chunks_dir = ROOT_DIR / "data" / "chunks"
+    try:
+        from proto.chunk_dataset import build_chunks
+        print("\nGenerating postal-code chunks and manifest.json for static app...")
+        build_chunks(buildings_parquet_path, owners_parquet_path, chunks_dir)
+    except Exception as e:
+        print(f"Notice: Chunk generation skipped or failed: {e}")
+
 
 if __name__ == "__main__":
     main()

@@ -4,3 +4,7 @@ __pycache__/
 *.py[cod]
 tezeloma/
 tezeloma-cartographie/
+node_modules/
+package-lock.json
+package.json
+src-tauri/target/

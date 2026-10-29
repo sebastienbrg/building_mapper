@@ -1,0 +1,22 @@
+{
+  "name": "TeZeLoMa — Cartographie & Enquête Bailleurs",
+  "short_name": "TeZeLoMa",
+  "description": "Outil cartographique d'investigation sur les passoires thermiques, la surchauffe estivale et la concentration foncière.",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#0f172a",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
