@@ -14,7 +14,7 @@ Outputs:
   - data/chunks/manifest.json
 
 Usage:
-  .venv/bin/python proto/chunk_dataset.py
+  .venv/bin/python app/chunk_dataset.py
 """
 
 from __future__ import annotations
@@ -207,9 +207,9 @@ def main() -> None:
     args = parser.parse_args()
 
     if not args.buildings.exists():
-        sys.exit(f"Error: {args.buildings} does not exist. Run proto/build_dataset.py first.")
+        sys.exit(f"Error: {args.buildings} does not exist. Run app/build_dataset.py first.")
     if not args.owners.exists():
-        sys.exit(f"Error: {args.owners} does not exist. Run proto/build_dataset.py first.")
+        sys.exit(f"Error: {args.owners} does not exist. Run app/build_dataset.py first.")
 
     build_chunks(args.buildings, args.owners, args.out_dir, args.compression)
 

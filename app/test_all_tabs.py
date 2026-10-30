@@ -11,8 +11,8 @@ async def run():
         page.on("console", lambda msg: console_errors.append(f"CONSOLE: {msg.type}: {msg.text}") if msg.type in ["error", "warning"] else None)
         page.on("pageerror", lambda exc: console_errors.append(f"PAGE ERROR: {exc}"))
 
-        print("Navigating to http://localhost:8080/proto/static_app/index.html ...")
-        await page.goto("http://localhost:8080/proto/static_app/index.html")
+        print("Navigating to http://localhost:8080/app/static_app/index.html ...")
+        await page.goto("http://localhost:8080/app/static_app/index.html")
 
         # Wait for data to load
         await page.wait_for_selector("#kpi-buildings", timeout=15000)
@@ -26,7 +26,7 @@ async def run():
 
         # Tab 1: Map
         print("Testing Tab 1: Map...")
-        await page.screenshot(path="proto/test_tab_1_map.png")
+        await page.screenshot(path="app/test_tab_1_map.png")
 
         # Tab 2: Buildings Table
         print("Testing Tab 2: Bâtiments...")
@@ -35,7 +35,7 @@ async def run():
         row_count = await page.locator("#table-buildings-body tr").count()
         print(f"Bâtiments rows rendered: {row_count}")
         assert row_count > 0, "No building rows rendered!"
-        await page.screenshot(path="proto/test_tab_2_buildings.png")
+        await page.screenshot(path="app/test_tab_2_buildings.png")
 
         # Test search query in Buildings Table
         print("Testing Search Query in Bâtiments...")
@@ -65,7 +65,7 @@ async def run():
         landlord_rows = await page.locator("#table-landlords-body tr").count()
         print(f"Landlord rows rendered: {landlord_rows}")
         assert landlord_rows > 0, "No landlord rows rendered!"
-        await page.screenshot(path="proto/test_tab_3_landlords.png")
+        await page.screenshot(path="app/test_tab_3_landlords.png")
 
         # Test clicking inspect on first landlord
         print("Testing landlord inspection...")
@@ -76,7 +76,7 @@ async def run():
             results_display = await page.evaluate("document.getElementById('landlord-api-results').style.display")
             print(f"Landlord API results display: {results_display}")
             assert results_display != "none", "Landlord results card not shown!"
-            await page.screenshot(path="proto/test_tab_3_inspected.png")
+            await page.screenshot(path="app/test_tab_3_inspected.png")
 
         # Tab 4: Export ZIP
         print("Testing Tab 4: Export ZIP...")
@@ -84,19 +84,19 @@ async def run():
         await asyncio.sleep(0.5)
         export_count = await page.text_content("#export-tab-count")
         print(f"Export tab count: {export_count}")
-        await page.screenshot(path="proto/test_tab_4_export.png")
+        await page.screenshot(path="app/test_tab_4_export.png")
 
         # Tab 5: Sources de données
         print("Testing Tab 5: Sources de données...")
         await page.click('button[data-tab="sources"]')
         await asyncio.sleep(0.5)
-        await page.screenshot(path="proto/test_tab_5_sources.png")
+        await page.screenshot(path="app/test_tab_5_sources.png")
 
         # Tab 6: Pistes de données
         print("Testing Tab 6: Pistes de données...")
         await page.click('button[data-tab="potential"]')
         await asyncio.sleep(0.5)
-        await page.screenshot(path="proto/test_tab_6_potential.png")
+        await page.screenshot(path="app/test_tab_6_potential.png")
 
         print("Finished all tab tests successfully!")
         if console_errors:

@@ -4,7 +4,7 @@
 # ==============================================================================
 # Usage:
 #   export GITHUB_TOKEN="ghp_xxx"  # or run 'gh auth login'
-#   ./proto/release_data.sh [TAG_NAME]
+#   ./app/release_data.sh [TAG_NAME]
 #
 # Default tag: v1.0-data
 
@@ -15,7 +15,7 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 CHUNKS_DIR="${ROOT_DIR}/data/chunks"
 
 if [ ! -f "${CHUNKS_DIR}/manifest.json" ]; then
-    echo "Error: ${CHUNKS_DIR}/manifest.json not found. Run 'proto/chunk_dataset.py' first!"
+    echo "Error: ${CHUNKS_DIR}/manifest.json not found. Run 'app/chunk_dataset.py' first!"
     exit 1
 fi
 

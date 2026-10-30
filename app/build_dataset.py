@@ -874,7 +874,10 @@ def main() -> None:
     # Generate postal-code and department chunks + manifest for standalone static UI
     chunks_dir = ROOT_DIR / "data" / "chunks"
     try:
-        from proto.chunk_dataset import build_chunks
+        try:
+            from app.chunk_dataset import build_chunks
+        except ImportError:
+            from chunk_dataset import build_chunks
         print("\nGenerating postal-code chunks and manifest.json for static app...")
         build_chunks(buildings_parquet_path, owners_parquet_path, chunks_dir)
     except Exception as e:

@@ -1,7 +1,7 @@
 /**
- * TeZeLoMa — Standalone Static Web App Logic
- * ==========================================
- * Zero-server, zero-Streamlit investigative cartography for thermal slums,
+ * TeZeLoMa — Standalone Web App Logic
+ * ====================================
+ * Zero-server, client-side investigative cartography for thermal slums,
  * summer overheating, and corporate landlord concentration.
  */
 
@@ -242,7 +242,7 @@ async function loadManifest() {
       populatePostalCodesSelect();
       populateChunkModalTable();
     } catch (e2) {
-      alert("Impossible de charger manifest.json. Assurez-vous d'avoir exécuté proto/chunk_dataset.py.");
+      alert("Impossible de charger manifest.json. Assurez-vous d'avoir exécuté app/chunk_dataset.py.");
     }
   } finally {
     hideLoading();
@@ -1437,7 +1437,7 @@ function renderBuildingsTable() {
 
   currentBuildingsDisplayRows = displayRows;
 
-  // Synthesis metrics (reflect search matches in both filter and highlight modes, like Streamlit)
+  // Synthesis metrics (reflect search matches in both filter and highlight modes)
   const statsSource = tokens.length > 0
     ? (searchMode === 'filter' ? displayRows : list.filter(b => currentBuildingsMatchingSet.has(b.batiment_groupe_id)))
     : list;

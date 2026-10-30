@@ -70,7 +70,7 @@ header.app-header {
   flex-shrink: 0;
 }
 
-/* Navigation Tabs Bar (Directly matching Streamlit top tabs) */
+/* Navigation Tabs Bar */
 nav.app-tabs-nav {
   height: 44px;
   background: var(--bg-secondary);

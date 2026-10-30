@@ -60,7 +60,7 @@
     </div>
   </header>
 
-  <!-- Main Navigation Tabs Bar (Directly matching Streamlit top tabs) -->
+  <!-- Main Navigation Tabs Bar -->
   <nav class="app-tabs-nav" id="app-tabs-nav">
     <button class="nav-tab active" data-tab="map">🗺️ Carte</button>
     <button class="nav-tab" data-tab="buildings">📊 Bâtiments</button>
@@ -441,7 +441,7 @@
           </table>
         </div>
 
-        <!-- Landlord Inspection & SCI Lookup Section (Streamlit 2-col layout) -->
+        <!-- Landlord Inspection & SCI Lookup Section -->
         <div class="landlord-inspector-bar">
           <div class="landlord-input-col" style="flex: 2;">
             <label for="select-landlord-to-inspect">Inspecter les dirigeants d'un bailleur (API Gouv) :</label>
@@ -521,7 +521,7 @@
       <div class="tab-pane content-pane" id="pane-sources">
         <div class="tz-tag-legend">
           <b>🏷️ Étiquettes du mode de récupération</b> <span style="color: var(--text-muted);">(survolez une étiquette avec la souris pour lire l'explication non-technique) :</span>
-          <span class="tz-tag tz-tag-etl" data-tooltip="Étape de préparation (script proto/build_dataset.py) qui télécharge les gros fichiers bruts officiels, les nettoie, les relie entre eux et fabrique nos fichiers locaux prêts à l'emploi en 5 secondes.">⚙️ Fabriquer les archives de données (Build ETL) ℹ️</span>
+          <span class="tz-tag tz-tag-etl" data-tooltip="Étape de préparation (script app/build_dataset.py) qui télécharge les gros fichiers bruts officiels, les nettoie, les relie entre eux et fabrique nos fichiers locaux prêts à l'emploi en 5 secondes.">⚙️ Fabriquer les archives de données (Build ETL) ℹ️</span>
           <span class="tz-tag tz-tag-parquet" data-tooltip="Base de données ultra-compacte enregistrée dans un simple fichier sur l'ordinateur (buildings.parquet, 10 Mo). Remplace un serveur lourd (Postgres) et affiche les 32 378 bâtiments instantanément.">🗄️ Fichier de données local (GeoParquet) ℹ️</span>
           <span class="tz-tag tz-tag-csv" data-tooltip="Grosse archive publique (505 Mo) publiée deux fois par an par l'État (CSTB), contenant 16 grands tableaux bruts avant leur nettoyage et recoupement.">📦 Archive de tables brutes (CSV Open Data) ℹ️</span>
           <span class="tz-tag tz-tag-wfs" data-tooltip="Carte publique téléchargée sur Data Grand Lyon. Notre outil repère automatiquement dans quelle zone (îlot de chaleur ou zone de loyers) se situe chaque immeuble grâce à ses coordonnées GPS.">🗺️ Carte croisée par GPS (WFS / Jointure spatiale) ℹ️</span>
@@ -555,7 +555,7 @@
                 </div>
                 <div class="tz-src-tags">
                   <span class="tz-tag tz-tag-csv" data-tooltip="Grosse archive publique (505 Mo) publiée deux fois par an par l'État (CSTB), contenant 16 grands tableaux bruts avant leur nettoyage et recoupement.">📦 Archive de tables brutes (CSV Open Data) ℹ️</span>
-                  <span class="tz-tag tz-tag-etl" data-tooltip="Étape de préparation (script proto/build_dataset.py) qui télécharge les gros fichiers bruts officiels, les nettoie, les relie entre eux et fabrique nos fichiers locaux prêts à l'emploi en 5 secondes.">⚙️ Fabriquer les archives de données (Build ETL) ℹ️</span>
+                  <span class="tz-tag tz-tag-etl" data-tooltip="Étape de préparation (script app/build_dataset.py) qui télécharge les gros fichiers bruts officiels, les nettoie, les relie entre eux et fabrique nos fichiers locaux prêts à l'emploi en 5 secondes.">⚙️ Fabriquer les archives de données (Build ETL) ℹ️</span>
                 </div>
                 <div class="tz-src-meta"><b>Producteurs nationaux :</b> IGN (BD TOPO), ADEME (Observatoire DPE), DGFiP (Fichiers Fonciers & MAJIC), BAN (Adresses), ANAH (RNIC Copropriétés), Ministère du Logement (RPLS), ANCT (Quartiers QPV).</div>
                 <div class="tz-src-meta"><b>Où on les récupère :</b> Consolidés à l'échelle nationale par le <b>CSTB</b> dans la <b>Base de Données Nationale des Bâtiments (BDNB)</b>, puis téléchargés sous forme d'archive départementale (voir <b>Département du Rhône 69</b> ci-dessous).</div>
@@ -579,7 +579,7 @@
                 <div class="tz-src-card-title">🏢 1. Bâtiments & Emprises GPS (69)</div>
                 <div class="tz-src-tags">
                   <span class="tz-tag tz-tag-csv" data-tooltip="Grosse archive publique (505 Mo) publiée deux fois par an par l'État (CSTB), contenant 16 grands tableaux bruts avant leur nettoyage et recoupement.">📦 Archive de tables brutes (CSV Open Data) ℹ️</span>
-                  <span class="tz-tag tz-tag-etl" data-tooltip="Étape de préparation (script proto/build_dataset.py) qui télécharge les gros fichiers bruts officiels, les nettoie, les relie entre eux et fabrique nos fichiers locaux prêts à l'emploi en 5 secondes.">⚙️ Fabriquer les archives de données (Build ETL) ℹ️</span>
+                  <span class="tz-tag tz-tag-etl" data-tooltip="Étape de préparation (script app/build_dataset.py) qui télécharge les gros fichiers bruts officiels, les nettoie, les relie entre eux et fabrique nos fichiers locaux prêts à l'emploi en 5 secondes.">⚙️ Fabriquer les archives de données (Build ETL) ℹ️</span>
                   <span class="tz-tag tz-tag-parquet" data-tooltip="Base de données ultra-compacte enregistrée dans un simple fichier sur l'ordinateur (buildings.parquet, 10 Mo). Remplace un serveur lourd (Postgres) et affiche les 32 378 bâtiments instantanément.">🗄️ Fichier de données local (GeoParquet) ℹ️</span>
                 </div>
                 <div class="tz-src-meta"><b>Tables :</b> <code>batiment_groupe.csv</code> + <code>_bdtopo_bat.csv</code> (IGN)</div>
@@ -590,7 +590,7 @@
                 <div class="tz-src-card-title">🏛️ 2. Propriétaires & Patrimoine 69 (MAJIC)</div>
                 <div class="tz-src-tags">
                   <span class="tz-tag tz-tag-csv" data-tooltip="Grosse archive publique (505 Mo) publiée deux fois par an par l'État (CSTB), contenant 16 grands tableaux bruts avant leur nettoyage et recoupement.">📦 Archive de tables brutes (CSV Open Data) ℹ️</span>
-                  <span class="tz-tag tz-tag-etl" data-tooltip="Étape de préparation (script proto/build_dataset.py) qui télécharge les gros fichiers bruts officiels, les nettoie, les relie entre eux et fabrique nos fichiers locaux prêts à l'emploi en 5 secondes.">⚙️ Fabriquer les archives de données (Build ETL) ℹ️</span>
+                  <span class="tz-tag tz-tag-etl" data-tooltip="Étape de préparation (script app/build_dataset.py) qui télécharge les gros fichiers bruts officiels, les nettoie, les relie entre eux et fabrique nos fichiers locaux prêts à l'emploi en 5 secondes.">⚙️ Fabriquer les archives de données (Build ETL) ℹ️</span>
                   <span class="tz-tag tz-tag-parquet" data-tooltip="Base de données ultra-compacte enregistrée dans un simple fichier sur l'ordinateur (buildings.parquet, 10 Mo). Remplace un serveur lourd (Postgres) et affiche les 32 378 bâtiments instantanément.">🗄️ Fichier de données local (GeoParquet) ℹ️</span>
                 </div>
                 <div class="tz-src-meta"><b>Tables :</b> <code>rel_batiment_groupe_proprietaire.csv</code> + <code>proprietaire.csv</code></div>
@@ -601,7 +601,7 @@
                 <div class="tz-src-card-title">🌡️ 3. DPE Hiver & Enveloppe Été (ADEME 69)</div>
                 <div class="tz-src-tags">
                   <span class="tz-tag tz-tag-csv" data-tooltip="Grosse archive publique (505 Mo) publiée deux fois par an par l'État (CSTB), contenant 16 grands tableaux bruts avant leur nettoyage et recoupement.">📦 Archive de tables brutes (CSV Open Data) ℹ️</span>
-                  <span class="tz-tag tz-tag-etl" data-tooltip="Étape de préparation (script proto/build_dataset.py) qui télécharge les gros fichiers bruts officiels, les nettoie, les relie entre eux et fabrique nos fichiers locaux prêts à l'emploi en 5 secondes.">⚙️ Fabriquer les archives de données (Build ETL) ℹ️</span>
+                  <span class="tz-tag tz-tag-etl" data-tooltip="Étape de préparation (script app/build_dataset.py) qui télécharge les gros fichiers bruts officiels, les nettoie, les relie entre eux et fabrique nos fichiers locaux prêts à l'emploi en 5 secondes.">⚙️ Fabriquer les archives de données (Build ETL) ℹ️</span>
                   <span class="tz-tag tz-tag-parquet" data-tooltip="Base de données ultra-compacte enregistrée dans un simple fichier sur l'ordinateur (buildings.parquet, 10 Mo). Remplace un serveur lourd (Postgres) et affiche les 32 378 bâtiments instantanément.">🗄️ Fichier de données local (GeoParquet) ℹ️</span>
                 </div>
                 <div class="tz-src-meta"><b>Tables :</b> <code>_dpe_representatif_logement.csv</code> + <code>_statistique_logement.csv</code></div>
@@ -612,7 +612,7 @@
                 <div class="tz-src-card-title">🚪 4. Logements & Époque (FFO 69)</div>
                 <div class="tz-src-tags">
                   <span class="tz-tag tz-tag-csv" data-tooltip="Grosse archive publique (505 Mo) publiée deux fois par an par l'État (CSTB), contenant 16 grands tableaux bruts avant leur nettoyage et recoupement.">📦 Archive de tables brutes (CSV Open Data) ℹ️</span>
-                  <span class="tz-tag tz-tag-etl" data-tooltip="Étape de préparation (script proto/build_dataset.py) qui télécharge les gros fichiers bruts officiels, les nettoie, les relie entre eux et fabrique nos fichiers locaux prêts à l'emploi en 5 secondes.">⚙️ Fabriquer les archives de données (Build ETL) ℹ️</span>
+                  <span class="tz-tag tz-tag-etl" data-tooltip="Étape de préparation (script app/build_dataset.py) qui télécharge les gros fichiers bruts officiels, les nettoie, les relie entre eux et fabrique nos fichiers locaux prêts à l'emploi en 5 secondes.">⚙️ Fabriquer les archives de données (Build ETL) ℹ️</span>
                   <span class="tz-tag tz-tag-parquet" data-tooltip="Base de données ultra-compacte enregistrée dans un simple fichier sur l'ordinateur (buildings.parquet, 10 Mo). Remplace un serveur lourd (Postgres) et affiche les 32 378 bâtiments instantanément.">🗄️ Fichier de données local (GeoParquet) ℹ️</span>
                 </div>
                 <div class="tz-src-meta"><b>Table :</b> <code>batiment_groupe_ffo_bat.csv</code> (DGFiP Fichiers Fonciers)</div>
@@ -623,7 +623,7 @@
                 <div class="tz-src-card-title">📍 5. Adresses Postales (BAN 69)</div>
                 <div class="tz-src-tags">
                   <span class="tz-tag tz-tag-csv" data-tooltip="Grosse archive publique (505 Mo) publiée deux fois par an par l'État (CSTB), contenant 16 grands tableaux bruts avant leur nettoyage et recoupement.">📦 Archive de tables brutes (CSV Open Data) ℹ️</span>
-                  <span class="tz-tag tz-tag-etl" data-tooltip="Étape de préparation (script proto/build_dataset.py) qui télécharge les gros fichiers bruts officiels, les nettoie, les relie entre eux et fabrique nos fichiers locaux prêts à l'emploi en 5 secondes.">⚙️ Fabriquer les archives de données (Build ETL) ℹ️</span>
+                  <span class="tz-tag tz-tag-etl" data-tooltip="Étape de préparation (script app/build_dataset.py) qui télécharge les gros fichiers bruts officiels, les nettoie, les relie entre eux et fabrique nos fichiers locaux prêts à l'emploi en 5 secondes.">⚙️ Fabriquer les archives de données (Build ETL) ℹ️</span>
                   <span class="tz-tag tz-tag-parquet" data-tooltip="Base de données ultra-compacte enregistrée dans un simple fichier sur l'ordinateur (buildings.parquet, 10 Mo). Remplace un serveur lourd (Postgres) et affiche les 32 378 bâtiments instantanément.">🗄️ Fichier de données local (GeoParquet) ℹ️</span>
                 </div>
                 <div class="tz-src-meta"><b>Tables :</b> <code>rel_batiment_groupe_adresse.csv</code> + <code>adresse.csv</code></div>
@@ -634,7 +634,7 @@
                 <div class="tz-src-card-title">⚖️ 6. Copros, Parc Social, QPV & PLU (69)</div>
                 <div class="tz-src-tags">
                   <span class="tz-tag tz-tag-csv" data-tooltip="Grosse archive publique (505 Mo) publiée deux fois par an par l'État (CSTB), contenant 16 grands tableaux bruts avant leur nettoyage et recoupement.">📦 Archive de tables brutes (CSV Open Data) ℹ️</span>
-                  <span class="tz-tag tz-tag-etl" data-tooltip="Étape de préparation (script proto/build_dataset.py) qui télécharge les gros fichiers bruts officiels, les nettoie, les relie entre eux et fabrique nos fichiers locaux prêts à l'emploi en 5 secondes.">⚙️ Fabriquer les archives de données (Build ETL) ℹ️</span>
+                  <span class="tz-tag tz-tag-etl" data-tooltip="Étape de préparation (script app/build_dataset.py) qui télécharge les gros fichiers bruts officiels, les nettoie, les relie entre eux et fabrique nos fichiers locaux prêts à l'emploi en 5 secondes.">⚙️ Fabriquer les archives de données (Build ETL) ℹ️</span>
                   <span class="tz-tag tz-tag-parquet" data-tooltip="Base de données ultra-compacte enregistrée dans un simple fichier sur l'ordinateur (buildings.parquet, 10 Mo). Remplace un serveur lourd (Postgres) et affiche les 32 378 bâtiments instantanément.">🗄️ Fichier de données local (GeoParquet) ℹ️</span>
                 </div>
                 <div class="tz-src-meta"><b>Tables :</b> <code>_rnc.csv</code> (ANAH), <code>_rpls.csv</code>, <code>_qpv.csv</code> (ANCT), <code>_urbanisme.csv</code></div>
@@ -655,7 +655,7 @@
                     <div class="tz-src-card-title">☀️ 1. Îlots de Chaleur Urbains (ICU / LCZ)</div>
                     <div class="tz-src-tags">
                       <span class="tz-tag tz-tag-wfs" data-tooltip="Carte publique téléchargée sur Data Grand Lyon. Notre outil repère automatiquement dans quelle zone (îlot de chaleur ou zone de loyers) se situe chaque immeuble grâce à ses coordonnées GPS.">🗺️ Carte croisée par GPS (WFS / Jointure spatiale) ℹ️</span>
-                      <span class="tz-tag tz-tag-etl" data-tooltip="Étape de préparation (script proto/build_dataset.py) qui télécharge les gros fichiers bruts officiels, les nettoie, les relie entre eux et fabrique nos fichiers locaux prêts à l'emploi en 5 secondes.">⚙️ Fabriquer les archives de données (Build ETL) ℹ️</span>
+                      <span class="tz-tag tz-tag-etl" data-tooltip="Étape de préparation (script app/build_dataset.py) qui télécharge les gros fichiers bruts officiels, les nettoie, les relie entre eux et fabrique nos fichiers locaux prêts à l'emploi en 5 secondes.">⚙️ Fabriquer les archives de données (Build ETL) ℹ️</span>
                       <span class="tz-tag tz-tag-parquet" data-tooltip="Base de données ultra-compacte enregistrée dans un simple fichier sur l'ordinateur (buildings.parquet, 10 Mo). Remplace un serveur lourd (Postgres) et affiche les 32 378 bâtiments instantanément.">🗄️ Fichier de données local (GeoParquet) ℹ️</span>
                     </div>
                     <div class="tz-src-meta"><b>Producteur :</b> Métropole de Lyon (<b>Data Grand Lyon</b>)</div>
@@ -667,7 +667,7 @@
                     <div class="tz-src-card-title">💶 2. Encadrement des Loyers (2025-2026)</div>
                     <div class="tz-src-tags">
                       <span class="tz-tag tz-tag-wfs" data-tooltip="Carte publique téléchargée sur Data Grand Lyon. Notre outil repère automatiquement dans quelle zone (îlot de chaleur ou zone de loyers) se situe chaque immeuble grâce à ses coordonnées GPS.">🗺️ Carte croisée par GPS (WFS / Jointure spatiale) ℹ️</span>
-                      <span class="tz-tag tz-tag-etl" data-tooltip="Étape de préparation (script proto/build_dataset.py) qui télécharge les gros fichiers bruts officiels, les nettoie, les relie entre eux et fabrique nos fichiers locaux prêts à l'emploi en 5 secondes.">⚙️ Fabriquer les archives de données (Build ETL) ℹ️</span>
+                      <span class="tz-tag tz-tag-etl" data-tooltip="Étape de préparation (script app/build_dataset.py) qui télécharge les gros fichiers bruts officiels, les nettoie, les relie entre eux et fabrique nos fichiers locaux prêts à l'emploi en 5 secondes.">⚙️ Fabriquer les archives de données (Build ETL) ℹ️</span>
                       <span class="tz-tag tz-tag-parquet" data-tooltip="Base de données ultra-compacte enregistrée dans un simple fichier sur l'ordinateur (buildings.parquet, 10 Mo). Remplace un serveur lourd (Postgres) et affiche les 32 378 bâtiments instantanément.">🗄️ Fichier de données local (GeoParquet) ℹ️</span>
                     </div>
                     <div class="tz-src-meta"><b>Producteur :</b> Préfecture / Métropole (<b>Data Grand Lyon</b>)</div>
@@ -707,7 +707,7 @@
                 <div class="tz-src-card-title">🏢 1. Bâtiments & Emprises GPS (38)</div>
                 <div class="tz-src-tags">
                   <span class="tz-tag tz-tag-csv" data-tooltip="Grosse archive publique (505 Mo) publiée deux fois par an par l'État (CSTB), contenant 16 grands tableaux bruts avant leur nettoyage et recoupement.">📦 Archive de tables brutes (CSV Open Data) ℹ️</span>
-                  <span class="tz-tag tz-tag-etl" data-tooltip="Étape de préparation (script proto/build_dataset.py) qui télécharge les gros fichiers bruts officiels, les nettoie, les relie entre eux et fabrique nos fichiers locaux prêts à l'emploi en 5 secondes.">⚙️ Fabriquer les archives de données (Build ETL) ℹ️</span>
+                  <span class="tz-tag tz-tag-etl" data-tooltip="Étape de préparation (script app/build_dataset.py) qui télécharge les gros fichiers bruts officiels, les nettoie, les relie entre eux et fabrique nos fichiers locaux prêts à l'emploi en 5 secondes.">⚙️ Fabriquer les archives de données (Build ETL) ℹ️</span>
                   <span class="tz-tag tz-tag-parquet" data-tooltip="Base de données ultra-compacte enregistrée dans un simple fichier sur l'ordinateur (buildings.parquet, 10 Mo). Remplace un serveur lourd (Postgres) et affiche les 32 378 bâtiments instantanément.">🗄️ Fichier de données local (GeoParquet) ℹ️</span>
                 </div>
                 <div class="tz-src-meta"><b>Tables BDNB 38 :</b> <code>batiment_groupe.csv</code> + <code>_bdtopo_bat.csv</code> (IGN)</div>
@@ -717,7 +717,7 @@
                 <div class="tz-src-card-title">🏛️ 2. Propriétaires & Patrimoine 38 (MAJIC)</div>
                 <div class="tz-src-tags">
                   <span class="tz-tag tz-tag-csv" data-tooltip="Grosse archive publique (505 Mo) publiée deux fois par an par l'État (CSTB), contenant 16 grands tableaux bruts avant leur nettoyage et recoupement.">📦 Archive de tables brutes (CSV Open Data) ℹ️</span>
-                  <span class="tz-tag tz-tag-etl" data-tooltip="Étape de préparation (script proto/build_dataset.py) qui télécharge les gros fichiers bruts officiels, les nettoie, les relie entre eux et fabrique nos fichiers locaux prêts à l'emploi en 5 secondes.">⚙️ Fabriquer les archives de données (Build ETL) ℹ️</span>
+                  <span class="tz-tag tz-tag-etl" data-tooltip="Étape de préparation (script app/build_dataset.py) qui télécharge les gros fichiers bruts officiels, les nettoie, les relie entre eux et fabrique nos fichiers locaux prêts à l'emploi en 5 secondes.">⚙️ Fabriquer les archives de données (Build ETL) ℹ️</span>
                   <span class="tz-tag tz-tag-parquet" data-tooltip="Base de données ultra-compacte enregistrée dans un simple fichier sur l'ordinateur (buildings.parquet, 10 Mo). Remplace un serveur lourd (Postgres) et affiche les 32 378 bâtiments instantanément.">🗄️ Fichier de données local (GeoParquet) ℹ️</span>
                 </div>
                 <div class="tz-src-meta"><b>Tables BDNB 38 :</b> <code>rel_batiment_groupe_proprietaire.csv</code> + <code>proprietaire.csv</code></div>
@@ -727,7 +727,7 @@
                 <div class="tz-src-card-title">🌡️ 3. DPE Hiver & Enveloppe Été (ADEME 38)</div>
                 <div class="tz-src-tags">
                   <span class="tz-tag tz-tag-csv" data-tooltip="Grosse archive publique (505 Mo) publiée deux fois par an par l'État (CSTB), contenant 16 grands tableaux bruts avant leur nettoyage et recoupement.">📦 Archive de tables brutes (CSV Open Data) ℹ️</span>
-                  <span class="tz-tag tz-tag-etl" data-tooltip="Étape de préparation (script proto/build_dataset.py) qui télécharge les gros fichiers bruts officiels, les nettoie, les relie entre eux et fabrique nos fichiers locaux prêts à l'emploi en 5 secondes.">⚙️ Fabriquer les archives de données (Build ETL) ℹ️</span>
+                  <span class="tz-tag tz-tag-etl" data-tooltip="Étape de préparation (script app/build_dataset.py) qui télécharge les gros fichiers bruts officiels, les nettoie, les relie entre eux et fabrique nos fichiers locaux prêts à l'emploi en 5 secondes.">⚙️ Fabriquer les archives de données (Build ETL) ℹ️</span>
                   <span class="tz-tag tz-tag-parquet" data-tooltip="Base de données ultra-compacte enregistrée dans un simple fichier sur l'ordinateur (buildings.parquet, 10 Mo). Remplace un serveur lourd (Postgres) et affiche les 32 378 bâtiments instantanément.">🗄️ Fichier de données local (GeoParquet) ℹ️</span>
                 </div>
                 <div class="tz-src-meta"><b>Tables BDNB 38 :</b> <code>_dpe_representatif_logement.csv</code> + <code>_statistique_logement.csv</code></div>
@@ -747,7 +747,7 @@
                     <div class="tz-src-card-title">☀️ 1. Zones Climatiques Locales & ICU (Cerema Grenoble)</div>
                     <div class="tz-src-tags">
                       <span class="tz-tag tz-tag-wfs" data-tooltip="Carte publique téléchargée sur Data Grand Lyon. Notre outil repère automatiquement dans quelle zone (îlot de chaleur ou zone de loyers) se situe chaque immeuble grâce à ses coordonnées GPS.">🗺️ Carte croisée par GPS (WFS / Jointure spatiale) ℹ️</span>
-                      <span class="tz-tag tz-tag-etl" data-tooltip="Étape de préparation (script proto/build_dataset.py) qui télécharge les gros fichiers bruts officiels, les nettoie, les relie entre eux et fabrique nos fichiers locaux prêts à l'emploi en 5 secondes.">⚙️ Fabriquer les archives de données (Build ETL) ℹ️</span>
+                      <span class="tz-tag tz-tag-etl" data-tooltip="Étape de préparation (script app/build_dataset.py) qui télécharge les gros fichiers bruts officiels, les nettoie, les relie entre eux et fabrique nos fichiers locaux prêts à l'emploi en 5 secondes.">⚙️ Fabriquer les archives de données (Build ETL) ℹ️</span>
                       <span class="tz-tag tz-tag-parquet" data-tooltip="Base de données ultra-compacte enregistrée dans un simple fichier sur l'ordinateur (buildings.parquet, 10 Mo). Remplace un serveur lourd (Postgres) et affiche les 32 378 bâtiments instantanément.">🗄️ Fichier de données local (GeoParquet) ℹ️</span>
                     </div>
                     <div class="tz-src-meta"><b>Producteur :</b> <b>Cerema</b> (<code>data.gouv.fr</code> — <code>lcz-spot-2022-grenoble.zip</code>)</div>
@@ -759,7 +759,7 @@
                     <div class="tz-src-card-title">💶 2. Zonage & Loyers de Référence Grenoble (L3800)</div>
                     <div class="tz-src-tags">
                       <span class="tz-tag tz-tag-wfs" data-tooltip="Carte publique téléchargée sur Data Grand Lyon. Notre outil repère automatiquement dans quelle zone (îlot de chaleur ou zone de loyers) se situe chaque immeuble grâce à ses coordonnées GPS.">🗺️ Carte croisée par GPS (WFS / Jointure spatiale) ℹ️</span>
-                      <span class="tz-tag tz-tag-etl" data-tooltip="Étape de préparation (script proto/build_dataset.py) qui télécharge les gros fichiers bruts officiels, les nettoie, les relie entre eux et fabrique nos fichiers locaux prêts à l'emploi en 5 secondes.">⚙️ Fabriquer les archives de données (Build ETL) ℹ️</span>
+                      <span class="tz-tag tz-tag-etl" data-tooltip="Étape de préparation (script app/build_dataset.py) qui télécharge les gros fichiers bruts officiels, les nettoie, les relie entre eux et fabrique nos fichiers locaux prêts à l'emploi en 5 secondes.">⚙️ Fabriquer les archives de données (Build ETL) ℹ️</span>
                       <span class="tz-tag tz-tag-parquet" data-tooltip="Base de données ultra-compacte enregistrée dans un simple fichier sur l'ordinateur (buildings.parquet, 10 Mo). Remplace un serveur lourd (Postgres) et affiche les 32 378 bâtiments instantanément.">🗄️ Fichier de données local (GeoParquet) ℹ️</span>
                     </div>
                     <div class="tz-src-meta"><b>Producteur :</b> Observatoire des Loyers / Préfecture 38 (<code>Base_OP_2024_L3800.zip</code>)</div>
@@ -796,7 +796,7 @@
             </div>
             <div class="tz-src-card" style="border-left: 3px solid #059669; background: rgba(5, 150, 105, 0.08);">
               <div class="tz-src-card-title">⛰️ Grenoble Alpes Métropole (38) — ✅ ACTIF</div>
-              <div class="tz-src-meta">Intégré dans ce prototype (31 610 bâtiments / 23 183 propriétaires moraux) avec LCZ Cerema et encadrement des loyers.</div>
+              <div class="tz-src-meta">Intégré dans l'application (31 610 bâtiments / 23 183 propriétaires moraux) avec LCZ Cerema et encadrement des loyers.</div>
             </div>
             <div class="tz-src-card" style="border-left: 3px solid #2563eb;">
               <div class="tz-src-card-title">🗼 Paris (75) & Seine-Saint-Denis (93)</div>

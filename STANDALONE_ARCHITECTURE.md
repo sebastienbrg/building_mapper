@@ -32,7 +32,7 @@ flowchart TD
 
 ## 1. Parquet Dataset Chunking & Postal Code Ranges
 
-The dataset is partitioned into lightweight chunks by postal code (`cp`) and department (`dep`) via [proto/chunk_dataset.py](file:///home/sebastien/.gemini/antigravity/scratch/tezeloma-assessment/proto/chunk_dataset.py).
+The dataset is partitioned into lightweight chunks by postal code (`cp`) and department (`dep`) via [app/chunk_dataset.py](file:///home/sebastien/.gemini/antigravity/scratch/tezeloma-assessment/app/chunk_dataset.py).
 
 ### Real Measured Benchmark (Current 24 Postal Codes in Repo):
 - **Total buildings:** 63,988 (~20 MB total)
@@ -63,12 +63,12 @@ To test the static web application locally:
 
 ```bash
 # 1. (Optional) Rebuild the dataset and postal-code chunks:
-.venv/bin/python proto/build_dataset.py
+.venv/bin/python app/build_dataset.py
 
 # 2. Start the lightweight local HTTP runner:
-python3 proto/run_static.py
+python3 app/run_static.py
 ```
-Open [http://localhost:8080/proto/static_app/index.html](http://localhost:8080/proto/static_app/index.html).
+Open [http://localhost:8080/app/static_app/index.html](http://localhost:8080/app/static_app/index.html).
 
 ---
 
@@ -83,7 +83,7 @@ Whenever code is pushed to `master`, GitHub Pages builds and publishes the app a
 ### B. Hosting Data Chunks (GitHub Releases)
 Run the release script to publish all postal-code Parquet chunks to GitHub Releases:
 ```bash
-./proto/release_data.sh v1.0-data
+./app/release_data.sh v1.0-data
 ```
 The chunks are accessible at:
 `https://github.com/<owner>/tezeloma-assessment/releases/download/v1.0-data/`

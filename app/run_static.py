@@ -4,7 +4,7 @@ TeZeLoMa Local Static App Server
 ================================
 Zero-dependency local runner to test the static app and data chunks.
 Run:
-    python3 proto/run_static.py
+    python3 app/run_static.py
 """
 
 import http.server
@@ -37,7 +37,7 @@ class Handler(http.server.SimpleHTTPRequestHandler):
 
 def main():
     with socketserver.TCPServer(("", PORT), Handler) as httpd:
-        url = f"http://localhost:{PORT}/proto/static_app/index.html"
+        url = f"http://localhost:{PORT}/app/static_app/index.html"
         print(f"\nTeZeLoMa Static App running at: {url}")
         print("Press Ctrl+C to stop.\n")
         try:

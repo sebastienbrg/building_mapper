@@ -7,7 +7,7 @@
 
 ## 1. Mystery Solved: What is the Missing Code (`import func`)?
 
-In both [extraction_bdnb_lyon.py](file:///home/sebastien/.gemini/antigravity/scratch/tezeloma-assessment/tezeloma/extraction_bdnb_lyon.py#L10) and [extraction_bdnb.py](file:///home/sebastien/.gemini/antigravity/scratch/tezeloma-assessment/tezeloma-cartographie/extraction_bdnb.py#L10), line 10 states:
+In both `extraction_bdnb_lyon.py` and `extraction_bdnb.py`, line 10 states:
 ```python
 import func
 ```
@@ -18,7 +18,7 @@ import func
 ### What did `func.py` originally do in the student's early prototype (`v0.1`–`v0.6`)?
 Even though it is no longer used, clues left in comments and filenames reveal what the student was doing before discovering that the BDNB PostgreSQL dump already contained everything:
 1. **Parsing DGFiP's *Fichier des locaux des personnes morales* (`natprop`)**:
-   - Look at lines 135–136 and 197–198 of [extraction_bdnb_lyon.py](file:///home/sebastien/.gemini/antigravity/scratch/tezeloma-assessment/tezeloma/extraction_bdnb_lyon.py#L135-L136):
+   - Look at lines 135–136 and 197–198 of `extraction_bdnb_lyon.py`:
      ```python
      #Merge with FichierDesLocaux ON personne_id
      #merged_df = df.merge(natprop, on='personne_id', how='inner')
@@ -64,7 +64,7 @@ flowchart LR
     end
 ```
 
-### A. Offline Data Pipeline ([extraction_bdnb_lyon.py](file:///home/sebastien/.gemini/antigravity/scratch/tezeloma-assessment/tezeloma/extraction_bdnb_lyon.py))
+### A. Offline Data Pipeline (`extraction_bdnb_lyon.py`)
 1. **Scope:** Hardcoded for 10 INSEE communes / postal codes covering **Lyon (1er–9e) and Villeurbanne** (`69001`–`69009`, `69100`).
 2. **8 Sequential Extraction Modules** querying a local Postgres database (`bdnb_2025_07_a_open_data_dep69`):
    - `batiment_groupe`: Building footprint geometry (`geom_groupe` in EPSG:2154) and `batiment_groupe_id`.
@@ -86,7 +86,7 @@ flowchart LR
      - `concentration_prop_max_denomination`: Name (`denomination`) of the largest corporate owner in the building.
      - `adr`, `cp`, `geometry`.
 
-### B. Web Application ([webapp11.py](file:///home/sebastien/.gemini/antigravity/scratch/tezeloma-assessment/tezeloma-cartographie/webapp11.py) & [webapp_lyon_v12.py](file:///home/sebastien/.gemini/antigravity/scratch/tezeloma-assessment/tezeloma/webapp_lyon_v12.py))
+### B. Legacy Streamlit Web Applications (`webapp11.py` & `webapp_lyon_v12.py`)
 - **Two spaces in `webapp11.py`** (simplified to single space in `webapp_lyon_v12.py`):
   - **Demo space**: Public basic filters.
   - **Member space (`TeZeLoPa`)**: Protected by a hardcoded password (`{"tezelopa": "2025!Tezelopa"}` directly in public GitHub code!).

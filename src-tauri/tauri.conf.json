@@ -2,8 +2,8 @@
   "build": {
     "beforeDevCommand": "",
     "beforeBuildCommand": "",
-    "devPath": "http://localhost:8080/proto/static_app/index.html",
-    "distDir": "../proto/static_app"
+    "devPath": "http://localhost:8080/app/static_app/index.html",
+    "distDir": "../app/static_app"
   },
   "package": {
     "productName": "TeZeLoMa",

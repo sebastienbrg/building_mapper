@@ -5,7 +5,7 @@ on:
     branches:
       - master
     paths:
-      - 'proto/static_app/**'
+      - 'app/static_app/**'
       - '.github/workflows/deploy-pages.yml'
   workflow_dispatch:
 
@@ -34,7 +34,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: 'proto/static_app'
+          path: 'app/static_app'
 
       - name: Deploy to GitHub Pages
         id: deployment

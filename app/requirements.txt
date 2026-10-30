@@ -1,0 +1,8 @@
+# TeZeLoMa — Data Preparation (ETL & Chunking) and Testing Dependencies
+duckdb>=1.1.0,<3.0.0
+geopandas>=1.0.0,<2.0.0
+shapely>=2.0.0,<3.0.0
+pyarrow>=17.0.0,<27.0.0
+pandas>=2.2.0,<4.0.0
+numpy>=2.0.0,<3.0.0
+playwright>=1.60.0,<2.0.0
