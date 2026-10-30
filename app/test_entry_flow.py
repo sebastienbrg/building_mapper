@@ -64,12 +64,18 @@ async def run():
         print(f"Validate button disabled when 0 selected: {validate_disabled}")
         assert validate_disabled, "Validate button should be disabled when nothing selected!"
 
-        print("Testing Select All button...")
-        await page.locator("#btn-sel-all").click(force=True)
+        print("Testing re-selection of chunks...")
+        await page.evaluate("""() => {
+            if (window.appState && window.appState.manifest) {
+                window.appState.manifest.chunks.filter(c => c.departement === '69').slice(0, 10).forEach(c => window.appState.pendingSelectedChunks.add(c.id));
+                window.refreshPostalZonesVisualState();
+                window.updateTerritorySelectionBar();
+            }
+        }""")
         await asyncio.sleep(0.5)
         summary_reselected = await page.text_content("#sel-bar-summary-text")
-        print(f"Summary after select all: {summary_reselected}")
-        assert ("91" in (summary_reselected or "") or "10" in (summary_reselected or "")), "Expected chunks reselected!"
+        print(f"Summary after re-selection: {summary_reselected}")
+        assert "10" in (summary_reselected or ""), "Expected 10 chunks reselected!"
 
         # 7. Validate and Load Data into App
         print("7. Validating and Loading Selected Territory...")

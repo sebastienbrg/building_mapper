@@ -51,8 +51,8 @@
     </div>
 
     <div class="header-actions">
-      <button class="btn btn-secondary btn-sm" id="btn-open-territory-manager" title="Changer de localisation ou choisir les micro-chunks">
-        <span>📍</span> Territoire & Chunks
+      <button class="btn btn-secondary btn-sm" id="btn-open-territory-manager" title="Changer de localisation ou choisir les zones postales">
+        <span>📦</span> Données chargées
       </button>
       <button class="btn btn-primary btn-sm" id="btn-header-export">
         <span>📥</span> Exporter
@@ -75,129 +75,63 @@
     
     <!-- Sidebar: Folding Categorical Controls -->
     <aside class="app-sidebar">
-      
+
+      <!-- Top Tools Section: 2 Big Prominent Action Cards -->
+      <div class="sidebar-top-section">
+
+        <!-- 1. First Big Button: Données chargées -->
+        <button class="sidebar-big-btn btn-donnees-chargees" id="btn-sidebar-donnees-chargees" type="button" title="Gérer ou modifier le territoire et les données chargées">
+          <div class="sidebar-big-btn-icon">📦</div>
+          <div class="sidebar-big-btn-body">
+            <div class="sidebar-big-btn-row-1">
+              <span class="sidebar-big-btn-title">Données chargées</span>
+              <span class="status-badge status-cached" id="sidebar-data-status-badge">Prêt</span>
+            </div>
+            <div class="sidebar-big-btn-row-2">
+              <span class="sidebar-big-btn-sub" id="sidebar-territory-name">69 — Rhône (Lyon)</span>
+              <span class="sidebar-big-btn-dot">•</span>
+              <span class="sidebar-big-btn-count" id="sidebar-data-count">2 714 bât.</span>
+              <span id="territory-status-text" style="display:none;"></span>
+              <span id="territory-size-text" style="display:none;"></span>
+            </div>
+          </div>
+          <span class="sidebar-big-btn-chevron">➔</span>
+        </button>
+
+        <!-- 2. Second Big Button: Choisir les filtres -->
+        <button class="sidebar-big-btn btn-choisir-filtres" id="btn-open-filter-catalog" type="button" title="Choisir les filtres dans le catalogue sociologique et profils">
+          <div class="sidebar-big-btn-icon">🎛️</div>
+          <div class="sidebar-big-btn-body">
+            <div class="sidebar-big-btn-row-1">
+              <span class="sidebar-big-btn-title">Choisir les filtres</span>
+              <span class="filter-count-badge" id="selected-controls-badge">
+                <strong id="selected-controls-count">8</strong> / <span id="total-controls-count">55</span>
+              </span>
+            </div>
+            <div class="sidebar-big-btn-row-2">
+              <span class="filter-profile-prefix">Profil :</span>
+              <span class="filter-profile-name" id="sidebar-active-profile-name">🎯 Passoires G & Bailleurs</span>
+            </div>
+          </div>
+          <span class="sidebar-big-btn-chevron">➔</span>
+        </button>
+
+      </div>
+
+      <!-- Active Filters Action Bar -->
       <div class="sidebar-header-bar">
         <div style="display: flex; align-items: center; gap: 0.45rem;">
-          <span class="sidebar-header-title">Filtres & Profils</span>
+          <span class="sidebar-header-title">Filtres actifs</span>
           <span class="status-badge status-online" id="active-filters-count-badge" title="Nombre de critères filtrant activement les bâtiments">1 actif</span>
         </div>
         <div style="display: flex; gap: 0.35rem;">
-          <button class="btn btn-secondary btn-sm" id="btn-reset-filters" title="Réinitialiser toutes les valeurs de filtres" style="font-size: 0.7rem; padding: 0.2rem 0.5rem;">
+          <button class="btn btn-secondary btn-sm" id="btn-reset-filters" title="Réinitialiser toutes les valeurs de filtres" style="font-size: 0.72rem; padding: 0.2rem 0.55rem;">
             ↺ Réinitialiser
           </button>
         </div>
       </div>
 
-      <!-- Profile Shortcuts & Filter Browser Bar -->
-      <div class="profiles-bar-section" id="sidebar-profiles-bar">
-        <div class="profiles-bar-header">
-          <span class="profiles-bar-title">🎭 Profils d'enquête (Raccourcis)</span>
-          <button class="btn-link-sm" id="btn-open-save-profile" title="Enregistrer la sélection actuelle de filtres comme un nouveau profil">
-            💾 + Sauvegarder profil
-          </button>
-        </div>
-
-        <div class="profile-pills-wrap" id="profile-buttons-container">
-          <!-- Populated dynamically via app.js (built-in + custom profiles) -->
-        </div>
-
-        <button class="btn btn-primary btn-block btn-select-filters" id="btn-open-filter-catalog">
-          <span>🎛️</span>
-          <span>Choisir les filtres (<strong id="selected-controls-count">8</strong>/<span id="total-controls-count">55</span> affichés)</span>
-        </button>
-      </div>
-
       <div class="accordion-group">
-
-        <!-- Expander: Affichage Carte & Territoire -->
-        <details class="accordion-item" id="acc-display">
-          <summary class="accordion-header">
-            <span class="accordion-title-wrap">
-              <span>🎨</span> Carte, Fond & Territoire
-            </span>
-            <span class="accordion-chevron">▶</span>
-          </summary>
-          <div class="accordion-body">
-            <button class="btn btn-secondary btn-block" id="btn-sidebar-open-territory" style="margin-bottom: 0.5rem; justify-content: center; gap: 0.5rem; background: rgba(56, 189, 248, 0.1); border-color: rgba(56, 189, 248, 0.4); color: var(--accent-primary);">
-              <span>🗺️</span> <strong>Choisir sur la carte (polygones)</strong>
-            </button>
-
-            <div class="territory-selector" style="margin-bottom: 0.6rem; padding-bottom: 0.6rem; border-bottom: 1px solid var(--border-color);">
-              <div class="selector-tabs">
-                <button class="tab-btn active" data-mode="dep">Département</button>
-                <button class="tab-btn" data-mode="cp">Code Postal</button>
-                <button class="tab-btn" data-mode="range">Plage de CP</button>
-              </div>
-
-              <!-- Mode: Department -->
-              <div class="tab-content" id="tab-dep">
-                <div class="form-group" style="margin-bottom: 0.35rem;">
-                  <select id="select-dept">
-                    <option value="69">69 — Rhône (Lyon & Villeurbanne)</option>
-                    <option value="38">38 — Isère (Grenoble & Métropole)</option>
-                  </select>
-                </div>
-              </div>
-
-              <!-- Mode: Single Postal Code -->
-              <div class="tab-content" id="tab-cp" style="display: none;">
-                <div class="form-group" style="margin-bottom: 0.35rem;">
-                  <select id="select-cp">
-                    <option value="">Sélectionner un code postal...</option>
-                  </select>
-                </div>
-              </div>
-
-              <!-- Mode: Postal Code Range -->
-              <div class="tab-content" id="tab-range" style="display: none;">
-                <div class="form-group" style="margin-bottom: 0.35rem;">
-                  <div class="range-inputs">
-                    <input type="number" id="input-range-start" placeholder="Ex: 69001" min="10000" max="99999">
-                    <span>à</span>
-                    <input type="number" id="input-range-end" placeholder="Ex: 69009" min="10000" max="99999">
-                  </div>
-                </div>
-              </div>
-
-              <button class="btn btn-primary btn-block btn-sm" id="btn-load-territory">
-                <span>⚡</span> Charger ce territoire
-              </button>
-
-              <div class="territory-status">
-                <span id="territory-status-text">Territoire actif : 69</span>
-                <span id="territory-size-text" style="color: var(--text-muted);">~10.3 Mo</span>
-              </div>
-            </div>
-
-            <div class="form-group">
-              <label>Coloration des bâtiments</label>
-              <select id="select-color-mode">
-                <option value="dpe">Étiquette DPE (A → G)</option>
-                <option value="overheating">Risque Surchauffe d'Été</option>
-                <option value="concentration">Concentration Propriétaire (%)</option>
-                <option value="fieldwork" id="opt-fieldwork-mode" style="display: none;">Enquête de Terrain</option>
-              </select>
-            </div>
-
-            <div class="form-group">
-              <label>
-                <span>Blanchir le fond de carte</span>
-                <strong id="label-bg-dim">20%</strong>
-              </label>
-              <input type="range" id="slider-bg-dim" min="0" max="100" step="5" value="20">
-            </div>
-
-            <div class="form-group" style="margin-bottom: 0;">
-              <label>Limite de polygones affichés</label>
-              <select id="select-max-polygons">
-                <option value="1500">1 500 bâtiments (très rapide)</option>
-                <option value="3000" selected>3 000 bâtiments (recommandé)</option>
-                <option value="5000">5 000 bâtiments</option>
-                <option value="999999">Tous les bâtiments du territoire</option>
-              </select>
-            </div>
-          </div>
-        </details>
 
         <!-- Dynamic Sociological Filter Categories Container (populated & toggled via app.js) -->
         <div id="sociological-filters-container" class="sociological-filters-stack"></div>
@@ -251,26 +185,26 @@
 
         <!-- Floating Territory Selection Bar (at bottom of map) -->
         <div class="territory-selection-bar" id="territory-selection-bar">
-          <div class="sel-bar-info">
-            <div class="sel-bar-summary">
-              <span>🎯</span>
-              <span id="sel-bar-summary-text">0 code postal sélectionné</span>
+          <div class="sel-bar-main">
+            <div class="sel-bar-header">
+              <div class="sel-bar-title-wrap">
+                <span class="sel-bar-badge-icon">📍</span>
+                <span class="sel-bar-title" id="sel-bar-summary-text">0 code postal sélectionné</span>
+                <span class="sel-bar-metrics-badge" id="sel-bar-metrics-text">0 bâtiment • 0 Mo</span>
+              </div>
+              <div class="sel-bar-header-actions">
+                <button type="button" class="btn btn-secondary btn-xs" id="btn-sel-clear" title="Réinitialiser la sélection de secteurs">↺ Vider</button>
+                <button type="button" class="btn btn-secondary btn-xs btn-sel-close" id="btn-sel-cancel" title="Quitter le mode de sélection">&times; Fermer</button>
+              </div>
             </div>
-            <div class="sel-bar-metrics" id="sel-bar-metrics-text">
-              0 bâtiment • 0 Mo à télécharger
+
+            <!-- Chips container for selected postal codes / chunks -->
+            <div class="sel-bar-chips" id="sel-bar-chips">
+              <span class="sel-bar-placeholder">Cliquez sur un secteur sur la carte pour l'ajouter à la sélection</span>
             </div>
           </div>
 
-          <div class="sel-bar-legend">
-            <span class="legend-chip" title="Déjà dans le cache navigateur"><span class="chip-dot" style="background:#10b981;"></span> 💾 En cache</span>
-            <span class="legend-chip" title="Prêt au téléchargement"><span class="chip-dot" style="background:#0ea5e9;"></span> ☁️ Prêt</span>
-            <span class="legend-chip" title="Données BDNB brutes existantes"><span class="chip-dot" style="background:#f59e0b;"></span> ⏳ À la demande</span>
-            <span class="legend-chip" title="Sélectionné pour chargement"><span class="chip-dot" style="background:#8b5cf6;"></span> ✅ Sélectionné</span>
-          </div>
-
-          <div class="sel-bar-actions">
-            <button class="btn btn-secondary btn-sm" id="btn-sel-clear">↺ Vider</button>
-            <button class="btn btn-secondary btn-sm" id="btn-sel-all">⚡ Tout cocher</button>
+          <div class="sel-bar-footer-action">
             <button class="btn-validate-selection" id="btn-sel-validate" disabled>
               <span>🚀</span>
               <span>Valider et charger</span>
@@ -292,11 +226,42 @@
           <input type="text" id="input-address-search" placeholder="Rechercher une adresse (ex: 27 Rue Paul Chenavard)...">
         </div>
 
-        <!-- Map Legend -->
-        <div class="map-legend" id="map-legend">
-          <div class="legend-title" id="legend-title">Diagnostic Énergétique (DPE)</div>
-          <div class="legend-items" id="legend-items">
-            <!-- Dynamically populated -->
+        <!-- Bottom-Left Stack: Display Settings Overlay above Legend -->
+        <div class="map-bottom-left-stack" id="map-bottom-left-stack">
+          <!-- Overlay control: Background whitening & polygon limit -->
+          <div class="map-overlay-control" id="map-display-overlay">
+            <div class="map-overlay-header" id="header-toggle-display-overlay">
+              <span class="map-overlay-title">⚙️ Affichage</span>
+              <button type="button" class="btn-toggle-overlay" id="btn-toggle-display-overlay" title="Réduire / Agrandir les réglages d'affichage">▾</button>
+            </div>
+            <div class="map-overlay-body" id="map-display-overlay-body">
+              <div class="map-overlay-row">
+                <label for="slider-bg-dim" class="map-overlay-label">
+                  <span>Fond blanc</span>
+                  <strong id="label-bg-dim">20%</strong>
+                </label>
+                <input type="range" id="slider-bg-dim" min="0" max="100" step="5" value="20" class="map-overlay-slider">
+              </div>
+              <div class="map-overlay-row">
+                <label for="select-max-polygons" class="map-overlay-label">
+                  <span>Limite bât.</span>
+                </label>
+                <select id="select-max-polygons" class="map-overlay-select">
+                  <option value="1500">1 500 bât. (rapide)</option>
+                  <option value="3000" selected>3 000 bât. (standard)</option>
+                  <option value="5000">5 000 bât.</option>
+                  <option value="999999">Tous les bât.</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <!-- Map Legend (dynamically switches to Chunk Status in selection mode) -->
+          <div class="map-legend" id="map-legend">
+            <div class="legend-title" id="legend-title">Diagnostic Énergétique (DPE)</div>
+            <div class="legend-items" id="legend-items">
+              <!-- Dynamically populated -->
+            </div>
           </div>
         </div>
       </div>
@@ -842,29 +807,36 @@
     <div class="modal-content filter-catalog-modal-content">
       <div class="modal-header">
         <div>
-          <h3 class="modal-title">🎛️ Catalogue des Filtres — Approche Sociologique & Travail Social</h3>
-          <p style="font-size: 0.78rem; color: var(--text-secondary); margin-top: 0.2rem;">
-            Parcourez les <strong id="catalog-total-available">55</strong> indicateurs disponibles (classés en 7 thématiques métiers) et cochez ceux que vous souhaitez afficher dans votre panneau de filtrage.
+          <h3 class="modal-title">🎛️ Catalogue des Filtres & Profils Métiers</h3>
+          <p style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 0.2rem;">
+            Sélectionnez les indicateurs à afficher dans votre panneau ou chargez un profil rapide.
           </p>
         </div>
         <button class="drawer-close" id="btn-close-filter-catalog">&times;</button>
       </div>
 
-      <!-- Toolbar inside Filter Catalog: Profile shortcuts + Search + Category Tabs -->
+      <!-- Toolbar inside Filter Catalog: Profile shortcuts + Save at top, Search, Category Tabs -->
       <div class="catalog-toolbar">
         <div class="catalog-profiles-row">
-          <span style="font-size: 0.75rem; color: var(--text-muted); font-weight: 600; white-space: nowrap;">🎭 Charger un profil :</span>
+          <div class="catalog-profiles-label">
+            <span>🎭</span>
+            <span>Profils rapides :</span>
+          </div>
           <div class="profile-pills-wrap" id="catalog-profile-buttons"></div>
+          <button class="btn btn-secondary btn-sm btn-save-profile-top" id="btn-catalog-save-profile" title="Enregistrer la sélection actuelle de filtres comme un nouveau profil">
+            <span>💾</span> + Sauvegarder ce profil
+          </button>
         </div>
 
         <div class="catalog-search-row">
           <div class="catalog-search-input-wrap">
             <span>🔍</span>
-            <input type="text" id="input-catalog-search" placeholder="Rechercher un indicateur (ex: chauffage, vitrage, loyer, QPV, PMR, balcon, DVF, toiture, radon...)" autocomplete="off">
+            <input type="text" id="input-catalog-search" placeholder="Rechercher un indicateur (ex: DPE, chauffage, vitrage, loyer, QPV, surchauffe, DVF...)" autocomplete="off">
           </div>
-          <div style="display: flex; gap: 0.4rem;">
-            <button class="btn btn-secondary btn-sm" id="btn-catalog-select-all" title="Afficher tous les filtres de la vue actuelle">☑️ Tout cocher</button>
-            <button class="btn btn-secondary btn-sm" id="btn-catalog-select-none" title="Masquer les filtres non actifs">☐ Minimum</button>
+          <div class="catalog-action-buttons">
+            <button class="btn btn-secondary btn-sm" id="btn-catalog-select-none" title="Désélectionner les filtres non actifs">☐ Minimum</button>
+            <button class="btn btn-secondary btn-sm" id="btn-catalog-expand-all" title="Déplier toutes les thématiques">▼ Tout déplier</button>
+            <button class="btn btn-secondary btn-sm" id="btn-catalog-collapse-all" title="Replier toutes les thématiques">▶ Tout replier</button>
           </div>
         </div>
 
@@ -879,12 +851,9 @@
 
       <div class="modal-footer" style="justify-content: space-between;">
         <div style="display: flex; align-items: center; gap: 0.75rem;">
-          <span style="font-size: 0.82rem; color: var(--text-secondary);">
-            <strong id="catalog-selected-count" style="color: var(--accent-primary);">8</strong> indicateurs sélectionnés pour le panneau
+          <span style="font-size: 0.85rem; color: var(--text-secondary);">
+            <strong id="catalog-selected-count" style="color: var(--accent-primary); font-size: 1.05rem;">8</strong> indicateurs sélectionnés pour votre panneau d'enquête
           </span>
-          <button class="btn btn-secondary btn-sm" id="btn-catalog-save-profile">
-            <span>💾</span> Sauvegarder cette sélection en nouveau profil...
-          </button>
         </div>
         <div style="display: flex; gap: 0.5rem;">
           <button class="btn btn-primary" id="btn-apply-filter-catalog">

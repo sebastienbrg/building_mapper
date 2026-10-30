@@ -60,6 +60,9 @@ const state = {
   activeTab: 'map',
   dataBaseUrl: '../../data/chunks/', // Local default, can be switched to GitHub Releases URL
 };
+if (typeof window !== 'undefined') {
+  window.appState = state;
+}
 
 // DPE Color Palette
 const DPE_COLORS = {
@@ -1813,6 +1816,20 @@ function initSociologicalFilterSystem() {
   renderSidebarFilterControls();
   renderCatalogModalContent();
   updateFilterCountsUI();
+  updateLoadedDataButtonUI();
+
+  // Top "Données chargées" button in sidebar
+  document.getElementById('btn-sidebar-donnees-chargees')?.addEventListener('click', () => {
+    const mapTabBtn = document.querySelector('button[data-tab="map"]');
+    if (mapTabBtn && !mapTabBtn.classList.contains('active')) {
+      mapTabBtn.click();
+    }
+    if (state.territorySelectionMode) {
+      exitTerritorySelectionMode();
+    } else {
+      enterTerritorySelectionMode();
+    }
+  });
 
   // Wire "Choisir les filtres" button
   document.getElementById('btn-open-filter-catalog')?.addEventListener('click', () => {
@@ -1837,18 +1854,7 @@ function initSociologicalFilterSystem() {
     renderCatalogCategoriesGrid();
   });
 
-  // Catalog Select All / Select Minimum
-  document.getElementById('btn-catalog-select-all')?.addEventListener('click', () => {
-    const visibleFilters = getCatalogVisibleFilters();
-    for (const f of visibleFilters) {
-      state.activeFilterIds.add(f.id);
-    }
-    state.activeProfileId = 'custom_selection';
-    renderProfileButtons();
-    renderCatalogCategoriesGrid();
-    renderSidebarFilterControls();
-    updateFilterCountsUI();
-  });
+  // Catalog Select Minimum (active or essential only)
 
   document.getElementById('btn-catalog-select-none')?.addEventListener('click', () => {
     const visibleFilters = getCatalogVisibleFilters();
@@ -1865,6 +1871,29 @@ function initSociologicalFilterSystem() {
     renderCatalogCategoriesGrid();
     renderSidebarFilterControls();
     updateFilterCountsUI();
+  });
+
+  // Catalog Expand All / Collapse All
+  document.getElementById('btn-catalog-expand-all')?.addEventListener('click', () => {
+    const container = document.getElementById('catalog-categories-list');
+    if (!container) return;
+    if (!state.catalogCategoryFoldState) state.catalogCategoryFoldState = new Map();
+    container.querySelectorAll('details.catalog-category-block').forEach(d => {
+      d.open = true;
+      const catId = d.getAttribute('data-cat-id');
+      if (catId) state.catalogCategoryFoldState.set(catId, true);
+    });
+  });
+
+  document.getElementById('btn-catalog-collapse-all')?.addEventListener('click', () => {
+    const container = document.getElementById('catalog-categories-list');
+    if (!container) return;
+    if (!state.catalogCategoryFoldState) state.catalogCategoryFoldState = new Map();
+    container.querySelectorAll('details.catalog-category-block').forEach(d => {
+      d.open = false;
+      const catId = d.getAttribute('data-cat-id');
+      if (catId) state.catalogCategoryFoldState.set(catId, false);
+    });
   });
 
   // Save Profile Modal wiring
@@ -2357,6 +2386,53 @@ function updateFilterCountsUI() {
 
   const catSelCountEl = document.getElementById('catalog-selected-count');
   if (catSelCountEl) catSelCountEl.textContent = String(state.activeFilterIds.size);
+
+  // Update second row on the big "Choisir les filtres" button
+  const profNameEl = document.getElementById('sidebar-active-profile-name');
+  if (profNameEl) {
+    const prof = getAllProfiles().find(p => p.id === state.activeProfileId);
+    if (prof && state.activeProfileId !== 'custom_selection') {
+      profNameEl.textContent = `${prof.icon} ${prof.name}`;
+      profNameEl.classList.remove('no-profile');
+    } else {
+      profNameEl.textContent = 'no profiles';
+      profNameEl.classList.add('no-profile');
+    }
+  }
+}
+
+function updateLoadedDataButtonUI() {
+  const nameEl = document.getElementById('sidebar-territory-name');
+  const countEl = document.getElementById('sidebar-data-count');
+  const badgeEl = document.getElementById('sidebar-data-status-badge');
+  const bldgCount = state.buildings ? state.buildings.length : 0;
+
+  if (countEl) {
+    countEl.textContent = `${bldgCount.toLocaleString('fr-FR')} bât.`;
+  }
+
+  if (nameEl) {
+    if (state.activeTerritory) {
+      if (state.activeTerritory.mode === 'dep') {
+        const depName = state.activeTerritory.dep === '69' ? '69 — Rhône (Lyon)' : '38 — Isère (Grenoble)';
+        nameEl.textContent = depName;
+      } else if (state.activeTerritory.mode === 'chunks' && state.activeTerritory.chunkIds) {
+        const chunkCount = state.activeTerritory.chunkIds.length;
+        nameEl.textContent = `${chunkCount} secteur${chunkCount > 1 ? 's' : ''} CP`;
+      } else if (state.activeTerritory.mode === 'cp') {
+        nameEl.textContent = `CP ${state.activeTerritory.cp}`;
+      } else if (state.activeTerritory.mode === 'range') {
+        nameEl.textContent = `CP ${state.activeTerritory.range.join(' à ')}`;
+      }
+    } else {
+      nameEl.textContent = '69 — Rhône (Lyon)';
+    }
+  }
+
+  if (badgeEl) {
+    badgeEl.textContent = bldgCount > 0 ? 'Prêt' : 'En attente';
+    badgeEl.className = bldgCount > 0 ? 'status-badge status-cached' : 'status-badge status-muted';
+  }
 }
 
 function resetAllSociologicalFilters() {
@@ -2435,6 +2511,10 @@ function renderCatalogCategoriesGrid() {
   const q = (state.catalogSearchQuery || '').toLowerCase().trim();
   let totalRendered = 0;
 
+  if (!state.catalogCategoryFoldState) {
+    state.catalogCategoryFoldState = new Map();
+  }
+
   for (const cat of SOCIOLOGICAL_CATEGORIES) {
     if (state.catalogCategoryFilter !== 'all' && state.catalogCategoryFilter !== cat.id) continue;
 
@@ -2450,44 +2530,39 @@ function renderCatalogCategoriesGrid() {
     if (catFilters.length === 0) continue;
     totalRendered += catFilters.length;
 
-    const block = document.createElement('div');
-    block.className = 'catalog-category-block';
-
     const selectedInCat = catFilters.filter(f => state.activeFilterIds.has(f.id)).length;
+    const allSelected = catFilters.length > 0 && selectedInCat === catFilters.length;
 
-    const header = document.createElement('div');
-    header.className = 'catalog-category-header';
-    header.innerHTML = `
-      <div>
-        <div class="catalog-category-title">
-          <span>${cat.icon}</span>
-          <span>${escapeHtml(cat.title)}</span>
+    // Foldable details element
+    const details = document.createElement('details');
+    details.className = 'catalog-category-block';
+    details.setAttribute('data-cat-id', cat.id);
+
+    // If searching, force open so user immediately sees matches. Otherwise use remembered fold state (default: open)
+    const isFolded = state.catalogCategoryFoldState.has(cat.id) ? !state.catalogCategoryFoldState.get(cat.id) : false;
+    details.open = q.length > 0 ? true : !isFolded;
+
+    details.addEventListener('toggle', () => {
+      state.catalogCategoryFoldState.set(cat.id, details.open);
+    });
+
+    const summary = document.createElement('summary');
+    summary.className = 'catalog-category-header';
+    summary.innerHTML = `
+      <div class="cat-header-left">
+        <span class="cat-fold-chevron">▶</span>
+        <span class="cat-icon">${cat.icon}</span>
+        <div class="cat-title-wrap">
+          <div class="catalog-category-title">${escapeHtml(cat.title)}</div>
+          <div class="catalog-category-desc">${escapeHtml(cat.desc)}</div>
         </div>
-        <div class="catalog-category-desc">${escapeHtml(cat.desc)}</div>
       </div>
-      <div style="display:flex; align-items:center; gap:0.4rem;">
-        <span class="status-badge status-cached">${selectedInCat} / ${catFilters.length} cochés</span>
-        <button type="button" class="btn btn-secondary btn-sm btn-toggle-cat" style="font-size:0.68rem; padding:0.18rem 0.45rem;">
-          ${selectedInCat === catFilters.length ? 'Tout décocher' : 'Tout cocher'}
-        </button>
+      <div class="cat-header-right">
+        <span class="status-badge ${selectedInCat > 0 ? 'status-cached' : 'status-muted'}">${selectedInCat} / ${catFilters.length} sélectionné${selectedInCat > 1 ? 's' : ''}</span>
       </div>
     `;
 
-    header.querySelector('.btn-toggle-cat').addEventListener('click', () => {
-      const allSelected = catFilters.every(f => state.activeFilterIds.has(f.id));
-      for (const f of catFilters) {
-        if (allSelected) {
-          if (!f.isActive(state)) state.activeFilterIds.delete(f.id);
-        } else {
-          state.activeFilterIds.add(f.id);
-        }
-      }
-      state.activeProfileId = 'custom_selection';
-      renderCatalogModalContent();
-      renderSidebarFilterControls();
-    });
-
-    block.appendChild(header);
+    details.appendChild(summary);
 
     const grid = document.createElement('div');
     grid.className = 'catalog-filters-grid';
@@ -2498,16 +2573,18 @@ function renderCatalogCategoriesGrid() {
       const item = document.createElement('div');
       item.className = `catalog-filter-card${isSelected ? ' selected' : ''}`;
       item.innerHTML = `
-        <input type="checkbox" class="catalog-filter-checkbox" ${isSelected ? 'checked' : ''}>
+        <div class="catalog-filter-check-wrap">
+          <input type="checkbox" class="catalog-filter-checkbox" ${isSelected ? 'checked' : ''}>
+        </div>
         <div class="catalog-filter-info">
           <div class="catalog-filter-name">
-            <span>${escapeHtml(f.label)}</span>
+            <span class="catalog-filter-label">${escapeHtml(f.label)}</span>
             <span class="catalog-filter-source">${escapeHtml(f.source)}</span>
           </div>
           <div class="catalog-filter-desc">${escapeHtml(f.desc)}</div>
-          <div class="catalog-filter-col">
-            Colonne : <code>${escapeHtml(f.column)}</code>
-            ${isFilteringNow ? `<span style="color:#4ade80; font-weight:700; margin-left:0.35rem;">● Actif</span>` : ''}
+          <div class="catalog-filter-meta">
+            <span class="catalog-filter-col"><code>${escapeHtml(f.column)}</code></span>
+            ${isFilteringNow ? `<span class="catalog-filter-active-pill">● Actif</span>` : ''}
           </div>
         </div>
       `;
@@ -2531,19 +2608,31 @@ function renderCatalogCategoriesGrid() {
         renderCatalogCategoryTabs();
         renderSidebarFilterControls();
         updateFilterCountsUI();
+
+        // Update summary count and button
+        const currentSelectedInCat = catFilters.filter(fi => state.activeFilterIds.has(fi.id)).length;
+        const badge = summary.querySelector('.status-badge');
+        if (badge) {
+          badge.textContent = `${currentSelectedInCat} / ${catFilters.length} sélectionné${currentSelectedInCat > 1 ? 's' : ''}`;
+          badge.className = `status-badge ${currentSelectedInCat > 0 ? 'status-cached' : 'status-muted'}`;
+        }
+        if (toggleBtn) {
+          toggleBtn.textContent = currentSelectedInCat === catFilters.length ? 'Tout décocher' : 'Tout cocher';
+        }
       });
 
       grid.appendChild(item);
     }
 
-    block.appendChild(grid);
-    container.appendChild(block);
+    details.appendChild(grid);
+    container.appendChild(details);
   }
 
   if (totalRendered === 0) {
     container.innerHTML = `
       <div style="text-align:center; padding:2.5rem; color:var(--text-muted);">
-        Aucun indicateur ne correspond à votre recherche « <strong>${escapeHtml(state.catalogSearchQuery)}</strong> ».
+        <p style="font-size: 1.5rem; margin-bottom: 0.5rem;">🔍</p>
+        <p>Aucun indicateur ne correspond à votre recherche « <strong>${escapeHtml(state.catalogSearchQuery)}</strong> ».</p>
       </div>
     `;
   }
@@ -2622,7 +2711,7 @@ function initMap() {
     maxZoom: 19,
   });
 
-  state.map.addControl(new maplibregl.NavigationControl(), 'top-left');
+  // Scale control on bottom right
   state.map.addControl(new maplibregl.ScaleControl({ unit: 'metric' }), 'bottom-right');
 
   state.map.on('load', () => {
@@ -3004,10 +3093,14 @@ function updateTerritorySelectionBar() {
   const btnValidate = document.getElementById('btn-sel-validate');
   const summaryText = document.getElementById('sel-bar-summary-text');
   const metricsText = document.getElementById('sel-bar-metrics-text');
+  const chipsContainer = document.getElementById('sel-bar-chips');
 
   if (count === 0) {
     if (summaryText) summaryText.textContent = '0 code postal sélectionné';
-    if (metricsText) metricsText.textContent = 'Cliquez sur un polygone pour commencer la sélection';
+    if (metricsText) metricsText.textContent = '0 bâtiment • 0 Mo';
+    if (chipsContainer) {
+      chipsContainer.innerHTML = '<span class="sel-bar-placeholder">Cliquez sur un secteur sur la carte pour l\'ajouter</span>';
+    }
     if (btnValidate) btnValidate.disabled = true;
     return;
   }
@@ -3027,21 +3120,55 @@ function updateTerritorySelectionBar() {
     }
   }
 
-  const cpArr = selectedChunks.map(c => c.cp).sort((a, b) => a - b);
-  const cpList = cpArr.length <= 6
-    ? cpArr.join(', ')
-    : `${cpArr.slice(0, 5).join(', ')}... (+${cpArr.length - 5})`;
   if (summaryText) {
-    summaryText.innerHTML = `<strong>${count} code${count > 1 ? 's' : ''} postal${count > 1 ? 's' : ''}</strong> (${cpList})`;
+    summaryText.innerHTML = `<strong>${count} secteur${count > 1 ? 's' : ''} sélectionné${count > 1 ? 's' : ''}</strong>`;
   }
 
   const netMb = (netBytesToDownload / 1048576).toFixed(1);
-  let sizeInfo = `${netMb} Mo à télécharger`;
-  if (cachedChunksCount > 0) {
-    sizeInfo += ` (${cachedChunksCount} déjà en cache local)`;
+  let sizeInfo = netBytesToDownload > 0 ? `${netMb} Mo` : 'En cache';
+  if (cachedChunksCount > 0 && netBytesToDownload > 0) {
+    sizeInfo += ` (${cachedChunksCount} en cache)`;
   }
   if (metricsText) {
-    metricsText.textContent = `${totalBldgs.toLocaleString('fr-FR')} bâtiments • ${sizeInfo}`;
+    metricsText.textContent = `${totalBldgs.toLocaleString('fr-FR')} bât. • ${sizeInfo}`;
+  }
+
+  // Populate selected postal codes / chunks chips
+  if (chipsContainer) {
+    chipsContainer.innerHTML = '';
+    const list = [];
+    for (const cId of state.pendingSelectedChunks) {
+      const match = (state.manifest?.chunks || []).find(c => c.id === cId);
+      list.push({
+        id: cId,
+        cp: match ? match.cp : cId,
+        commune: match?.commune || '',
+        buildings_count: match?.buildings_count || 0,
+        isCached: state.locallyCachedChunkIds.has(cId),
+      });
+    }
+    list.sort((a, b) => {
+      const numA = parseInt(a.cp, 10) || 0;
+      const numB = parseInt(b.cp, 10) || 0;
+      return numA - numB;
+    });
+
+    for (const item of list) {
+      const pill = document.createElement('div');
+      pill.className = `sel-chunk-pill${item.isCached ? ' cached' : ''}`;
+      pill.innerHTML = `
+        <span class="chunk-dot-status ${item.isCached ? 'dot-cached' : 'dot-cloud'}"></span>
+        <span class="chunk-cp-label"><strong>${escapeHtml(String(item.cp))}</strong>${item.commune ? ` <span class="chunk-commune-name">${escapeHtml(item.commune)}</span>` : ''}</span>
+        <button type="button" class="btn-remove-chunk" title="Retirer ${escapeHtml(String(item.cp))}" data-chunk-id="${escapeHtml(item.id)}">&times;</button>
+      `;
+      pill.querySelector('.btn-remove-chunk').addEventListener('click', (e) => {
+        e.stopPropagation();
+        state.pendingSelectedChunks.delete(item.id);
+        refreshPostalZonesVisualState();
+        updateTerritorySelectionBar();
+      });
+      chipsContainer.appendChild(pill);
+    }
   }
 }
 
@@ -3083,6 +3210,7 @@ function enterTerritorySelectionMode(centerLocation = null) {
 
   refreshPostalZonesVisualState();
   updateTerritorySelectionBar();
+  updateLegend();
 }
 
 function exitTerritorySelectionMode() {
@@ -3102,6 +3230,8 @@ function exitTerritorySelectionMode() {
     zonePopup.remove();
     zonePopup = null;
   }
+
+  updateLegend();
 }
 
 function showLocationPromptModal() {
@@ -3353,15 +3483,8 @@ function initLocationPromptControls() {
     updateTerritorySelectionBar();
   });
 
-  document.getElementById('btn-sel-all')?.addEventListener('click', () => {
-    if (!state.manifest?.chunks) return;
-    const center = state.map ? state.map.getCenter() : { lng: 4.8 };
-    const targetDep = center.lng > 5.3 ? '38' : '69';
-    state.manifest.chunks
-      .filter(c => c.departement === targetDep)
-      .forEach(c => state.pendingSelectedChunks.add(c.id));
-    refreshPostalZonesVisualState();
-    updateTerritorySelectionBar();
+  document.getElementById('btn-sel-cancel')?.addEventListener('click', () => {
+    exitTerritorySelectionMode();
   });
 
   document.getElementById('btn-sel-validate')?.addEventListener('click', async () => {
@@ -3561,8 +3684,10 @@ async function loadTerritory() {
 
     if (bundleFile) {
       // Load department bundle directly
-      document.getElementById('territory-status-text').textContent = bundleFile.label;
-      document.getElementById('territory-size-text').textContent = `~${bundleFile.sizeMb} Mo`;
+      const statusEl = document.getElementById('territory-status-text');
+      if (statusEl) statusEl.textContent = bundleFile.label;
+      const sizeEl = document.getElementById('territory-size-text');
+      if (sizeEl) sizeEl.textContent = `~${bundleFile.sizeMb} Mo`;
 
       const [bBuf, oBuf] = await Promise.all([
         fetchWithCache(bundleFile.buildings),
@@ -3575,8 +3700,10 @@ async function loadTerritory() {
       const totalBytes = targetChunks.reduce((acc, c) => acc + c.total_size_bytes, 0);
       const totalMb = (totalBytes / 1048576).toFixed(1);
       const cpLabels = targetChunks.map(c => c.cp).join(', ');
-      document.getElementById('territory-status-text').textContent = `CP: ${cpLabels}`;
-      document.getElementById('territory-size-text').textContent = `~${totalMb} Mo (${targetChunks.length} chunks)`;
+      const statusEl = document.getElementById('territory-status-text');
+      if (statusEl) statusEl.textContent = `CP: ${cpLabels}`;
+      const sizeEl = document.getElementById('territory-size-text');
+      if (sizeEl) sizeEl.textContent = `~${totalMb} Mo (${targetChunks.length} chunks)`;
 
       // Fetch chunks in parallel
       const promises = targetChunks.map(async (c) => {
@@ -3631,6 +3758,7 @@ async function loadTerritory() {
 
     // Apply filtering & update map
     applyFilters();
+    updateLoadedDataButtonUI();
 
     // Fly map to bbox
     if (combinedBbox && state.map) {
@@ -3787,6 +3915,19 @@ function updateLegend() {
   if (!title || !items) return;
 
   items.innerHTML = '';
+
+  // In Territory / Chunk Selection mode, replace building legend with Chunk Status Legend
+  if (state.territorySelectionMode) {
+    title.textContent = 'Statut des Chunks & Territoires';
+    items.innerHTML = `
+      <div class="legend-item"><span class="legend-color" style="background: #8b5cf6;"></span><span>Sélectionné</span></div>
+      <div class="legend-item"><span class="legend-color" style="background: #10b981;"></span><span>En cache local</span></div>
+      <div class="legend-item"><span class="legend-color" style="background: #0ea5e9;"></span><span>Prêt (téléchargeable)</span></div>
+      <div class="legend-item"><span class="legend-color" style="background: #f59e0b;"></span><span>À la demande (ETL)</span></div>
+    `;
+    return;
+  }
+
   if (state.mapStyleMode === 'dpe') {
     title.textContent = 'Diagnostic Énergétique (DPE)';
     const classes = ['A', 'B', 'C', 'D', 'E', 'F', 'G'];
@@ -5529,6 +5670,20 @@ function initEventListeners() {
       updateLegend();
       applyFilters();
     });
+  });
+
+  // Map Display Settings Overlay (Fond blanc & Limite de polygones)
+  const toggleDisplayOverlay = () => {
+    const overlay = document.getElementById('map-display-overlay');
+    if (!overlay) return;
+    overlay.classList.toggle('collapsed');
+    const btn = document.getElementById('btn-toggle-display-overlay');
+    if (btn) btn.textContent = overlay.classList.contains('collapsed') ? '▸' : '▾';
+  };
+  document.getElementById('header-toggle-display-overlay')?.addEventListener('click', toggleDisplayOverlay);
+  document.getElementById('btn-toggle-display-overlay')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    toggleDisplayOverlay();
   });
 
   // Background Dimming Slider
