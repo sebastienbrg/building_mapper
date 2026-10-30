@@ -1,52 +1,136 @@
 {
   "format_version": "1.0",
-  "created_at": "2026-10-29T17:35:59.192558+00:00",
-  "total_buildings": 63988,
-  "total_owners": 70968,
-  "total_chunks": 24,
-  "total_buildings_size_bytes": 22567265,
-  "total_owners_size_bytes": 1953011,
+  "created_at": "2026-10-30T17:14:35.550885+00:00",
+  "total_buildings": 685127,
+  "total_owners": 171961,
+  "total_chunks": 189,
+  "total_buildings_size_bytes": 170201953,
+  "total_owners_size_bytes": 5954716,
   "compression": "zstd",
   "departments": {
     "38": {
       "departement": "38",
-      "label": "38 — Isère (Grenoble & Métropole)",
+      "label": "38 — Isère",
       "postal_codes": [
         38000,
+        38070,
+        38080,
+        38090,
         38100,
+        38110,
+        38112,
+        38113,
+        38114,
+        38118,
+        38119,
         38120,
+        38121,
+        38122,
         38130,
+        38134,
+        38138,
+        38140,
+        38142,
+        38144,
+        38150,
+        38160,
         38170,
         38180,
+        38190,
+        38200,
+        38210,
+        38220,
+        38230,
         38240,
+        38250,
+        38260,
+        38270,
+        38280,
+        38290,
+        38300,
         38320,
+        38330,
+        38340,
+        38350,
         38360,
+        38370,
+        38380,
+        38390,
         38400,
+        38410,
+        38420,
+        38430,
+        38440,
+        38450,
+        38460,
+        38470,
+        38480,
+        38490,
+        38500,
+        38510,
+        38520,
+        38530,
+        38540,
+        38550,
+        38560,
+        38570,
+        38580,
+        38590,
         38600,
         38610,
+        38620,
+        38630,
+        38640,
+        38650,
+        38660,
+        38670,
+        38680,
+        38690,
         38700,
-        38800
+        38710,
+        38730,
+        38740,
+        38750,
+        38760,
+        38770,
+        38780,
+        38790,
+        38800,
+        38830,
+        38840,
+        38850,
+        38860,
+        38870,
+        38880,
+        38890,
+        38920,
+        38930,
+        38940,
+        38950,
+        38960,
+        38970,
+        38980
       ],
-      "buildings_count": 31610,
-      "owners_count": 23183,
+      "buildings_count": 371148,
+      "owners_count": 70056,
       "buildings_file": "buildings_dep_38.parquet",
       "owners_file": "owners_dep_38.parquet",
-      "buildings_size_bytes": 9586295,
-      "owners_size_bytes": 556148,
+      "buildings_size_bytes": 74669737,
+      "owners_size_bytes": 1909362,
       "bbox": [
-        5.639384,
-        45.110016,
-        5.811691,
-        45.247075
+        4.748393,
+        44.702867,
+        6.293697,
+        45.879513
       ],
       "center": [
-        5.725538,
-        45.178546
+        5.521045,
+        45.29119
       ]
     },
     "69": {
       "departement": "69",
-      "label": "69 — Rhône (Lyon & Villeurbanne)",
+      "label": "69 — Rhône",
       "postal_codes": [
         69001,
         69002,
@@ -57,23 +141,104 @@
         69007,
         69008,
         69009,
-        69100
+        69100,
+        69110,
+        69115,
+        69120,
+        69124,
+        69126,
+        69130,
+        69140,
+        69150,
+        69160,
+        69170,
+        69190,
+        69200,
+        69210,
+        69220,
+        69230,
+        69240,
+        69250,
+        69260,
+        69270,
+        69280,
+        69290,
+        69300,
+        69310,
+        69320,
+        69330,
+        69340,
+        69350,
+        69360,
+        69370,
+        69380,
+        69390,
+        69400,
+        69410,
+        69420,
+        69430,
+        69440,
+        69450,
+        69460,
+        69470,
+        69480,
+        69490,
+        69500,
+        69510,
+        69520,
+        69530,
+        69540,
+        69550,
+        69560,
+        69570,
+        69580,
+        69590,
+        69600,
+        69610,
+        69620,
+        69630,
+        69640,
+        69650,
+        69660,
+        69670,
+        69680,
+        69690,
+        69700,
+        69720,
+        69730,
+        69740,
+        69760,
+        69770,
+        69780,
+        69790,
+        69800,
+        69820,
+        69830,
+        69840,
+        69850,
+        69860,
+        69870,
+        69890,
+        69910,
+        69930,
+        69960,
+        69970
       ],
-      "buildings_count": 32378,
-      "owners_count": 47785,
+      "buildings_count": 313979,
+      "owners_count": 101905,
       "buildings_file": "buildings_dep_69.parquet",
       "owners_file": "owners_dep_69.parquet",
-      "buildings_size_bytes": 10819907,
-      "owners_size_bytes": 1172767,
+      "buildings_size_bytes": 73178594,
+      "owners_size_bytes": 2729684,
       "bbox": [
-        4.772417,
-        45.718982,
-        4.921026,
-        45.806805
+        4.251585,
+        45.456776,
+        5.15538,
+        46.301701
       ],
       "center": [
-        4.846722,
-        45.762894
+        4.703482,
+        45.879238
       ]
     }
   },
@@ -84,15 +249,16 @@
       "departement": "38",
       "communes": [
         "Grenoble",
-        "La Tronche"
+        "La Tronche",
+        "Saint-Martin-le-Vinoux"
       ],
-      "buildings_count": 4612,
+      "buildings_count": 4613,
       "owners_count": 8682,
       "buildings_file": "buildings_38000.parquet",
       "owners_file": "owners_38000.parquet",
-      "buildings_size_bytes": 2244672,
+      "buildings_size_bytes": 2313766,
       "owners_size_bytes": 208267,
-      "total_size_bytes": 2452939,
+      "total_size_bytes": 2522033,
       "bbox": [
         5.68203,
         45.173989,
@@ -102,6 +268,91 @@
       "center": [
         5.712118,
         45.19283
+      ]
+    },
+    {
+      "id": "cp_38070",
+      "cp": 38070,
+      "departement": "38",
+      "communes": [
+        "Grenay",
+        "La Verpillière",
+        "Saint-Quentin-Fallavier",
+        "Satolas-et-Bonce"
+      ],
+      "buildings_count": 1917,
+      "owners_count": 489,
+      "buildings_file": "buildings_38070.parquet",
+      "owners_file": "owners_38070.parquet",
+      "buildings_size_bytes": 518046,
+      "owners_size_bytes": 21848,
+      "total_size_bytes": 539894,
+      "bbox": [
+        5.079985,
+        45.615056,
+        5.138351,
+        45.669174
+      ],
+      "center": [
+        5.109168,
+        45.642115
+      ]
+    },
+    {
+      "id": "cp_38080",
+      "cp": 38080,
+      "departement": "38",
+      "communes": [
+        "Four",
+        "L'Isle-d'Abeau",
+        "Saint-Alban-de-Roche",
+        "Saint-Marcel-Bel-Accueil"
+      ],
+      "buildings_count": 5514,
+      "owners_count": 962,
+      "buildings_file": "buildings_38080.parquet",
+      "owners_file": "owners_38080.parquet",
+      "buildings_size_bytes": 1252810,
+      "owners_size_bytes": 28547,
+      "total_size_bytes": 1281357,
+      "bbox": [
+        5.174207,
+        45.546924,
+        5.263822,
+        45.663463
+      ],
+      "center": [
+        5.219014,
+        45.605194
+      ]
+    },
+    {
+      "id": "cp_38090",
+      "cp": 38090,
+      "departement": "38",
+      "communes": [
+        "Bonnefamille",
+        "La Verpillière",
+        "Roche",
+        "Vaulx-Milieu",
+        "Villefontaine"
+      ],
+      "buildings_count": 5253,
+      "owners_count": 872,
+      "buildings_file": "buildings_38090.parquet",
+      "owners_file": "owners_38090.parquet",
+      "buildings_size_bytes": 1303373,
+      "owners_size_bytes": 27870,
+      "total_size_bytes": 1331243,
+      "bbox": [
+        5.076846,
+        45.550736,
+        5.208775,
+        45.628577
+      ],
+      "center": [
+        5.14281,
+        45.589657
       ]
     },
     {
@@ -116,9 +367,9 @@
       "owners_count": 4603,
       "buildings_file": "buildings_38100.parquet",
       "owners_file": "owners_38100.parquet",
-      "buildings_size_bytes": 1570995,
+      "buildings_size_bytes": 1620606,
       "owners_size_bytes": 115980,
-      "total_size_bytes": 1686975,
+      "total_size_bytes": 1736586,
       "bbox": [
         5.702065,
         45.154916,
@@ -131,28 +382,263 @@
       ]
     },
     {
+      "id": "cp_38110",
+      "cp": 38110,
+      "departement": "38",
+      "communes": [
+        "Cessieu",
+        "Corbelin",
+        "Dolomieu",
+        "Faverges-de-la-Tour",
+        "La Bâtie-Montgascon",
+        "La Chapelle-de-la-Tour",
+        "La Tour-du-Pin",
+        "Montagnieu",
+        "Rochetoirin",
+        "Saint-André-le-Gaz",
+        "Saint-Clair-de-la-Tour",
+        "Saint-Didier-de-la-Tour",
+        "Saint-Jean-de-Soudain",
+        "Saint-Sorlin-de-Morestel",
+        "Saint-Victor-de-Cessieu",
+        "Sainte-Blandine"
+      ],
+      "buildings_count": 12165,
+      "owners_count": 1542,
+      "buildings_file": "buildings_38110.parquet",
+      "owners_file": "owners_38110.parquet",
+      "buildings_size_bytes": 2365509,
+      "owners_size_bytes": 48380,
+      "total_size_bytes": 2413889,
+      "bbox": [
+        5.339438,
+        45.516452,
+        5.571332,
+        45.635663
+      ],
+      "center": [
+        5.455385,
+        45.576058
+      ]
+    },
+    {
+      "id": "cp_38112",
+      "cp": 38112,
+      "departement": "38",
+      "communes": [
+        "Autrans-Méaudre en Vercors"
+      ],
+      "buildings_count": 715,
+      "owners_count": 74,
+      "buildings_file": "buildings_38112.parquet",
+      "owners_file": "owners_38112.parquet",
+      "buildings_size_bytes": 224690,
+      "owners_size_bytes": 10489,
+      "total_size_bytes": 235179,
+      "bbox": [
+        5.515075,
+        45.111095,
+        5.553149,
+        45.177805
+      ],
+      "center": [
+        5.534112,
+        45.14445
+      ]
+    },
+    {
+      "id": "cp_38113",
+      "cp": 38113,
+      "departement": "38",
+      "communes": [
+        "Veurey-Voroize"
+      ],
+      "buildings_count": 559,
+      "owners_count": 133,
+      "buildings_file": "buildings_38113.parquet",
+      "owners_file": "owners_38113.parquet",
+      "buildings_size_bytes": 224838,
+      "owners_size_bytes": 11589,
+      "total_size_bytes": 236427,
+      "bbox": [
+        5.575017,
+        45.254195,
+        5.628788,
+        45.287373
+      ],
+      "center": [
+        5.601902,
+        45.270784
+      ]
+    },
+    {
+      "id": "cp_38114",
+      "cp": 38114,
+      "departement": "38",
+      "communes": [
+        "Allemond",
+        "Oz",
+        "Vaujany",
+        "Villard-Reculas"
+      ],
+      "buildings_count": 1408,
+      "owners_count": 381,
+      "buildings_file": "buildings_38114.parquet",
+      "owners_file": "owners_38114.parquet",
+      "buildings_size_bytes": 385702,
+      "owners_size_bytes": 18928,
+      "total_size_bytes": 404630,
+      "bbox": [
+        5.97999,
+        45.089195,
+        6.094863,
+        45.205751
+      ],
+      "center": [
+        6.037427,
+        45.147473
+      ]
+    },
+    {
+      "id": "cp_38118",
+      "cp": 38118,
+      "departement": "38",
+      "communes": [
+        "Hières-sur-Amby",
+        "Saint-Baudille-de-la-Tour"
+      ],
+      "buildings_count": 982,
+      "owners_count": 84,
+      "buildings_file": "buildings_38118.parquet",
+      "owners_file": "owners_38118.parquet",
+      "buildings_size_bytes": 283943,
+      "owners_size_bytes": 10070,
+      "total_size_bytes": 294013,
+      "bbox": [
+        5.275658,
+        45.771817,
+        5.359098,
+        45.814585
+      ],
+      "center": [
+        5.317378,
+        45.793201
+      ]
+    },
+    {
+      "id": "cp_38119",
+      "cp": 38119,
+      "departement": "38",
+      "communes": [
+        "Cholonge",
+        "Pierre-Châtel",
+        "Saint-Théoffrey",
+        "Villard-Saint-Christophe"
+      ],
+      "buildings_count": 1288,
+      "owners_count": 85,
+      "buildings_file": "buildings_38119.parquet",
+      "owners_file": "owners_38119.parquet",
+      "buildings_size_bytes": 319040,
+      "owners_size_bytes": 10028,
+      "total_size_bytes": 329068,
+      "bbox": [
+        5.752329,
+        44.93665,
+        5.81705,
+        45.003057
+      ],
+      "center": [
+        5.78469,
+        44.969854
+      ]
+    },
+    {
       "id": "cp_38120",
       "cp": 38120,
       "departement": "38",
       "communes": [
-        "Saint-Égrève"
+        "Fontanil-Cornillon",
+        "Mont-Saint-Martin",
+        "Proveysieux",
+        "Saint-Égrève",
+        "Voreppe"
       ],
-      "buildings_count": 2603,
-      "owners_count": 791,
+      "buildings_count": 3690,
+      "owners_count": 947,
       "buildings_file": "buildings_38120.parquet",
       "owners_file": "owners_38120.parquet",
-      "buildings_size_bytes": 743112,
-      "owners_size_bytes": 27560,
-      "total_size_bytes": 770672,
+      "buildings_size_bytes": 1022009,
+      "owners_size_bytes": 32008,
+      "total_size_bytes": 1054017,
       "bbox": [
-        5.658837,
+        5.649959,
         45.215575,
-        5.695321,
-        45.247075
+        5.719321,
+        45.285299
       ],
       "center": [
-        5.677079,
-        45.231325
+        5.68464,
+        45.250437
+      ]
+    },
+    {
+      "id": "cp_38121",
+      "cp": 38121,
+      "departement": "38",
+      "communes": [
+        "Chonas-l'Amballan",
+        "Reventin-Vaugris",
+        "Saint-Prim"
+      ],
+      "buildings_count": 1513,
+      "owners_count": 159,
+      "buildings_file": "buildings_38121.parquet",
+      "owners_file": "owners_38121.parquet",
+      "buildings_size_bytes": 394310,
+      "owners_size_bytes": 12473,
+      "total_size_bytes": 406783,
+      "bbox": [
+        4.784744,
+        45.451178,
+        4.884972,
+        45.500495
+      ],
+      "center": [
+        4.834858,
+        45.475836
+      ]
+    },
+    {
+      "id": "cp_38122",
+      "cp": 38122,
+      "departement": "38",
+      "communes": [
+        "Chalon",
+        "Cour-et-Buis",
+        "Moissieu-sur-Dolon",
+        "Monsteroux-Milieu",
+        "Montseveroux",
+        "Pommier-de-Beaurepaire",
+        "Saint-Julien-de-l'Herms",
+        "Vernioz"
+      ],
+      "buildings_count": 941,
+      "owners_count": 54,
+      "buildings_file": "buildings_38122.parquet",
+      "owners_file": "owners_38122.parquet",
+      "buildings_size_bytes": 270111,
+      "owners_size_bytes": 9175,
+      "total_size_bytes": 279286,
+      "bbox": [
+        4.923845,
+        45.406643,
+        5.100918,
+        45.458947
+      ],
+      "center": [
+        5.012382,
+        45.432795
       ]
     },
     {
@@ -168,9 +654,9 @@
       "owners_count": 1498,
       "buildings_file": "buildings_38130.parquet",
       "owners_file": "owners_38130.parquet",
-      "buildings_size_bytes": 719150,
+      "buildings_size_bytes": 748920,
       "owners_size_bytes": 45182,
-      "total_size_bytes": 764332,
+      "total_size_bytes": 794102,
       "bbox": [
         5.689486,
         45.132643,
@@ -180,6 +666,224 @@
       "center": [
         5.714305,
         45.146148
+      ]
+    },
+    {
+      "id": "cp_38134",
+      "cp": 38134,
+      "departement": "38",
+      "communes": [
+        "La Sure en Chartreuse",
+        "Saint-Joseph-de-Rivière"
+      ],
+      "buildings_count": 797,
+      "owners_count": 48,
+      "buildings_file": "buildings_38134.parquet",
+      "owners_file": "owners_38134.parquet",
+      "buildings_size_bytes": 238858,
+      "owners_size_bytes": 9281,
+      "total_size_bytes": 248139,
+      "bbox": [
+        5.63994,
+        45.317194,
+        5.708133,
+        45.390226
+      ],
+      "center": [
+        5.674036,
+        45.35371
+      ]
+    },
+    {
+      "id": "cp_38138",
+      "cp": 38138,
+      "departement": "38",
+      "communes": [
+        "Les Côtes-d'Arey"
+      ],
+      "buildings_count": 842,
+      "owners_count": 48,
+      "buildings_file": "buildings_38138.parquet",
+      "owners_file": "owners_38138.parquet",
+      "buildings_size_bytes": 263077,
+      "owners_size_bytes": 9107,
+      "total_size_bytes": 272184,
+      "bbox": [
+        4.845406,
+        45.437183,
+        4.90871,
+        45.486758
+      ],
+      "center": [
+        4.877058,
+        45.46197
+      ]
+    },
+    {
+      "id": "cp_38140",
+      "cp": 38140,
+      "departement": "38",
+      "communes": [
+        "Apprieu",
+        "Beaucroissant",
+        "Charnècles",
+        "Izeaux",
+        "La Murette",
+        "Renage",
+        "Rives",
+        "Réaumont",
+        "Saint-Blaise-du-Buis",
+        "Saint-Paul-d'Izeaux"
+      ],
+      "buildings_count": 8120,
+      "owners_count": 918,
+      "buildings_file": "buildings_38140.parquet",
+      "owners_file": "owners_38140.parquet",
+      "buildings_size_bytes": 1686792,
+      "owners_size_bytes": 33451,
+      "total_size_bytes": 1720243,
+      "bbox": [
+        5.413499,
+        45.305011,
+        5.558309,
+        45.406853
+      ],
+      "center": [
+        5.485904,
+        45.355932
+      ]
+    },
+    {
+      "id": "cp_38142",
+      "cp": 38142,
+      "departement": "38",
+      "communes": [
+        "Auris",
+        "Besse",
+        "Clavans-en-Haut-Oisans",
+        "Le Bourg-d'Oisans",
+        "Le Freney-d'Oisans",
+        "Les Deux Alpes",
+        "Mizoën"
+      ],
+      "buildings_count": 980,
+      "owners_count": 173,
+      "buildings_file": "buildings_38142.parquet",
+      "owners_file": "owners_38142.parquet",
+      "buildings_size_bytes": 263629,
+      "owners_size_bytes": 12905,
+      "total_size_bytes": 276534,
+      "bbox": [
+        6.070135,
+        45.028739,
+        6.174115,
+        45.085428
+      ],
+      "center": [
+        6.122125,
+        45.057084
+      ]
+    },
+    {
+      "id": "cp_38144",
+      "cp": 38144,
+      "departement": "38",
+      "communes": [
+        "Notre-Dame-de-Vaulx"
+      ],
+      "buildings_count": 325,
+      "owners_count": 21,
+      "buildings_file": "buildings_38144.parquet",
+      "owners_file": "owners_38144.parquet",
+      "buildings_size_bytes": 154229,
+      "owners_size_bytes": 7849,
+      "total_size_bytes": 162078,
+      "bbox": [
+        5.739696,
+        44.975757,
+        5.753201,
+        44.990041
+      ],
+      "center": [
+        5.746448,
+        44.982899
+      ]
+    },
+    {
+      "id": "cp_38150",
+      "cp": 38150,
+      "departement": "38",
+      "communes": [
+        "Agnin",
+        "Anjou",
+        "Assieu",
+        "Bougé-Chambalud",
+        "Chanas",
+        "La Chapelle-de-Surieu",
+        "Le Péage-de-Roussillon",
+        "Roussillon",
+        "Saint-Romain-de-Surieu",
+        "Salaise-sur-Sanne",
+        "Sonnay",
+        "Vernioz",
+        "Ville-sous-Anjou"
+      ],
+      "buildings_count": 10154,
+      "owners_count": 1247,
+      "buildings_file": "buildings_38150.parquet",
+      "owners_file": "owners_38150.parquet",
+      "buildings_size_bytes": 2214460,
+      "owners_size_bytes": 40879,
+      "total_size_bytes": 2255339,
+      "bbox": [
+        4.7866,
+        45.297562,
+        4.943616,
+        45.443801
+      ],
+      "center": [
+        4.865108,
+        45.370682
+      ]
+    },
+    {
+      "id": "cp_38160",
+      "cp": 38160,
+      "departement": "38",
+      "communes": [
+        "Beauvoir-en-Royans",
+        "Bessins",
+        "Chatte",
+        "Chevrières",
+        "Cognin-les-Gorges",
+        "Izeron",
+        "Montagne",
+        "Murinais",
+        "Roybon",
+        "Saint Antoine l'Abbaye",
+        "Saint-Appolinard",
+        "Saint-Marcellin",
+        "Saint-Pierre-de-Chérennes",
+        "Saint-Romans",
+        "Saint-Sauveur",
+        "Saint-Vérand"
+      ],
+      "buildings_count": 8171,
+      "owners_count": 1170,
+      "buildings_file": "buildings_38160.parquet",
+      "owners_file": "owners_38160.parquet",
+      "buildings_size_bytes": 1754689,
+      "owners_size_bytes": 39169,
+      "total_size_bytes": 1793858,
+      "bbox": [
+        5.165323,
+        45.085638,
+        5.411448,
+        45.23207
+      ],
+      "center": [
+        5.288386,
+        45.158854
       ]
     },
     {
@@ -194,9 +898,9 @@
       "owners_count": 658,
       "buildings_file": "buildings_38170.parquet",
       "owners_file": "owners_38170.parquet",
-      "buildings_size_bytes": 460664,
+      "buildings_size_bytes": 482428,
       "owners_size_bytes": 24192,
-      "total_size_bytes": 484856,
+      "total_size_bytes": 506620,
       "bbox": [
         5.649815,
         45.161804,
@@ -219,9 +923,9 @@
       "owners_count": 332,
       "buildings_file": "buildings_38180.parquet",
       "owners_file": "owners_38180.parquet",
-      "buildings_size_bytes": 503392,
+      "buildings_size_bytes": 524514,
       "owners_size_bytes": 16979,
-      "total_size_bytes": 520371,
+      "total_size_bytes": 541493,
       "bbox": [
         5.662386,
         45.145461,
@@ -234,19 +938,185 @@
       ]
     },
     {
+      "id": "cp_38190",
+      "cp": 38190,
+      "departement": "38",
+      "communes": [
+        "Bernin",
+        "Froges",
+        "La Combe-de-Lancey",
+        "Laval-en-Belledonne",
+        "Le Champ-près-Froges",
+        "Les Adrets",
+        "Saint-Mury-Monteymond",
+        "Sainte-Agnès",
+        "Villard-Bonnot"
+      ],
+      "buildings_count": 6484,
+      "owners_count": 873,
+      "buildings_file": "buildings_38190.parquet",
+      "owners_file": "owners_38190.parquet",
+      "buildings_size_bytes": 1407508,
+      "owners_size_bytes": 31168,
+      "total_size_bytes": 1438676,
+      "bbox": [
+        5.855294,
+        45.185668,
+        5.999875,
+        45.288778
+      ],
+      "center": [
+        5.927584,
+        45.237223
+      ]
+    },
+    {
+      "id": "cp_38200",
+      "cp": 38200,
+      "departement": "38",
+      "communes": [
+        "Chasse-sur-Rhône",
+        "Chuzelles",
+        "Jardin",
+        "Luzinay",
+        "Reventin-Vaugris",
+        "Saint-Sorlin-de-Vienne",
+        "Serpaize",
+        "Seyssuel",
+        "Vienne",
+        "Villette-de-Vienne"
+      ],
+      "buildings_count": 10389,
+      "owners_count": 2440,
+      "buildings_file": "buildings_38200.parquet",
+      "owners_file": "owners_38200.parquet",
+      "buildings_size_bytes": 2274511,
+      "owners_size_bytes": 70405,
+      "total_size_bytes": 2344916,
+      "bbox": [
+        4.818404,
+        45.460636,
+        4.997789,
+        45.609681
+      ],
+      "center": [
+        4.908096,
+        45.535158
+      ]
+    },
+    {
+      "id": "cp_38210",
+      "cp": 38210,
+      "departement": "38",
+      "communes": [
+        "Charnècles",
+        "Cras",
+        "La Rivière",
+        "Montaud",
+        "Morette",
+        "Poliénas",
+        "Saint-Quentin-sur-Isère",
+        "Tullins",
+        "Veurey-Voroize",
+        "Vourey"
+      ],
+      "buildings_count": 5240,
+      "owners_count": 633,
+      "buildings_file": "buildings_38210.parquet",
+      "owners_file": "owners_38210.parquet",
+      "buildings_size_bytes": 1113406,
+      "owners_size_bytes": 24384,
+      "total_size_bytes": 1137790,
+      "bbox": [
+        5.425451,
+        45.209887,
+        5.594117,
+        45.331048
+      ],
+      "center": [
+        5.509784,
+        45.270468
+      ]
+    },
+    {
+      "id": "cp_38220",
+      "cp": 38220,
+      "departement": "38",
+      "communes": [
+        "Cholonge",
+        "Laffrey",
+        "Livet-et-Gavet",
+        "Montchaboud",
+        "Notre-Dame-de-Mésage",
+        "Saint-Barthélemy-de-Séchilienne",
+        "Saint-Jean-de-Vaulx",
+        "Saint-Pierre-de-Mésage",
+        "Séchilienne",
+        "Vizille"
+      ],
+      "buildings_count": 4605,
+      "owners_count": 594,
+      "buildings_file": "buildings_38220.parquet",
+      "owners_file": "owners_38220.parquet",
+      "buildings_size_bytes": 1005877,
+      "owners_size_bytes": 23395,
+      "total_size_bytes": 1029272,
+      "bbox": [
+        5.743636,
+        44.996706,
+        5.942224,
+        45.109184
+      ],
+      "center": [
+        5.84293,
+        45.052945
+      ]
+    },
+    {
+      "id": "cp_38230",
+      "cp": 38230,
+      "departement": "38",
+      "communes": [
+        "Charvieu-Chavagneux",
+        "Chavanoz",
+        "Janneyrias",
+        "Pont-de-Chéruy",
+        "Tignieu-Jameyzieu"
+      ],
+      "buildings_count": 8082,
+      "owners_count": 1025,
+      "buildings_file": "buildings_38230.parquet",
+      "owners_file": "owners_38230.parquet",
+      "buildings_size_bytes": 1632320,
+      "owners_size_bytes": 34466,
+      "total_size_bytes": 1666786,
+      "bbox": [
+        5.135337,
+        45.711973,
+        5.208934,
+        45.780075
+      ],
+      "center": [
+        5.172136,
+        45.746024
+      ]
+    },
+    {
       "id": "cp_38240",
       "cp": 38240,
       "departement": "38",
       "communes": [
+        "Biviers",
+        "Corenc",
         "Meylan"
       ],
-      "buildings_count": 2595,
-      "owners_count": 1368,
+      "buildings_count": 2602,
+      "owners_count": 1370,
       "buildings_file": "buildings_38240.parquet",
       "owners_file": "owners_38240.parquet",
-      "buildings_size_bytes": 791701,
-      "owners_size_bytes": 40105,
-      "total_size_bytes": 831806,
+      "buildings_size_bytes": 822917,
+      "owners_size_bytes": 40190,
+      "total_size_bytes": 863107,
       "bbox": [
         5.752755,
         45.195136,
@@ -259,28 +1129,339 @@
       ]
     },
     {
+      "id": "cp_38250",
+      "cp": 38250,
+      "departement": "38",
+      "communes": [
+        "Corrençon-en-Vercors",
+        "Lans-en-Vercors",
+        "Saint-Nizier-du-Moucherotte",
+        "Villard-de-Lans"
+      ],
+      "buildings_count": 3723,
+      "owners_count": 1036,
+      "buildings_file": "buildings_38250.parquet",
+      "owners_file": "owners_38250.parquet",
+      "buildings_size_bytes": 886146,
+      "owners_size_bytes": 38296,
+      "total_size_bytes": 924442,
+      "bbox": [
+        5.47613,
+        44.984474,
+        5.648656,
+        45.193668
+      ],
+      "center": [
+        5.562393,
+        45.089071
+      ]
+    },
+    {
+      "id": "cp_38260",
+      "cp": 38260,
+      "departement": "38",
+      "communes": [
+        "Bossieu",
+        "Champier",
+        "Faramans",
+        "Gillonnay",
+        "La Côte-Saint-André",
+        "La Frette",
+        "Marcilloles",
+        "Mottier",
+        "Ornacieux-Balbins",
+        "Pajay",
+        "Penol",
+        "Pisieu",
+        "Pommier-de-Beaurepaire",
+        "Porte-des-Bonnevaux",
+        "Saint-Hilaire-de-la-Côte",
+        "Saint-Julien-de-l'Herms",
+        "Sardieu",
+        "Thodure"
+      ],
+      "buildings_count": 9007,
+      "owners_count": 953,
+      "buildings_file": "buildings_38260.parquet",
+      "owners_file": "owners_38260.parquet",
+      "buildings_size_bytes": 1864548,
+      "owners_size_bytes": 34793,
+      "total_size_bytes": 1899341,
+      "bbox": [
+        5.089731,
+        45.295961,
+        5.372773,
+        45.484645
+      ],
+      "center": [
+        5.231252,
+        45.390303
+      ]
+    },
+    {
+      "id": "cp_38270",
+      "cp": 38270,
+      "departement": "38",
+      "communes": [
+        "Beaufort",
+        "Beaurepaire",
+        "Bellegarde-Poussieu",
+        "Jarcieu",
+        "Lentiol",
+        "Marcollin",
+        "Moissieu-sur-Dolon",
+        "Pact",
+        "Pajay",
+        "Penol",
+        "Pisieu",
+        "Primarette",
+        "Revel-Tourdan",
+        "Saint-Barthélemy",
+        "Thodure"
+      ],
+      "buildings_count": 5938,
+      "owners_count": 674,
+      "buildings_file": "buildings_38270.parquet",
+      "owners_file": "owners_38270.parquet",
+      "buildings_size_bytes": 1301358,
+      "owners_size_bytes": 26389,
+      "total_size_bytes": 1327747,
+      "bbox": [
+        4.928758,
+        45.288093,
+        5.134508,
+        45.435907
+      ],
+      "center": [
+        5.031633,
+        45.362
+      ]
+    },
+    {
+      "id": "cp_38280",
+      "cp": 38280,
+      "departement": "38",
+      "communes": [
+        "Anthon",
+        "Janneyrias",
+        "Villette-d'Anthon"
+      ],
+      "buildings_count": 2966,
+      "owners_count": 269,
+      "buildings_file": "buildings_38280.parquet",
+      "owners_file": "owners_38280.parquet",
+      "buildings_size_bytes": 647189,
+      "owners_size_bytes": 15356,
+      "total_size_bytes": 662545,
+      "bbox": [
+        5.065232,
+        45.744519,
+        5.178144,
+        45.810006
+      ],
+      "center": [
+        5.121688,
+        45.777262
+      ]
+    },
+    {
+      "id": "cp_38290",
+      "cp": 38290,
+      "departement": "38",
+      "communes": [
+        "Frontonas",
+        "La Verpillière",
+        "Saint-Quentin-Fallavier",
+        "Satolas-et-Bonce"
+      ],
+      "buildings_count": 3761,
+      "owners_count": 481,
+      "buildings_file": "buildings_38290.parquet",
+      "owners_file": "owners_38290.parquet",
+      "buildings_size_bytes": 811004,
+      "owners_size_bytes": 21522,
+      "total_size_bytes": 832526,
+      "bbox": [
+        5.103638,
+        45.625385,
+        5.208821,
+        45.700118
+      ],
+      "center": [
+        5.15623,
+        45.662752
+      ]
+    },
+    {
+      "id": "cp_38300",
+      "cp": 38300,
+      "departement": "38",
+      "communes": [
+        "Bourgoin-Jallieu",
+        "Châteauvilain",
+        "Chèzeneuve",
+        "Crachier",
+        "Culin",
+        "Domarin",
+        "Eclose-Badinières",
+        "Les Éparres",
+        "Maubec",
+        "Meyrié",
+        "Montcarra",
+        "Nivolas-Vermelle",
+        "Ruy-Montceau",
+        "Saint-Agnin-sur-Bion",
+        "Saint-Savin",
+        "Succieu",
+        "Sérézin-de-la-Tour",
+        "Tramolé"
+      ],
+      "buildings_count": 15878,
+      "owners_count": 3058,
+      "buildings_file": "buildings_38300.parquet",
+      "owners_file": "owners_38300.parquet",
+      "buildings_size_bytes": 3249801,
+      "owners_size_bytes": 88785,
+      "total_size_bytes": 3338586,
+      "bbox": [
+        5.188535,
+        45.481705,
+        5.398911,
+        45.649515
+      ],
+      "center": [
+        5.293723,
+        45.56561
+      ]
+    },
+    {
       "id": "cp_38320",
       "cp": 38320,
       "departement": "38",
       "communes": [
-        "Eybens"
+        "Bresson",
+        "Brié-et-Angonnes",
+        "Eybens",
+        "Herbeys",
+        "Poisat",
+        "Saint-Martin-d'Hères"
       ],
-      "buildings_count": 1442,
-      "owners_count": 536,
+      "buildings_count": 3703,
+      "owners_count": 810,
       "buildings_file": "buildings_38320.parquet",
       "owners_file": "owners_38320.parquet",
-      "buildings_size_bytes": 484073,
-      "owners_size_bytes": 21922,
-      "total_size_bytes": 505995,
+      "buildings_size_bytes": 1013116,
+      "owners_size_bytes": 28972,
+      "total_size_bytes": 1042088,
       "bbox": [
-        5.735105,
-        45.141115,
-        5.762849,
+        5.734506,
+        45.105838,
+        5.811572,
         45.166467
       ],
       "center": [
-        5.748977,
-        45.153791
+        5.773039,
+        45.136152
+      ]
+    },
+    {
+      "id": "cp_38330",
+      "cp": 38330,
+      "departement": "38",
+      "communes": [
+        "Biviers",
+        "Le Versoud",
+        "Montbonnot-Saint-Martin",
+        "Saint-Ismier",
+        "Saint-Nazaire-les-Eymes"
+      ],
+      "buildings_count": 6011,
+      "owners_count": 1016,
+      "buildings_file": "buildings_38330.parquet",
+      "owners_file": "owners_38330.parquet",
+      "buildings_size_bytes": 1486481,
+      "owners_size_bytes": 35037,
+      "total_size_bytes": 1521518,
+      "bbox": [
+        5.790222,
+        45.210242,
+        5.86069,
+        45.267447
+      ],
+      "center": [
+        5.825456,
+        45.238844
+      ]
+    },
+    {
+      "id": "cp_38340",
+      "cp": 38340,
+      "departement": "38",
+      "communes": [
+        "La Sure en Chartreuse",
+        "Moirans",
+        "Voreppe"
+      ],
+      "buildings_count": 2978,
+      "owners_count": 518,
+      "buildings_file": "buildings_38340.parquet",
+      "owners_file": "owners_38340.parquet",
+      "buildings_size_bytes": 755301,
+      "owners_size_bytes": 22334,
+      "total_size_bytes": 777635,
+      "bbox": [
+        5.595494,
+        45.25847,
+        5.675888,
+        45.358875
+      ],
+      "center": [
+        5.635691,
+        45.308672
+      ]
+    },
+    {
+      "id": "cp_38350",
+      "cp": 38350,
+      "departement": "38",
+      "communes": [
+        "Cognet",
+        "La Morte",
+        "La Mure",
+        "La Salle-en-Beaumont",
+        "La Valette",
+        "Lavaldens",
+        "Marcieu",
+        "Mayres-Savel",
+        "Nantes-en-Ratier",
+        "Oris-en-Rattier",
+        "Ponsonnas",
+        "Prunières",
+        "Saint-Arey",
+        "Saint-Honoré",
+        "Saint-Laurent-en-Beaumont",
+        "Saint-Michel-en-Beaumont",
+        "Saint-Pierre-de-Méaroz",
+        "Siévoz",
+        "Sousville",
+        "Susville"
+      ],
+      "buildings_count": 4983,
+      "owners_count": 801,
+      "buildings_file": "buildings_38350.parquet",
+      "owners_file": "owners_38350.parquet",
+      "buildings_size_bytes": 1040686,
+      "owners_size_bytes": 27814,
+      "total_size_bytes": 1068500,
+      "bbox": [
+        5.684097,
+        44.845414,
+        5.911936,
+        45.037661
+      ],
+      "center": [
+        5.798016,
+        44.941537
       ]
     },
     {
@@ -288,24 +1469,116 @@
       "cp": 38360,
       "departement": "38",
       "communes": [
+        "Engins",
+        "Noyarey",
         "Sassenage"
       ],
-      "buildings_count": 2046,
-      "owners_count": 483,
+      "buildings_count": 3062,
+      "owners_count": 614,
       "buildings_file": "buildings_38360.parquet",
       "owners_file": "owners_38360.parquet",
-      "buildings_size_bytes": 591135,
-      "owners_size_bytes": 20598,
-      "total_size_bytes": 611733,
+      "buildings_size_bytes": 822548,
+      "owners_size_bytes": 23703,
+      "total_size_bytes": 846251,
       "bbox": [
-        5.639384,
-        45.197597,
+        5.597944,
+        45.168095,
         5.685923,
-        45.230108
+        45.260174
       ],
       "center": [
-        5.662653,
-        45.213852
+        5.641934,
+        45.214134
+      ]
+    },
+    {
+      "id": "cp_38370",
+      "cp": 38370,
+      "departement": "38",
+      "communes": [
+        "Les Roches-de-Condrieu",
+        "Saint-Alban-du-Rhône",
+        "Saint-Clair-du-Rhône",
+        "Saint-Prim"
+      ],
+      "buildings_count": 2980,
+      "owners_count": 349,
+      "buildings_file": "buildings_38370.parquet",
+      "owners_file": "owners_38370.parquet",
+      "buildings_size_bytes": 656492,
+      "owners_size_bytes": 16939,
+      "total_size_bytes": 673431,
+      "bbox": [
+        4.748393,
+        45.410612,
+        4.824972,
+        45.45859
+      ],
+      "center": [
+        4.786682,
+        45.434601
+      ]
+    },
+    {
+      "id": "cp_38380",
+      "cp": 38380,
+      "departement": "38",
+      "communes": [
+        "Entre-deux-Guiers",
+        "Merlas",
+        "Miribel-les-Échelles",
+        "Saint-Christophe-sur-Guiers",
+        "Saint-Laurent-du-Pont",
+        "Saint-Pierre-d'Entremont",
+        "Saint-Pierre-de-Chartreuse"
+      ],
+      "buildings_count": 5336,
+      "owners_count": 560,
+      "buildings_file": "buildings_38380.parquet",
+      "owners_file": "owners_38380.parquet",
+      "buildings_size_bytes": 1088806,
+      "owners_size_bytes": 23278,
+      "total_size_bytes": 1112084,
+      "bbox": [
+        5.68027,
+        45.302783,
+        5.880416,
+        45.481163
+      ],
+      "center": [
+        5.780343,
+        45.391973
+      ]
+    },
+    {
+      "id": "cp_38390",
+      "cp": 38390,
+      "departement": "38",
+      "communes": [
+        "Bouvesse-Quirieu",
+        "Charette",
+        "La Balme-les-Grottes",
+        "Montalieu-Vercieu",
+        "Parmilieu",
+        "Porcieu-Amblagnieu",
+        "Vertrieu"
+      ],
+      "buildings_count": 4414,
+      "owners_count": 386,
+      "buildings_file": "buildings_38390.parquet",
+      "owners_file": "owners_38390.parquet",
+      "buildings_size_bytes": 922309,
+      "owners_size_bytes": 18317,
+      "total_size_bytes": 940626,
+      "bbox": [
+        5.297883,
+        45.761364,
+        5.453239,
+        45.879513
+      ],
+      "center": [
+        5.375561,
+        45.820438
       ]
     },
     {
@@ -317,13 +1590,13 @@
         "Grenoble",
         "Saint-Martin-d'Hères"
       ],
-      "buildings_count": 2931,
+      "buildings_count": 2929,
       "owners_count": 1776,
       "buildings_file": "buildings_38400.parquet",
       "owners_file": "owners_38400.parquet",
-      "buildings_size_bytes": 901724,
+      "buildings_size_bytes": 936730,
       "owners_size_bytes": 51981,
-      "total_size_bytes": 953705,
+      "total_size_bytes": 988711,
       "bbox": [
         5.743774,
         45.159922,
@@ -333,6 +1606,622 @@
       "center": [
         5.763359,
         45.178218
+      ]
+    },
+    {
+      "id": "cp_38410",
+      "cp": 38410,
+      "departement": "38",
+      "communes": [
+        "Chamrousse",
+        "Saint-Martin-d'Uriage",
+        "Vaulnaveys-le-Bas",
+        "Vaulnaveys-le-Haut"
+      ],
+      "buildings_count": 4533,
+      "owners_count": 717,
+      "buildings_file": "buildings_38410.parquet",
+      "owners_file": "owners_38410.parquet",
+      "buildings_size_bytes": 1022439,
+      "owners_size_bytes": 27677,
+      "total_size_bytes": 1050116,
+      "bbox": [
+        5.791082,
+        45.087005,
+        5.880975,
+        45.186247
+      ],
+      "center": [
+        5.836028,
+        45.136626
+      ]
+    },
+    {
+      "id": "cp_38420",
+      "cp": 38420,
+      "departement": "38",
+      "communes": [
+        "Domène",
+        "Le Versoud",
+        "Murianette",
+        "Revel",
+        "Saint-Jean-le-Vieux",
+        "Saint-Martin-d'Uriage"
+      ],
+      "buildings_count": 3928,
+      "owners_count": 672,
+      "buildings_file": "buildings_38420.parquet",
+      "owners_file": "owners_38420.parquet",
+      "buildings_size_bytes": 941318,
+      "owners_size_bytes": 25613,
+      "total_size_bytes": 966931,
+      "bbox": [
+        5.809847,
+        45.162629,
+        5.901824,
+        45.232835
+      ],
+      "center": [
+        5.855836,
+        45.197732
+      ]
+    },
+    {
+      "id": "cp_38430",
+      "cp": 38430,
+      "departement": "38",
+      "communes": [
+        "La Buisse",
+        "Moirans",
+        "Saint-Jean-de-Moirans",
+        "Vourey"
+      ],
+      "buildings_count": 3570,
+      "owners_count": 505,
+      "buildings_file": "buildings_38430.parquet",
+      "owners_file": "owners_38430.parquet",
+      "buildings_size_bytes": 829816,
+      "owners_size_bytes": 22620,
+      "total_size_bytes": 852436,
+      "bbox": [
+        5.535076,
+        45.298463,
+        5.606202,
+        45.351377
+      ],
+      "center": [
+        5.570639,
+        45.32492
+      ]
+    },
+    {
+      "id": "cp_38440",
+      "cp": 38440,
+      "departement": "38",
+      "communes": [
+        "Artas",
+        "Beauvoir-de-Marc",
+        "Charantonnay",
+        "Châtonnay",
+        "Lieudieu",
+        "Meyrieu-les-Étangs",
+        "Meyssiez",
+        "Moidieu-Détourbe",
+        "Royas",
+        "Saint-Agnin-sur-Bion",
+        "Saint-Jean-de-Bournay",
+        "Sainte-Anne-sur-Gervonde",
+        "Savas-Mépin",
+        "Villeneuve-de-Marc"
+      ],
+      "buildings_count": 7067,
+      "owners_count": 544,
+      "buildings_file": "buildings_38440.parquet",
+      "owners_file": "owners_38440.parquet",
+      "buildings_size_bytes": 1369418,
+      "owners_size_bytes": 22930,
+      "total_size_bytes": 1392348,
+      "bbox": [
+        4.983061,
+        45.438614,
+        5.280089,
+        45.552524
+      ],
+      "center": [
+        5.131575,
+        45.495569
+      ]
+    },
+    {
+      "id": "cp_38450",
+      "cp": 38450,
+      "departement": "38",
+      "communes": [
+        "Le Gua",
+        "Miribel-Lanchâtre",
+        "Notre-Dame-de-Commiers",
+        "Saint-Georges-de-Commiers",
+        "Vif"
+      ],
+      "buildings_count": 4891,
+      "owners_count": 538,
+      "buildings_file": "buildings_38450.parquet",
+      "owners_file": "owners_38450.parquet",
+      "buildings_size_bytes": 1062279,
+      "owners_size_bytes": 21410,
+      "total_size_bytes": 1083689,
+      "bbox": [
+        5.588169,
+        44.960837,
+        5.729393,
+        45.079854
+      ],
+      "center": [
+        5.658781,
+        45.020346
+      ]
+    },
+    {
+      "id": "cp_38460",
+      "cp": 38460,
+      "departement": "38",
+      "communes": [
+        "Annoisin-Chatelans",
+        "Chamagnieu",
+        "Chozeau",
+        "Crémieu",
+        "Dizimieu",
+        "Leyrieu",
+        "Moras",
+        "Optevoz",
+        "Panossas",
+        "Saint-Hilaire-de-Brens",
+        "Saint-Romain-de-Jalionas",
+        "Siccieu-Saint-Julien-et-Carisieu",
+        "Soleymieu",
+        "Trept",
+        "Vernas",
+        "Veyssilieu",
+        "Villemoirieu",
+        "Vénérieu"
+      ],
+      "buildings_count": 9235,
+      "owners_count": 822,
+      "buildings_file": "buildings_38460.parquet",
+      "owners_file": "owners_38460.parquet",
+      "buildings_size_bytes": 1891638,
+      "owners_size_bytes": 30590,
+      "total_size_bytes": 1922228,
+      "bbox": [
+        5.145714,
+        45.649824,
+        5.377513,
+        45.781466
+      ],
+      "center": [
+        5.261614,
+        45.715645
+      ]
+    },
+    {
+      "id": "cp_38470",
+      "cp": 38470,
+      "departement": "38",
+      "communes": [
+        "Beaulieu",
+        "Chantesse",
+        "Chasselay",
+        "Cognin-les-Gorges",
+        "L'Albenc",
+        "Malleval-en-Vercors",
+        "Notre-Dame-de-l'Osier",
+        "Quincieu",
+        "Rovon",
+        "Roybon",
+        "Saint-Gervais",
+        "Serre-Nerpol",
+        "Têche",
+        "Varacieux",
+        "Vatilieu",
+        "Vinay"
+      ],
+      "buildings_count": 5044,
+      "owners_count": 490,
+      "buildings_file": "buildings_38470.parquet",
+      "owners_file": "owners_38470.parquet",
+      "buildings_size_bytes": 1123360,
+      "owners_size_bytes": 21262,
+      "total_size_bytes": 1144622,
+      "bbox": [
+        5.306318,
+        45.139292,
+        5.497064,
+        45.283965
+      ],
+      "center": [
+        5.401691,
+        45.211628
+      ]
+    },
+    {
+      "id": "cp_38480",
+      "cp": 38480,
+      "departement": "38",
+      "communes": [
+        "Chimilin",
+        "Le Pont-de-Beauvoisin",
+        "Les Abrets en Dauphiné",
+        "Pressins",
+        "Romagnieu",
+        "Saint-Albin-de-Vaulserre",
+        "Saint-Jean-d'Avelanne",
+        "Saint-Martin-de-Vaulserre"
+      ],
+      "buildings_count": 3501,
+      "owners_count": 408,
+      "buildings_file": "buildings_38480.parquet",
+      "owners_file": "owners_38480.parquet",
+      "buildings_size_bytes": 722890,
+      "owners_size_bytes": 19692,
+      "total_size_bytes": 742582,
+      "bbox": [
+        5.607938,
+        45.482156,
+        5.710638,
+        45.588555
+      ],
+      "center": [
+        5.659288,
+        45.535356
+      ]
+    },
+    {
+      "id": "cp_38490",
+      "cp": 38490,
+      "departement": "38",
+      "communes": [
+        "Aoste",
+        "Charancieu",
+        "Chimilin",
+        "Chélieu",
+        "Granieu",
+        "Le Passage",
+        "Les Abrets en Dauphiné",
+        "Romagnieu",
+        "Saint-André-le-Gaz",
+        "Saint-Didier-de-la-Tour",
+        "Saint-Ondras"
+      ],
+      "buildings_count": 7070,
+      "owners_count": 795,
+      "buildings_file": "buildings_38490.parquet",
+      "owners_file": "owners_38490.parquet",
+      "buildings_size_bytes": 1393949,
+      "owners_size_bytes": 29328,
+      "total_size_bytes": 1423277,
+      "bbox": [
+        5.493885,
+        45.493157,
+        5.635572,
+        45.619588
+      ],
+      "center": [
+        5.564728,
+        45.556372
+      ]
+    },
+    {
+      "id": "cp_38500",
+      "cp": 38500,
+      "departement": "38",
+      "communes": [
+        "Coublevie",
+        "La Buisse",
+        "Moirans",
+        "Saint-Cassien",
+        "Saint-Nicolas-de-Macherin",
+        "Saint-Étienne-de-Crossey",
+        "Voiron"
+      ],
+      "buildings_count": 8259,
+      "owners_count": 1987,
+      "buildings_file": "buildings_38500.parquet",
+      "owners_file": "owners_38500.parquet",
+      "buildings_size_bytes": 1821192,
+      "owners_size_bytes": 58376,
+      "total_size_bytes": 1879568,
+      "bbox": [
+        5.53455,
+        45.314689,
+        5.645495,
+        45.416954
+      ],
+      "center": [
+        5.590022,
+        45.365821
+      ]
+    },
+    {
+      "id": "cp_38510",
+      "cp": 38510,
+      "departement": "38",
+      "communes": [
+        "Arandon-Passins",
+        "Brangues",
+        "Courtenay",
+        "Creys-Mépieu",
+        "Dolomieu",
+        "Le Bouchage",
+        "Morestel",
+        "Saint-Sorlin-de-Morestel",
+        "Saint-Victor-de-Morestel",
+        "Salagnon",
+        "Sermérieu",
+        "Vézeronce-Curtin"
+      ],
+      "buildings_count": 6984,
+      "owners_count": 690,
+      "buildings_file": "buildings_38510.parquet",
+      "owners_file": "owners_38510.parquet",
+      "buildings_size_bytes": 1400915,
+      "owners_size_bytes": 26934,
+      "total_size_bytes": 1427849,
+      "bbox": [
+        5.358377,
+        45.617653,
+        5.56549,
+        45.778005
+      ],
+      "center": [
+        5.461934,
+        45.697829
+      ]
+    },
+    {
+      "id": "cp_38520",
+      "cp": 38520,
+      "departement": "38",
+      "communes": [
+        "Chantepérier",
+        "La Garde",
+        "Le Bourg-d'Oisans",
+        "Les Deux Alpes",
+        "Ornon",
+        "Oulles",
+        "Oz",
+        "Saint-Christophe-en-Oisans",
+        "Villard-Notre-Dame",
+        "Villard-Reymond"
+      ],
+      "buildings_count": 2489,
+      "owners_count": 401,
+      "buildings_file": "buildings_38520.parquet",
+      "owners_file": "owners_38520.parquet",
+      "buildings_size_bytes": 575135,
+      "owners_size_bytes": 19607,
+      "total_size_bytes": 594742,
+      "bbox": [
+        5.970317,
+        44.931837,
+        6.293697,
+        45.116723
+      ],
+      "center": [
+        6.132007,
+        45.02428
+      ]
+    },
+    {
+      "id": "cp_38530",
+      "cp": 38530,
+      "departement": "38",
+      "communes": [
+        "Barraux",
+        "Chapareillan",
+        "La Buissière",
+        "La Flachère",
+        "Pontcharra",
+        "Saint-Maximin"
+      ],
+      "buildings_count": 5184,
+      "owners_count": 577,
+      "buildings_file": "buildings_38530.parquet",
+      "owners_file": "owners_38530.parquet",
+      "buildings_size_bytes": 1133076,
+      "owners_size_bytes": 23718,
+      "total_size_bytes": 1156794,
+      "bbox": [
+        5.957509,
+        45.393663,
+        6.06203,
+        45.491782
+      ],
+      "center": [
+        6.00977,
+        45.442722
+      ]
+    },
+    {
+      "id": "cp_38540",
+      "cp": 38540,
+      "departement": "38",
+      "communes": [
+        "Grenay",
+        "Heyrieux",
+        "Saint-Just-Chaleyssin",
+        "Saint-Quentin-Fallavier",
+        "Valencin"
+      ],
+      "buildings_count": 4442,
+      "owners_count": 440,
+      "buildings_file": "buildings_38540.parquet",
+      "owners_file": "owners_38540.parquet",
+      "buildings_size_bytes": 921612,
+      "owners_size_bytes": 20462,
+      "total_size_bytes": 942074,
+      "bbox": [
+        4.971735,
+        45.566312,
+        5.096519,
+        45.674395
+      ],
+      "center": [
+        5.034127,
+        45.620354
+      ]
+    },
+    {
+      "id": "cp_38550",
+      "cp": 38550,
+      "departement": "38",
+      "communes": [
+        "Auberives-sur-Varèze",
+        "Chanas",
+        "Cheyssieu",
+        "Clonas-sur-Varèze",
+        "Le Péage-de-Roussillon",
+        "Roussillon",
+        "Sablons",
+        "Saint-Maurice-l'Exil",
+        "Salaise-sur-Sanne"
+      ],
+      "buildings_count": 6914,
+      "owners_count": 927,
+      "buildings_file": "buildings_38550.parquet",
+      "owners_file": "owners_38550.parquet",
+      "buildings_size_bytes": 1471191,
+      "owners_size_bytes": 31781,
+      "total_size_bytes": 1502972,
+      "bbox": [
+        4.759729,
+        45.300815,
+        4.861853,
+        45.444519
+      ],
+      "center": [
+        4.810791,
+        45.372667
+      ]
+    },
+    {
+      "id": "cp_38560",
+      "cp": 38560,
+      "departement": "38",
+      "communes": [
+        "Champ-sur-Drac",
+        "Jarrie",
+        "Montchaboud"
+      ],
+      "buildings_count": 2298,
+      "owners_count": 238,
+      "buildings_file": "buildings_38560.parquet",
+      "owners_file": "owners_38560.parquet",
+      "buildings_size_bytes": 594695,
+      "owners_size_bytes": 13796,
+      "total_size_bytes": 608491,
+      "bbox": [
+        5.721132,
+        45.062919,
+        5.767666,
+        45.131863
+      ],
+      "center": [
+        5.744399,
+        45.097391
+      ]
+    },
+    {
+      "id": "cp_38570",
+      "cp": 38570,
+      "departement": "38",
+      "communes": [
+        "Crêts en Belledonne",
+        "Goncelin",
+        "Hurtières",
+        "La Pierre",
+        "Le Cheylas",
+        "Tencin",
+        "Theys"
+      ],
+      "buildings_count": 3874,
+      "owners_count": 348,
+      "buildings_file": "buildings_38570.parquet",
+      "owners_file": "owners_38570.parquet",
+      "buildings_size_bytes": 831023,
+      "owners_size_bytes": 17311,
+      "total_size_bytes": 848334,
+      "bbox": [
+        5.936421,
+        45.264781,
+        6.031972,
+        45.39962
+      ],
+      "center": [
+        5.984196,
+        45.3322
+      ]
+    },
+    {
+      "id": "cp_38580",
+      "cp": 38580,
+      "departement": "38",
+      "communes": [
+        "Allevard",
+        "La Chapelle-du-Bard",
+        "Le Haut-Bréda",
+        "Le Moutaret"
+      ],
+      "buildings_count": 2769,
+      "owners_count": 391,
+      "buildings_file": "buildings_38580.parquet",
+      "owners_file": "owners_38580.parquet",
+      "buildings_size_bytes": 602559,
+      "owners_size_bytes": 19425,
+      "total_size_bytes": 621984,
+      "bbox": [
+        6.041592,
+        45.269908,
+        6.132347,
+        45.438783
+      ],
+      "center": [
+        6.08697,
+        45.354346
+      ]
+    },
+    {
+      "id": "cp_38590",
+      "cp": 38590,
+      "departement": "38",
+      "communes": [
+        "Brion",
+        "Brézins",
+        "Chasselay",
+        "Gillonnay",
+        "La Forteresse",
+        "Plan",
+        "Saint-Geoirs",
+        "Saint-Michel-de-Saint-Geoirs",
+        "Saint-Pierre-de-Bressieux",
+        "Saint-Étienne-de-Saint-Geoirs",
+        "Sillans"
+      ],
+      "buildings_count": 3771,
+      "owners_count": 445,
+      "buildings_file": "buildings_38590.parquet",
+      "owners_file": "owners_38590.parquet",
+      "buildings_size_bytes": 817285,
+      "owners_size_bytes": 20208,
+      "total_size_bytes": 837493,
+      "bbox": [
+        5.28738,
+        45.278815,
+        5.417455,
+        45.367402
+      ],
+      "center": [
+        5.352418,
+        45.323108
       ]
     },
     {
@@ -347,9 +2236,9 @@
       "owners_count": 1071,
       "buildings_file": "buildings_38600.parquet",
       "owners_file": "owners_38600.parquet",
-      "buildings_size_bytes": 697769,
+      "buildings_size_bytes": 729268,
       "owners_size_bytes": 35379,
-      "total_size_bytes": 733148,
+      "total_size_bytes": 764647,
       "bbox": [
         5.664185,
         45.185171,
@@ -367,24 +2256,278 @@
       "departement": "38",
       "communes": [
         "Gières",
-        "Saint-Martin-d'Hères"
+        "Saint-Martin-d'Hères",
+        "Venon"
       ],
-      "buildings_count": 1174,
-      "owners_count": 402,
+      "buildings_count": 1488,
+      "owners_count": 422,
       "buildings_file": "buildings_38610.parquet",
       "owners_file": "owners_38610.parquet",
-      "buildings_size_bytes": 379569,
-      "owners_size_bytes": 18959,
-      "total_size_bytes": 398528,
+      "buildings_size_bytes": 464229,
+      "owners_size_bytes": 19459,
+      "total_size_bytes": 483688,
       "bbox": [
         5.770695,
-        45.168943,
-        5.811691,
+        45.163672,
+        5.825029,
         45.197369
       ],
       "center": [
-        5.791193,
-        45.183156
+        5.797862,
+        45.18052
+      ]
+    },
+    {
+      "id": "cp_38620",
+      "cp": 38620,
+      "departement": "38",
+      "communes": [
+        "Bilieu",
+        "Massieu",
+        "Merlas",
+        "Montferrat",
+        "Saint-Bueil",
+        "Saint-Geoire-en-Valdaine",
+        "Saint-Sulpice-des-Rivoires",
+        "Velanne",
+        "Villages du Lac de Paladru",
+        "Voissant"
+      ],
+      "buildings_count": 3452,
+      "owners_count": 245,
+      "buildings_file": "buildings_38620.parquet",
+      "owners_file": "owners_38620.parquet",
+      "buildings_size_bytes": 730589,
+      "owners_size_bytes": 14659,
+      "total_size_bytes": 745248,
+      "bbox": [
+        5.544588,
+        45.424244,
+        5.715929,
+        45.50405
+      ],
+      "center": [
+        5.630258,
+        45.464147
+      ]
+    },
+    {
+      "id": "cp_38630",
+      "cp": 38630,
+      "departement": "38",
+      "communes": [
+        "Corbelin",
+        "La Bâtie-Montgascon",
+        "Les Avenières Veyrins-Thuellin"
+      ],
+      "buildings_count": 4453,
+      "owners_count": 410,
+      "buildings_file": "buildings_38630.parquet",
+      "owners_file": "owners_38630.parquet",
+      "buildings_size_bytes": 892725,
+      "owners_size_bytes": 18983,
+      "total_size_bytes": 911708,
+      "bbox": [
+        5.498828,
+        45.585298,
+        5.610238,
+        45.664721
+      ],
+      "center": [
+        5.554533,
+        45.62501
+      ]
+    },
+    {
+      "id": "cp_38640",
+      "cp": 38640,
+      "departement": "38",
+      "communes": [
+        "Claix",
+        "Varces-Allières-et-Risset"
+      ],
+      "buildings_count": 2682,
+      "owners_count": 336,
+      "buildings_file": "buildings_38640.parquet",
+      "owners_file": "owners_38640.parquet",
+      "buildings_size_bytes": 664663,
+      "owners_size_bytes": 16988,
+      "total_size_bytes": 681651,
+      "bbox": [
+        5.643278,
+        45.105792,
+        5.696176,
+        45.14476
+      ],
+      "center": [
+        5.669727,
+        45.125276
+      ]
+    },
+    {
+      "id": "cp_38650",
+      "cp": 38650,
+      "departement": "38",
+      "communes": [
+        "Avignonet",
+        "Château-Bernard",
+        "Gresse-en-Vercors",
+        "Monestier-de-Clermont",
+        "Roissard",
+        "Saint-Andéol",
+        "Saint-Guillaume",
+        "Saint-Martin-de-la-Cluze",
+        "Saint-Michel-les-Portes",
+        "Saint-Paul-lès-Monestier",
+        "Sinard",
+        "Treffort",
+        "Vif"
+      ],
+      "buildings_count": 2901,
+      "owners_count": 322,
+      "buildings_file": "buildings_38650.parquet",
+      "owners_file": "owners_38650.parquet",
+      "buildings_size_bytes": 635101,
+      "owners_size_bytes": 16971,
+      "total_size_bytes": 652072,
+      "bbox": [
+        5.54073,
+        44.856362,
+        5.682911,
+        45.016913
+      ],
+      "center": [
+        5.61182,
+        44.936638
+      ]
+    },
+    {
+      "id": "cp_38660",
+      "cp": 38660,
+      "departement": "38",
+      "communes": [
+        "La Terrasse",
+        "Le Touvet",
+        "Lumbin",
+        "Plateau-des-Petites-Roches",
+        "Saint-Vincent-de-Mercuze",
+        "Sainte-Marie-d'Alloix",
+        "Sainte-Marie-du-Mont"
+      ],
+      "buildings_count": 4725,
+      "owners_count": 540,
+      "buildings_file": "buildings_38660.parquet",
+      "owners_file": "owners_38660.parquet",
+      "buildings_size_bytes": 1058065,
+      "owners_size_bytes": 22241,
+      "total_size_bytes": 1080306,
+      "bbox": [
+        5.840933,
+        45.285834,
+        5.973888,
+        45.426143
+      ],
+      "center": [
+        5.90741,
+        45.355988
+      ]
+    },
+    {
+      "id": "cp_38670",
+      "cp": 38670,
+      "departement": "38",
+      "communes": [
+        "Chasse-sur-Rhône"
+      ],
+      "buildings_count": 1782,
+      "owners_count": 293,
+      "buildings_file": "buildings_38670.parquet",
+      "owners_file": "owners_38670.parquet",
+      "buildings_size_bytes": 457606,
+      "owners_size_bytes": 16059,
+      "total_size_bytes": 473665,
+      "bbox": [
+        4.782969,
+        45.569255,
+        4.833846,
+        45.58831
+      ],
+      "center": [
+        4.808407,
+        45.578782
+      ]
+    },
+    {
+      "id": "cp_38680",
+      "cp": 38680,
+      "departement": "38",
+      "communes": [
+        "Auberives-en-Royans",
+        "Choranche",
+        "Châtelus",
+        "Pont-en-Royans",
+        "Presles",
+        "Rencurel",
+        "Saint-André-en-Royans",
+        "Saint-Just-de-Claix",
+        "Saint-Pierre-de-Chérennes"
+      ],
+      "buildings_count": 1952,
+      "owners_count": 236,
+      "buildings_file": "buildings_38680.parquet",
+      "owners_file": "owners_38680.parquet",
+      "buildings_size_bytes": 449473,
+      "owners_size_bytes": 14215,
+      "total_size_bytes": 463688,
+      "bbox": [
+        5.245676,
+        45.040212,
+        5.490096,
+        45.151149
+      ],
+      "center": [
+        5.367886,
+        45.09568
+      ]
+    },
+    {
+      "id": "cp_38690",
+      "cp": 38690,
+      "departement": "38",
+      "communes": [
+        "Belmont",
+        "Biol",
+        "Bizonnes",
+        "Burcin",
+        "Bévenais",
+        "Châbons",
+        "Colombe",
+        "Eclose-Badinières",
+        "Eydoche",
+        "Flachères",
+        "Le Grand-Lemps",
+        "Longechenal",
+        "Montrevel",
+        "Oyeu",
+        "Saint-Didier-de-Bizonnes",
+        "Torchefelon"
+      ],
+      "buildings_count": 6966,
+      "owners_count": 629,
+      "buildings_file": "buildings_38690.parquet",
+      "owners_file": "owners_38690.parquet",
+      "buildings_size_bytes": 1376735,
+      "owners_size_bytes": 23598,
+      "total_size_bytes": 1400333,
+      "bbox": [
+        5.303773,
+        45.36795,
+        5.503658,
+        45.533117
+      ],
+      "center": [
+        5.403716,
+        45.450534
       ]
     },
     {
@@ -392,25 +2535,262 @@
       "cp": 38700,
       "departement": "38",
       "communes": [
+        "Corenc",
         "La Tronche",
-        "Meylan"
+        "Le Sappey-en-Chartreuse",
+        "Meylan",
+        "Sarcenas"
       ],
-      "buildings_count": 1237,
-      "owners_count": 436,
+      "buildings_count": 3286,
+      "owners_count": 687,
       "buildings_file": "buildings_38700.parquet",
       "owners_file": "owners_38700.parquet",
-      "buildings_size_bytes": 402281,
-      "owners_size_bytes": 20315,
-      "total_size_bytes": 422596,
+      "buildings_size_bytes": 846789,
+      "owners_size_bytes": 27142,
+      "total_size_bytes": 873931,
       "bbox": [
         5.731857,
         45.191321,
-        5.773463,
-        45.227179
+        5.784696,
+        45.295214
       ],
       "center": [
-        5.75266,
-        45.20925
+        5.758276,
+        45.243268
+      ]
+    },
+    {
+      "id": "cp_38710",
+      "cp": 38710,
+      "departement": "38",
+      "communes": [
+        "Châtel-en-Trièves",
+        "Cognet",
+        "Cornillon-en-Trièves",
+        "Lavars",
+        "Mens",
+        "Prébois",
+        "Saint-Baudille-et-Pipet",
+        "Saint-Jean-d'Hérans",
+        "Tréminis"
+      ],
+      "buildings_count": 2539,
+      "owners_count": 285,
+      "buildings_file": "buildings_38710.parquet",
+      "owners_file": "owners_38710.parquet",
+      "buildings_size_bytes": 578293,
+      "owners_size_bytes": 15153,
+      "total_size_bytes": 593446,
+      "bbox": [
+        5.669814,
+        44.702867,
+        5.877618,
+        44.873402
+      ],
+      "center": [
+        5.773716,
+        44.788134
+      ]
+    },
+    {
+      "id": "cp_38730",
+      "cp": 38730,
+      "departement": "38",
+      "communes": [
+        "Blandin",
+        "Charavines",
+        "Chassignieu",
+        "Chélieu",
+        "Doissin",
+        "Oyeu",
+        "Torchefelon",
+        "Val-de-Virieu",
+        "Valencogne",
+        "Villages du Lac de Paladru"
+      ],
+      "buildings_count": 2553,
+      "owners_count": 219,
+      "buildings_file": "buildings_38730.parquet",
+      "owners_file": "owners_38730.parquet",
+      "buildings_size_bytes": 565797,
+      "owners_size_bytes": 13809,
+      "total_size_bytes": 579606,
+      "bbox": [
+        5.410822,
+        45.443636,
+        5.55675,
+        45.521398
+      ],
+      "center": [
+        5.483786,
+        45.482517
+      ]
+    },
+    {
+      "id": "cp_38740",
+      "cp": 38740,
+      "departement": "38",
+      "communes": [
+        "Chantepérier",
+        "Entraigues",
+        "Valbonnais",
+        "Valjouffrey"
+      ],
+      "buildings_count": 1292,
+      "owners_count": 77,
+      "buildings_file": "buildings_38740.parquet",
+      "owners_file": "owners_38740.parquet",
+      "buildings_size_bytes": 320530,
+      "owners_size_bytes": 10104,
+      "total_size_bytes": 330634,
+      "bbox": [
+        5.870886,
+        44.859852,
+        6.098373,
+        44.995803
+      ],
+      "center": [
+        5.98463,
+        44.927828
+      ]
+    },
+    {
+      "id": "cp_38750",
+      "cp": 38750,
+      "departement": "38",
+      "communes": [
+        "Huez"
+      ],
+      "buildings_count": 489,
+      "owners_count": 1294,
+      "buildings_file": "buildings_38750.parquet",
+      "owners_file": "owners_38750.parquet",
+      "buildings_size_bytes": 243051,
+      "owners_size_bytes": 43313,
+      "total_size_bytes": 286364,
+      "bbox": [
+        6.047662,
+        45.075072,
+        6.087265,
+        45.115659
+      ],
+      "center": [
+        6.067464,
+        45.095366
+      ]
+    },
+    {
+      "id": "cp_38760",
+      "cp": 38760,
+      "departement": "38",
+      "communes": [
+        "Saint-Paul-de-Varces",
+        "Varces-Allières-et-Risset"
+      ],
+      "buildings_count": 2780,
+      "owners_count": 288,
+      "buildings_file": "buildings_38760.parquet",
+      "owners_file": "owners_38760.parquet",
+      "buildings_size_bytes": 695588,
+      "owners_size_bytes": 15486,
+      "total_size_bytes": 711074,
+      "bbox": [
+        5.627755,
+        45.059402,
+        5.71425,
+        45.111282
+      ],
+      "center": [
+        5.671002,
+        45.085342
+      ]
+    },
+    {
+      "id": "cp_38770",
+      "cp": 38770,
+      "departement": "38",
+      "communes": [
+        "La Motte-Saint-Martin",
+        "La Motte-d'Aveillans",
+        "Monteynard",
+        "Pierre-Châtel"
+      ],
+      "buildings_count": 1473,
+      "owners_count": 107,
+      "buildings_file": "buildings_38770.parquet",
+      "owners_file": "owners_38770.parquet",
+      "buildings_size_bytes": 349750,
+      "owners_size_bytes": 10437,
+      "total_size_bytes": 360187,
+      "bbox": [
+        5.694877,
+        44.924769,
+        5.75375,
+        44.982474
+      ],
+      "center": [
+        5.724314,
+        44.953622
+      ]
+    },
+    {
+      "id": "cp_38780",
+      "cp": 38780,
+      "departement": "38",
+      "communes": [
+        "Estrablin",
+        "Eyzin-Pinet",
+        "Oytier-Saint-Oblas",
+        "Pont-Évêque",
+        "Septème",
+        "Serpaize",
+        "Vienne"
+      ],
+      "buildings_count": 5304,
+      "owners_count": 701,
+      "buildings_file": "buildings_38780.parquet",
+      "owners_file": "owners_38780.parquet",
+      "buildings_size_bytes": 1100952,
+      "owners_size_bytes": 27024,
+      "total_size_bytes": 1127976,
+      "bbox": [
+        4.899844,
+        45.455887,
+        5.058072,
+        45.583861
+      ],
+      "center": [
+        4.978958,
+        45.519874
+      ]
+    },
+    {
+      "id": "cp_38790",
+      "cp": 38790,
+      "departement": "38",
+      "communes": [
+        "Beauvoir-de-Marc",
+        "Charantonnay",
+        "Diémoz",
+        "Roche",
+        "Saint-Georges-d'Espéranche"
+      ],
+      "buildings_count": 3349,
+      "owners_count": 317,
+      "buildings_file": "buildings_38790.parquet",
+      "owners_file": "owners_38790.parquet",
+      "buildings_size_bytes": 708653,
+      "owners_size_bytes": 16457,
+      "total_size_bytes": 725110,
+      "bbox": [
+        5.047212,
+        45.528072,
+        5.139638,
+        45.612123
+      ],
+      "center": [
+        5.093425,
+        45.570098
       ]
     },
     {
@@ -418,25 +2798,418 @@
       "cp": 38800,
       "departement": "38",
       "communes": [
+        "Champagnier",
         "Le Pont-de-Claix",
         "Échirolles"
       ],
-      "buildings_count": 926,
-      "owners_count": 547,
+      "buildings_count": 1501,
+      "owners_count": 596,
       "buildings_file": "buildings_38800.parquet",
       "owners_file": "owners_38800.parquet",
-      "buildings_size_bytes": 329199,
-      "owners_size_bytes": 21443,
-      "total_size_bytes": 350642,
+      "buildings_size_bytes": 476279,
+      "owners_size_bytes": 22633,
+      "total_size_bytes": 498912,
       "bbox": [
         5.690385,
-        45.110016,
-        5.713299,
+        45.09377,
+        5.738997,
         45.141424
       ],
       "center": [
-        5.701842,
-        45.12572
+        5.714691,
+        45.117597
+      ]
+    },
+    {
+      "id": "cp_38830",
+      "cp": 38830,
+      "departement": "38",
+      "communes": [
+        "Crêts en Belledonne",
+        "Le Cheylas"
+      ],
+      "buildings_count": 1403,
+      "owners_count": 96,
+      "buildings_file": "buildings_38830.parquet",
+      "owners_file": "owners_38830.parquet",
+      "buildings_size_bytes": 354088,
+      "owners_size_bytes": 9642,
+      "total_size_bytes": 363730,
+      "bbox": [
+        5.991293,
+        45.340296,
+        6.064592,
+        45.392392
+      ],
+      "center": [
+        6.027942,
+        45.366344
+      ]
+    },
+    {
+      "id": "cp_38840",
+      "cp": 38840,
+      "departement": "38",
+      "communes": [
+        "Chatte",
+        "La Sône",
+        "Montagne",
+        "Saint-Bonnet-de-Chavagne",
+        "Saint-Hilaire-du-Rosier",
+        "Saint-Lattier"
+      ],
+      "buildings_count": 2178,
+      "owners_count": 146,
+      "buildings_file": "buildings_38840.parquet",
+      "owners_file": "owners_38840.parquet",
+      "buildings_size_bytes": 519363,
+      "owners_size_bytes": 12043,
+      "total_size_bytes": 531406,
+      "bbox": [
+        5.135629,
+        45.067095,
+        5.295409,
+        45.146656
+      ],
+      "center": [
+        5.215519,
+        45.106876
+      ]
+    },
+    {
+      "id": "cp_38850",
+      "cp": 38850,
+      "departement": "38",
+      "communes": [
+        "Bilieu",
+        "Charavines",
+        "Chirens",
+        "Massieu",
+        "Montferrat",
+        "Villages du Lac de Paladru"
+      ],
+      "buildings_count": 3283,
+      "owners_count": 285,
+      "buildings_file": "buildings_38850.parquet",
+      "owners_file": "owners_38850.parquet",
+      "buildings_size_bytes": 713800,
+      "owners_size_bytes": 15651,
+      "total_size_bytes": 729451,
+      "bbox": [
+        5.499445,
+        45.397956,
+        5.586218,
+        45.505594
+      ],
+      "center": [
+        5.542832,
+        45.451775
+      ]
+    },
+    {
+      "id": "cp_38860",
+      "cp": 38860,
+      "departement": "38",
+      "communes": [
+        "Les Deux Alpes"
+      ],
+      "buildings_count": 811,
+      "owners_count": 1145,
+      "buildings_file": "buildings_38860.parquet",
+      "owners_file": "owners_38860.parquet",
+      "buildings_size_bytes": 305700,
+      "owners_size_bytes": 40461,
+      "total_size_bytes": 346161,
+      "bbox": [
+        6.078663,
+        44.985639,
+        6.158544,
+        45.045239
+      ],
+      "center": [
+        6.118604,
+        45.015439
+      ]
+    },
+    {
+      "id": "cp_38870",
+      "cp": 38870,
+      "departement": "38",
+      "communes": [
+        "Bressieux",
+        "Saint-Pierre-de-Bressieux",
+        "Saint-Siméon-de-Bressieux"
+      ],
+      "buildings_count": 1707,
+      "owners_count": 135,
+      "buildings_file": "buildings_38870.parquet",
+      "owners_file": "owners_38870.parquet",
+      "buildings_size_bytes": 429685,
+      "owners_size_bytes": 11696,
+      "total_size_bytes": 441381,
+      "bbox": [
+        5.240289,
+        45.276474,
+        5.316223,
+        45.34931
+      ],
+      "center": [
+        5.278256,
+        45.312892
+      ]
+    },
+    {
+      "id": "cp_38880",
+      "cp": 38880,
+      "departement": "38",
+      "communes": [
+        "Autrans-Méaudre en Vercors"
+      ],
+      "buildings_count": 943,
+      "owners_count": 158,
+      "buildings_file": "buildings_38880.parquet",
+      "owners_file": "owners_38880.parquet",
+      "buildings_size_bytes": 278147,
+      "owners_size_bytes": 12971,
+      "total_size_bytes": 291118,
+      "bbox": [
+        5.519865,
+        45.131042,
+        5.579295,
+        45.219645
+      ],
+      "center": [
+        5.54958,
+        45.175344
+      ]
+    },
+    {
+      "id": "cp_38890",
+      "cp": 38890,
+      "departement": "38",
+      "communes": [
+        "Montcarra",
+        "Rochetoirin",
+        "Ruy-Montceau",
+        "Saint-Chef",
+        "Salagnon",
+        "Sermérieu",
+        "Vasselin",
+        "Vignieu"
+      ],
+      "buildings_count": 3125,
+      "owners_count": 240,
+      "buildings_file": "buildings_38890.parquet",
+      "owners_file": "owners_38890.parquet",
+      "buildings_size_bytes": 670789,
+      "owners_size_bytes": 14172,
+      "total_size_bytes": 684961,
+      "bbox": [
+        5.30679,
+        45.60265,
+        5.462045,
+        45.682204
+      ],
+      "center": [
+        5.384418,
+        45.642427
+      ]
+    },
+    {
+      "id": "cp_38920",
+      "cp": 38920,
+      "departement": "38",
+      "communes": [
+        "Crolles"
+      ],
+      "buildings_count": 2502,
+      "owners_count": 485,
+      "buildings_file": "buildings_38920.parquet",
+      "owners_file": "owners_38920.parquet",
+      "buildings_size_bytes": 687822,
+      "owners_size_bytes": 20689,
+      "total_size_bytes": 708511,
+      "bbox": [
+        5.861168,
+        45.262886,
+        5.905828,
+        45.299881
+      ],
+      "center": [
+        5.883498,
+        45.281384
+      ]
+    },
+    {
+      "id": "cp_38930",
+      "cp": 38930,
+      "departement": "38",
+      "communes": [
+        "Chichilianne",
+        "Clelles",
+        "Lalley",
+        "Le Percy",
+        "Monestier-du-Percy",
+        "Saint-Martin-de-Clelles",
+        "Saint-Maurice-en-Trièves"
+      ],
+      "buildings_count": 1369,
+      "owners_count": 179,
+      "buildings_file": "buildings_38930.parquet",
+      "owners_file": "owners_38930.parquet",
+      "buildings_size_bytes": 335257,
+      "owners_size_bytes": 12584,
+      "total_size_bytes": 347841,
+      "bbox": [
+        5.547471,
+        44.724268,
+        5.704398,
+        44.857329
+      ],
+      "center": [
+        5.625934,
+        44.790798
+      ]
+    },
+    {
+      "id": "cp_38940",
+      "cp": 38940,
+      "departement": "38",
+      "communes": [
+        "Montfalcon",
+        "Roybon",
+        "Saint-Clair-sur-Galaure"
+      ],
+      "buildings_count": 793,
+      "owners_count": 76,
+      "buildings_file": "buildings_38940.parquet",
+      "owners_file": "owners_38940.parquet",
+      "buildings_size_bytes": 249648,
+      "owners_size_bytes": 10183,
+      "total_size_bytes": 259831,
+      "bbox": [
+        5.131165,
+        45.206832,
+        5.292446,
+        45.27897
+      ],
+      "center": [
+        5.211806,
+        45.242901
+      ]
+    },
+    {
+      "id": "cp_38950",
+      "cp": 38950,
+      "departement": "38",
+      "communes": [
+        "Quaix-en-Chartreuse",
+        "Saint-Martin-le-Vinoux"
+      ],
+      "buildings_count": 1309,
+      "owners_count": 333,
+      "buildings_file": "buildings_38950.parquet",
+      "owners_file": "owners_38950.parquet",
+      "buildings_size_bytes": 401955,
+      "owners_size_bytes": 16577,
+      "total_size_bytes": 418532,
+      "bbox": [
+        5.684145,
+        45.200152,
+        5.749867,
+        45.271118
+      ],
+      "center": [
+        5.717006,
+        45.235635
+      ]
+    },
+    {
+      "id": "cp_38960",
+      "cp": 38960,
+      "departement": "38",
+      "communes": [
+        "Miribel-les-Échelles",
+        "Saint-Aupre",
+        "Saint-Étienne-de-Crossey"
+      ],
+      "buildings_count": 1667,
+      "owners_count": 110,
+      "buildings_file": "buildings_38960.parquet",
+      "owners_file": "owners_38960.parquet",
+      "buildings_size_bytes": 408444,
+      "owners_size_bytes": 10890,
+      "total_size_bytes": 419334,
+      "bbox": [
+        5.60956,
+        45.362383,
+        5.681581,
+        45.426944
+      ],
+      "center": [
+        5.64557,
+        45.394664
+      ]
+    },
+    {
+      "id": "cp_38970",
+      "cp": 38970,
+      "departement": "38",
+      "communes": [
+        "Ambel",
+        "Beaufin",
+        "Châtel-en-Trièves",
+        "Corps",
+        "La Salette-Fallavaux",
+        "Les Côtes-de-Corps",
+        "Monestier-d'Ambel",
+        "Pellafol",
+        "Quet-en-Beaumont",
+        "Sainte-Luce"
+      ],
+      "buildings_count": 1158,
+      "owners_count": 148,
+      "buildings_file": "buildings_38970.parquet",
+      "owners_file": "owners_38970.parquet",
+      "buildings_size_bytes": 312613,
+      "owners_size_bytes": 11892,
+      "total_size_bytes": 324505,
+      "bbox": [
+        5.856159,
+        44.771158,
+        5.991678,
+        44.852797
+      ],
+      "center": [
+        5.923918,
+        44.811978
+      ]
+    },
+    {
+      "id": "cp_38980",
+      "cp": 38980,
+      "departement": "38",
+      "communes": [
+        "Châtenay",
+        "Marnans",
+        "Viriville"
+      ],
+      "buildings_count": 1048,
+      "owners_count": 94,
+      "buildings_file": "buildings_38980.parquet",
+      "owners_file": "owners_38980.parquet",
+      "buildings_size_bytes": 292171,
+      "owners_size_bytes": 10885,
+      "total_size_bytes": 303056,
+      "bbox": [
+        5.179586,
+        45.278598,
+        5.261754,
+        45.340783
+      ],
+      "center": [
+        5.22067,
+        45.30969
       ]
     },
     {
@@ -450,9 +3223,9 @@
       "owners_count": 3188,
       "buildings_file": "buildings_69001.parquet",
       "owners_file": "owners_69001.parquet",
-      "buildings_size_bytes": 618786,
-      "owners_size_bytes": 89722,
-      "total_size_bytes": 708508,
+      "buildings_size_bytes": 655319,
+      "owners_size_bytes": 89714,
+      "total_size_bytes": 745033,
       "bbox": [
         4.814087,
         45.764814,
@@ -475,9 +3248,9 @@
       "owners_count": 4716,
       "buildings_file": "buildings_69002.parquet",
       "owners_file": "owners_69002.parquet",
-      "buildings_size_bytes": 663182,
+      "buildings_size_bytes": 702254,
       "owners_size_bytes": 124478,
-      "total_size_bytes": 787660,
+      "total_size_bytes": 826732,
       "bbox": [
         4.814453,
         45.732463,
@@ -494,23 +3267,24 @@
       "cp": 69003,
       "departement": "69",
       "communes": [
+        "Bron",
         "Lyon 3e Arrondissement"
       ],
-      "buildings_count": 5111,
-      "owners_count": 7452,
+      "buildings_count": 5112,
+      "owners_count": 7455,
       "buildings_file": "buildings_69003.parquet",
       "owners_file": "owners_69003.parquet",
-      "buildings_size_bytes": 1839375,
-      "owners_size_bytes": 198164,
-      "total_size_bytes": 2037539,
+      "buildings_size_bytes": 1915335,
+      "owners_size_bytes": 198193,
+      "total_size_bytes": 2113528,
       "bbox": [
         4.840917,
         45.739628,
-        4.897836,
+        4.898465,
         45.7636
       ],
       "center": [
-        4.869376,
+        4.869691,
         45.751614
       ]
     },
@@ -526,9 +3300,9 @@
       "owners_count": 2478,
       "buildings_file": "buildings_69004.parquet",
       "owners_file": "owners_69004.parquet",
-      "buildings_size_bytes": 678804,
+      "buildings_size_bytes": 719332,
       "owners_size_bytes": 73361,
-      "total_size_bytes": 752165,
+      "total_size_bytes": 792693,
       "bbox": [
         4.810555,
         45.771793,
@@ -545,15 +3319,16 @@
       "cp": 69005,
       "departement": "69",
       "communes": [
-        "Lyon 5e Arrondissement"
+        "Lyon 5e Arrondissement",
+        "Sainte-Foy-lès-Lyon"
       ],
-      "buildings_count": 2936,
-      "owners_count": 2800,
+      "buildings_count": 2940,
+      "owners_count": 2812,
       "buildings_file": "buildings_69005.parquet",
       "owners_file": "owners_69005.parquet",
-      "buildings_size_bytes": 1114089,
-      "owners_size_bytes": 80546,
-      "total_size_bytes": 1194635,
+      "buildings_size_bytes": 1160173,
+      "owners_size_bytes": 80819,
+      "total_size_bytes": 1240992,
       "bbox": [
         4.772417,
         45.744629,
@@ -577,9 +3352,9 @@
       "owners_count": 6194,
       "buildings_file": "buildings_69006.parquet",
       "owners_file": "owners_69006.parquet",
-      "buildings_size_bytes": 941338,
+      "buildings_size_bytes": 990458,
       "owners_size_bytes": 155294,
-      "total_size_bytes": 1096632,
+      "total_size_bytes": 1145752,
       "bbox": [
         4.841214,
         45.763684,
@@ -602,9 +3377,9 @@
       "owners_count": 6114,
       "buildings_file": "buildings_69007.parquet",
       "owners_file": "owners_69007.parquet",
-      "buildings_size_bytes": 1157435,
+      "buildings_size_bytes": 1211503,
       "owners_size_bytes": 165001,
-      "total_size_bytes": 1322436,
+      "total_size_bytes": 1376504,
       "bbox": [
         4.821796,
         45.719681,
@@ -621,24 +3396,25 @@
       "cp": 69008,
       "departement": "69",
       "communes": [
-        "Lyon 8e Arrondissement"
+        "Lyon 8e Arrondissement",
+        "Vénissieux"
       ],
       "buildings_count": 3656,
       "owners_count": 3878,
       "buildings_file": "buildings_69008.parquet",
       "owners_file": "owners_69008.parquet",
-      "buildings_size_bytes": 1263424,
-      "owners_size_bytes": 107711,
-      "total_size_bytes": 1371135,
+      "buildings_size_bytes": 1316083,
+      "owners_size_bytes": 107724,
+      "total_size_bytes": 1423807,
       "bbox": [
         4.848562,
-        45.718982,
+        45.718765,
         4.890402,
         45.749148
       ],
       "center": [
         4.869482,
-        45.734065
+        45.733956
       ]
     },
     {
@@ -653,9 +3429,9 @@
       "owners_count": 3005,
       "buildings_file": "buildings_69009.parquet",
       "owners_file": "owners_69009.parquet",
-      "buildings_size_bytes": 952304,
+      "buildings_size_bytes": 992133,
       "owners_size_bytes": 86368,
-      "total_size_bytes": 1038672,
+      "total_size_bytes": 1078501,
       "bbox": [
         4.785641,
         45.758831,
@@ -672,25 +3448,2333 @@
       "cp": 69100,
       "departement": "69",
       "communes": [
+        "Bron",
         "Lyon 3e Arrondissement",
+        "Vaulx-en-Velin",
         "Villeurbanne"
       ],
-      "buildings_count": 7895,
-      "owners_count": 7960,
+      "buildings_count": 7899,
+      "owners_count": 7961,
       "buildings_file": "buildings_69100.parquet",
       "owners_file": "owners_69100.parquet",
-      "buildings_size_bytes": 2519092,
-      "owners_size_bytes": 203504,
-      "total_size_bytes": 2722596,
+      "buildings_size_bytes": 2611209,
+      "owners_size_bytes": 203563,
+      "total_size_bytes": 2814772,
       "bbox": [
         4.859171,
         45.748799,
         4.921026,
-        45.789268
+        45.789694
       ],
       "center": [
         4.890099,
-        45.769034
+        45.769246
+      ]
+    },
+    {
+      "id": "cp_69110",
+      "cp": 69110,
+      "departement": "69",
+      "communes": [
+        "Francheville",
+        "Lyon 5e Arrondissement",
+        "Oullins-Pierre-Bénite",
+        "Sainte-Foy-lès-Lyon"
+      ],
+      "buildings_count": 2943,
+      "owners_count": 850,
+      "buildings_file": "buildings_69110.parquet",
+      "owners_file": "owners_69110.parquet",
+      "buildings_size_bytes": 848174,
+      "owners_size_bytes": 30436,
+      "total_size_bytes": 878610,
+      "bbox": [
+        4.774433,
+        45.720839,
+        4.813161,
+        45.751588
+      ],
+      "center": [
+        4.793797,
+        45.736214
+      ]
+    },
+    {
+      "id": "cp_69115",
+      "cp": 69115,
+      "departement": "69",
+      "communes": [
+        "Chiroubles",
+        "Villié-Morgon"
+      ],
+      "buildings_count": 249,
+      "owners_count": 31,
+      "buildings_file": "buildings_69115.parquet",
+      "owners_file": "owners_69115.parquet",
+      "buildings_size_bytes": 144830,
+      "owners_size_bytes": 8458,
+      "total_size_bytes": 153288,
+      "bbox": [
+        4.622709,
+        46.173502,
+        4.680302,
+        46.193427
+      ],
+      "center": [
+        4.651506,
+        46.183464
+      ]
+    },
+    {
+      "id": "cp_69120",
+      "cp": 69120,
+      "departement": "69",
+      "communes": [
+        "Vaulx-en-Velin"
+      ],
+      "buildings_count": 4212,
+      "owners_count": 1588,
+      "buildings_file": "buildings_69120.parquet",
+      "owners_file": "owners_69120.parquet",
+      "buildings_size_bytes": 1174161,
+      "owners_size_bytes": 49482,
+      "total_size_bytes": 1223643,
+      "bbox": [
+        4.901495,
+        45.744576,
+        4.946091,
+        45.793263
+      ],
+      "center": [
+        4.923793,
+        45.76892
+      ]
+    },
+    {
+      "id": "cp_69124",
+      "cp": 69124,
+      "departement": "69",
+      "communes": [
+        "Colombier-Saugnieu"
+      ],
+      "buildings_count": 1123,
+      "owners_count": 202,
+      "buildings_file": "buildings_69124.parquet",
+      "owners_file": "owners_69124.parquet",
+      "buildings_size_bytes": 355403,
+      "owners_size_bytes": 13387,
+      "total_size_bytes": 368790,
+      "bbox": [
+        5.062578,
+        45.697701,
+        5.15538,
+        45.73251
+      ],
+      "center": [
+        5.108979,
+        45.715106
+      ]
+    },
+    {
+      "id": "cp_69126",
+      "cp": 69126,
+      "departement": "69",
+      "communes": [
+        "Brindas",
+        "Chaponost"
+      ],
+      "buildings_count": 2275,
+      "owners_count": 219,
+      "buildings_file": "buildings_69126.parquet",
+      "owners_file": "owners_69126.parquet",
+      "buildings_size_bytes": 633213,
+      "owners_size_bytes": 14201,
+      "total_size_bytes": 647414,
+      "bbox": [
+        4.671204,
+        45.703255,
+        4.733473,
+        45.73599
+      ],
+      "center": [
+        4.702338,
+        45.719622
+      ]
+    },
+    {
+      "id": "cp_69130",
+      "cp": 69130,
+      "departement": "69",
+      "communes": [
+        "Champagne-au-Mont-d'Or",
+        "Tassin-la-Demi-Lune",
+        "Écully"
+      ],
+      "buildings_count": 2044,
+      "owners_count": 938,
+      "buildings_file": "buildings_69130.parquet",
+      "owners_file": "owners_69130.parquet",
+      "buildings_size_bytes": 666772,
+      "owners_size_bytes": 32599,
+      "total_size_bytes": 699371,
+      "bbox": [
+        4.757097,
+        45.763777,
+        4.794667,
+        45.800661
+      ],
+      "center": [
+        4.775882,
+        45.782219
+      ]
+    },
+    {
+      "id": "cp_69140",
+      "cp": 69140,
+      "departement": "69",
+      "communes": [
+        "Rillieux-la-Pape"
+      ],
+      "buildings_count": 3659,
+      "owners_count": 935,
+      "buildings_file": "buildings_69140.parquet",
+      "owners_file": "owners_69140.parquet",
+      "buildings_size_bytes": 941405,
+      "owners_size_bytes": 33587,
+      "total_size_bytes": 974992,
+      "bbox": [
+        4.86718,
+        45.797764,
+        4.917759,
+        45.847785
+      ],
+      "center": [
+        4.89247,
+        45.822774
+      ]
+    },
+    {
+      "id": "cp_69150",
+      "cp": 69150,
+      "departement": "69",
+      "communes": [
+        "Décines-Charpieu",
+        "Vaulx-en-Velin"
+      ],
+      "buildings_count": 4637,
+      "owners_count": 1375,
+      "buildings_file": "buildings_69150.parquet",
+      "owners_file": "owners_69150.parquet",
+      "buildings_size_bytes": 1146161,
+      "owners_size_bytes": 43738,
+      "total_size_bytes": 1189899,
+      "bbox": [
+        4.933184,
+        45.744759,
+        4.985019,
+        45.79494
+      ],
+      "center": [
+        4.959102,
+        45.76985
+      ]
+    },
+    {
+      "id": "cp_69160",
+      "cp": 69160,
+      "departement": "69",
+      "communes": [
+        "Charbonnières-les-Bains",
+        "Lyon 5e Arrondissement",
+        "Tassin-la-Demi-Lune"
+      ],
+      "buildings_count": 2543,
+      "owners_count": 1262,
+      "buildings_file": "buildings_69160.parquet",
+      "owners_file": "owners_69160.parquet",
+      "buildings_size_bytes": 764455,
+      "owners_size_bytes": 40915,
+      "total_size_bytes": 805370,
+      "bbox": [
+        4.721416,
+        45.750519,
+        4.792177,
+        45.774596
+      ],
+      "center": [
+        4.756796,
+        45.762558
+      ]
+    },
+    {
+      "id": "cp_69170",
+      "cp": 69170,
+      "departement": "69",
+      "communes": [
+        "Affoux",
+        "Dième",
+        "Joux",
+        "Les Sauvages",
+        "Saint-Appolinaire",
+        "Saint-Clément-sur-Valsonne",
+        "Saint-Marcel-l'Éclairé",
+        "Tarare",
+        "Valsonne",
+        "Villechenève"
+      ],
+      "buildings_count": 4322,
+      "owners_count": 943,
+      "buildings_file": "buildings_69170.parquet",
+      "owners_file": "owners_69170.parquet",
+      "buildings_size_bytes": 1005717,
+      "owners_size_bytes": 31996,
+      "total_size_bytes": 1037713,
+      "bbox": [
+        4.332065,
+        45.827201,
+        4.489864,
+        45.98674
+      ],
+      "center": [
+        4.410964,
+        45.90697
+      ]
+    },
+    {
+      "id": "cp_69190",
+      "cp": 69190,
+      "departement": "69",
+      "communes": [
+        "Saint-Fons"
+      ],
+      "buildings_count": 1573,
+      "owners_count": 785,
+      "buildings_file": "buildings_69190.parquet",
+      "owners_file": "owners_69190.parquet",
+      "buildings_size_bytes": 540131,
+      "owners_size_bytes": 27529,
+      "total_size_bytes": 567660,
+      "bbox": [
+        4.840678,
+        45.682987,
+        4.86623,
+        45.715935
+      ],
+      "center": [
+        4.853454,
+        45.699461
+      ]
+    },
+    {
+      "id": "cp_69200",
+      "cp": 69200,
+      "departement": "69",
+      "communes": [
+        "Feyzin",
+        "Lyon 8e Arrondissement",
+        "Vénissieux"
+      ],
+      "buildings_count": 4834,
+      "owners_count": 2133,
+      "buildings_file": "buildings_69200.parquet",
+      "owners_file": "owners_69200.parquet",
+      "buildings_size_bytes": 1413076,
+      "owners_size_bytes": 62513,
+      "total_size_bytes": 1475589,
+      "bbox": [
+        4.853038,
+        45.685153,
+        4.908875,
+        45.730504
+      ],
+      "center": [
+        4.880956,
+        45.707829
+      ]
+    },
+    {
+      "id": "cp_69210",
+      "cp": 69210,
+      "departement": "69",
+      "communes": [
+        "Bully",
+        "Chevinay",
+        "Fleurieux-sur-l'Arbresle",
+        "L'Arbresle",
+        "Lentilly",
+        "Sain-Bel",
+        "Saint-Germain-Nuelles",
+        "Saint-Pierre-la-Palud",
+        "Saint-Romain-de-Popey",
+        "Savigny",
+        "Sourcieux-les-Mines",
+        "Éveux"
+      ],
+      "buildings_count": 10056,
+      "owners_count": 1234,
+      "buildings_file": "buildings_69210.parquet",
+      "owners_file": "owners_69210.parquet",
+      "buildings_size_bytes": 2270567,
+      "owners_size_bytes": 41477,
+      "total_size_bytes": 2312044,
+      "bbox": [
+        4.524656,
+        45.760162,
+        4.698341,
+        45.880069
+      ],
+      "center": [
+        4.611498,
+        45.820116
+      ]
+    },
+    {
+      "id": "cp_69220",
+      "cp": 69220,
+      "departement": "69",
+      "communes": [
+        "Belleville-en-Beaujolais",
+        "Cercié",
+        "Charentay",
+        "Corcelles-en-Beaujolais",
+        "Dracé",
+        "Lancié",
+        "Odenas",
+        "Saint-Lager",
+        "Taponas"
+      ],
+      "buildings_count": 6885,
+      "owners_count": 1084,
+      "buildings_file": "buildings_69220.parquet",
+      "owners_file": "owners_69220.parquet",
+      "buildings_size_bytes": 1492649,
+      "owners_size_bytes": 38014,
+      "total_size_bytes": 1530663,
+      "bbox": [
+        4.645042,
+        46.064462,
+        4.797815,
+        46.185317
+      ],
+      "center": [
+        4.721428,
+        46.124889
+      ]
+    },
+    {
+      "id": "cp_69230",
+      "cp": 69230,
+      "departement": "69",
+      "communes": [
+        "Brignais",
+        "Irigny",
+        "Saint-Genis-Laval"
+      ],
+      "buildings_count": 4104,
+      "owners_count": 789,
+      "buildings_file": "buildings_69230.parquet",
+      "owners_file": "owners_69230.parquet",
+      "buildings_size_bytes": 1123721,
+      "owners_size_bytes": 28284,
+      "total_size_bytes": 1152005,
+      "bbox": [
+        4.766757,
+        45.66535,
+        4.821029,
+        45.717915
+      ],
+      "center": [
+        4.793893,
+        45.691632
+      ]
+    },
+    {
+      "id": "cp_69240",
+      "cp": 69240,
+      "departement": "69",
+      "communes": [
+        "Saint-Vincent-de-Reins",
+        "Thizy-les-Bourgs"
+      ],
+      "buildings_count": 3043,
+      "owners_count": 458,
+      "buildings_file": "buildings_69240.parquet",
+      "owners_file": "owners_69240.parquet",
+      "buildings_size_bytes": 721791,
+      "owners_size_bytes": 20754,
+      "total_size_bytes": 742545,
+      "bbox": [
+        4.251585,
+        46.010123,
+        4.416972,
+        46.10005
+      ],
+      "center": [
+        4.334278,
+        46.055086
+      ]
+    },
+    {
+      "id": "cp_69250",
+      "cp": 69250,
+      "departement": "69",
+      "communes": [
+        "Albigny-sur-Saône",
+        "Curis-au-Mont-d'Or",
+        "Fleurieu-sur-Saône",
+        "Montanay",
+        "Neuville-sur-Saône",
+        "Poleymieux-au-Mont-d'Or"
+      ],
+      "buildings_count": 4442,
+      "owners_count": 741,
+      "buildings_file": "buildings_69250.parquet",
+      "owners_file": "owners_69250.parquet",
+      "buildings_size_bytes": 1118501,
+      "owners_size_bytes": 28224,
+      "total_size_bytes": 1146725,
+      "bbox": [
+        4.775676,
+        45.849728,
+        4.876404,
+        45.897739
+      ],
+      "center": [
+        4.82604,
+        45.873734
+      ]
+    },
+    {
+      "id": "cp_69260",
+      "cp": 69260,
+      "departement": "69",
+      "communes": [
+        "Charbonnières-les-Bains",
+        "Dardilly",
+        "Marcy-l'Étoile"
+      ],
+      "buildings_count": 1369,
+      "owners_count": 324,
+      "buildings_file": "buildings_69260.parquet",
+      "owners_file": "owners_69260.parquet",
+      "buildings_size_bytes": 453338,
+      "owners_size_bytes": 16475,
+      "total_size_bytes": 469813,
+      "bbox": [
+        4.725348,
+        45.769596,
+        4.760722,
+        45.790546
+      ],
+      "center": [
+        4.743035,
+        45.780071
+      ]
+    },
+    {
+      "id": "cp_69270",
+      "cp": 69270,
+      "departement": "69",
+      "communes": [
+        "Cailloux-sur-Fontaines",
+        "Couzon-au-Mont-d'Or",
+        "Fontaines-Saint-Martin",
+        "Fontaines-sur-Saône",
+        "Rochetaillée-sur-Saône",
+        "Saint-Romain-au-Mont-d'Or",
+        "Sathonay-Village"
+      ],
+      "buildings_count": 4133,
+      "owners_count": 696,
+      "buildings_file": "buildings_69270.parquet",
+      "owners_file": "owners_69270.parquet",
+      "buildings_size_bytes": 1038342,
+      "owners_size_bytes": 27228,
+      "total_size_bytes": 1065570,
+      "bbox": [
+        4.812372,
+        45.814747,
+        4.889799,
+        45.861798
+      ],
+      "center": [
+        4.851086,
+        45.838272
+      ]
+    },
+    {
+      "id": "cp_69280",
+      "cp": 69280,
+      "departement": "69",
+      "communes": [
+        "Charbonnières-les-Bains",
+        "Marcy-l'Étoile",
+        "Sainte-Consorce",
+        "Tassin-la-Demi-Lune"
+      ],
+      "buildings_count": 1720,
+      "owners_count": 307,
+      "buildings_file": "buildings_69280.parquet",
+      "owners_file": "owners_69280.parquet",
+      "buildings_size_bytes": 521187,
+      "owners_size_bytes": 16101,
+      "total_size_bytes": 537288,
+      "bbox": [
+        4.678093,
+        45.760169,
+        4.730478,
+        45.795429
+      ],
+      "center": [
+        4.704285,
+        45.777799
+      ]
+    },
+    {
+      "id": "cp_69290",
+      "cp": 69290,
+      "departement": "69",
+      "communes": [
+        "Chevinay",
+        "Craponne",
+        "Francheville",
+        "Grézieu-la-Varenne",
+        "Pollionnay",
+        "Saint-Genis-les-Ollières",
+        "Vaugneray"
+      ],
+      "buildings_count": 6615,
+      "owners_count": 1041,
+      "buildings_file": "buildings_69290.parquet",
+      "owners_file": "owners_69290.parquet",
+      "buildings_size_bytes": 1638265,
+      "owners_size_bytes": 34950,
+      "total_size_bytes": 1673215,
+      "bbox": [
+        4.61757,
+        45.736516,
+        4.752285,
+        45.792325
+      ],
+      "center": [
+        4.684928,
+        45.76442
+      ]
+    },
+    {
+      "id": "cp_69300",
+      "cp": 69300,
+      "departement": "69",
+      "communes": [
+        "Caluire-et-Cuire",
+        "Rillieux-la-Pape"
+      ],
+      "buildings_count": 4231,
+      "owners_count": 2061,
+      "buildings_file": "buildings_69300.parquet",
+      "owners_file": "owners_69300.parquet",
+      "buildings_size_bytes": 1207485,
+      "owners_size_bytes": 61247,
+      "total_size_bytes": 1268732,
+      "bbox": [
+        4.820747,
+        45.779697,
+        4.877734,
+        45.815978
+      ],
+      "center": [
+        4.849241,
+        45.797838
+      ]
+    },
+    {
+      "id": "cp_69310",
+      "cp": 69310,
+      "departement": "69",
+      "communes": [
+        "Irigny",
+        "Oullins-Pierre-Bénite"
+      ],
+      "buildings_count": 1584,
+      "owners_count": 413,
+      "buildings_file": "buildings_69310.parquet",
+      "owners_file": "owners_69310.parquet",
+      "buildings_size_bytes": 483987,
+      "owners_size_bytes": 18481,
+      "total_size_bytes": 502468,
+      "bbox": [
+        4.805422,
+        45.692656,
+        4.841644,
+        45.711456
+      ],
+      "center": [
+        4.823533,
+        45.702056
+      ]
+    },
+    {
+      "id": "cp_69320",
+      "cp": 69320,
+      "departement": "69",
+      "communes": [
+        "Feyzin"
+      ],
+      "buildings_count": 2214,
+      "owners_count": 357,
+      "buildings_file": "buildings_69320.parquet",
+      "owners_file": "owners_69320.parquet",
+      "buildings_size_bytes": 645422,
+      "owners_size_bytes": 17518,
+      "total_size_bytes": 662940,
+      "bbox": [
+        4.833284,
+        45.659779,
+        4.871804,
+        45.688229
+      ],
+      "center": [
+        4.852544,
+        45.674004
+      ]
+    },
+    {
+      "id": "cp_69330",
+      "cp": 69330,
+      "departement": "69",
+      "communes": [
+        "Décines-Charpieu",
+        "Jonage",
+        "Jons",
+        "Meyzieu",
+        "Pusignan"
+      ],
+      "buildings_count": 10888,
+      "owners_count": 1740,
+      "buildings_file": "buildings_69330.parquet",
+      "owners_file": "owners_69330.parquet",
+      "buildings_size_bytes": 2551581,
+      "owners_size_bytes": 53968,
+      "total_size_bytes": 2605549,
+      "bbox": [
+        4.984639,
+        45.742628,
+        5.096575,
+        45.810484
+      ],
+      "center": [
+        5.040607,
+        45.776556
+      ]
+    },
+    {
+      "id": "cp_69340",
+      "cp": 69340,
+      "departement": "69",
+      "communes": [
+        "Chaponost",
+        "Craponne",
+        "Francheville",
+        "Sainte-Foy-lès-Lyon"
+      ],
+      "buildings_count": 2595,
+      "owners_count": 555,
+      "buildings_file": "buildings_69340.parquet",
+      "owners_file": "owners_69340.parquet",
+      "buildings_size_bytes": 714978,
+      "owners_size_bytes": 23244,
+      "total_size_bytes": 738222,
+      "bbox": [
+        4.728978,
+        45.726256,
+        4.7817,
+        45.751094
+      ],
+      "center": [
+        4.755339,
+        45.738675
+      ]
+    },
+    {
+      "id": "cp_69350",
+      "cp": 69350,
+      "departement": "69",
+      "communes": [
+        "La Mulatière",
+        "Oullins-Pierre-Bénite"
+      ],
+      "buildings_count": 387,
+      "owners_count": 287,
+      "buildings_file": "buildings_69350.parquet",
+      "owners_file": "owners_69350.parquet",
+      "buildings_size_bytes": 209935,
+      "owners_size_bytes": 15608,
+      "total_size_bytes": 225543,
+      "bbox": [
+        4.803881,
+        45.718191,
+        4.81815,
+        45.74957
+      ],
+      "center": [
+        4.811016,
+        45.73388
+      ]
+    },
+    {
+      "id": "cp_69360",
+      "cp": 69360,
+      "departement": "69",
+      "communes": [
+        "Communay",
+        "Corbas",
+        "Saint-Symphorien-d'Ozon",
+        "Simandres",
+        "Solaize",
+        "Sérézin-du-Rhône",
+        "Ternay"
+      ],
+      "buildings_count": 7325,
+      "owners_count": 915,
+      "buildings_file": "buildings_69360.parquet",
+      "owners_file": "owners_69360.parquet",
+      "buildings_size_bytes": 1695779,
+      "owners_size_bytes": 32254,
+      "total_size_bytes": 1728033,
+      "bbox": [
+        4.788601,
+        45.577012,
+        4.894913,
+        45.661988
+      ],
+      "center": [
+        4.841757,
+        45.6195
+      ]
+    },
+    {
+      "id": "cp_69370",
+      "cp": 69370,
+      "departement": "69",
+      "communes": [
+        "Saint-Cyr-au-Mont-d'Or",
+        "Saint-Didier-au-Mont-d'Or"
+      ],
+      "buildings_count": 1816,
+      "owners_count": 299,
+      "buildings_file": "buildings_69370.parquet",
+      "owners_file": "owners_69370.parquet",
+      "buildings_size_bytes": 579158,
+      "owners_size_bytes": 16616,
+      "total_size_bytes": 595774,
+      "bbox": [
+        4.784912,
+        45.789312,
+        4.815019,
+        45.833279
+      ],
+      "center": [
+        4.799966,
+        45.811296
+      ]
+    },
+    {
+      "id": "cp_69380",
+      "cp": 69380,
+      "departement": "69",
+      "communes": [
+        "Alix",
+        "Belmont-d'Azergues",
+        "Charnay",
+        "Chasselay",
+        "Chazay-d'Azergues",
+        "Chessy",
+        "Châtillon",
+        "Civrieux-d'Azergues",
+        "Dommartin",
+        "Frontenas",
+        "Le Breuil",
+        "Les Chères",
+        "Lissieu",
+        "Lozanne",
+        "Marcilly-d'Azergues",
+        "Saint-Germain-Nuelles",
+        "Saint-Jean-des-Vignes"
+      ],
+      "buildings_count": 9821,
+      "owners_count": 1197,
+      "buildings_file": "buildings_69380.parquet",
+      "owners_file": "owners_69380.parquet",
+      "buildings_size_bytes": 2200828,
+      "owners_size_bytes": 40365,
+      "total_size_bytes": 2241193,
+      "bbox": [
+        4.603288,
+        45.824016,
+        4.784862,
+        45.925448
+      ],
+      "center": [
+        4.694075,
+        45.874732
+      ]
+    },
+    {
+      "id": "cp_69390",
+      "cp": 69390,
+      "departement": "69",
+      "communes": [
+        "Brignais",
+        "Charly",
+        "Grigny-sur-Rhône",
+        "Millery",
+        "Saint-Genis-Laval",
+        "Vernaison",
+        "Vourles"
+      ],
+      "buildings_count": 5578,
+      "owners_count": 631,
+      "buildings_file": "buildings_69390.parquet",
+      "owners_file": "owners_69390.parquet",
+      "buildings_size_bytes": 1401377,
+      "owners_size_bytes": 25751,
+      "total_size_bytes": 1427128,
+      "bbox": [
+        4.749868,
+        45.61305,
+        4.819454,
+        45.672995
+      ],
+      "center": [
+        4.784661,
+        45.643022
+      ]
+    },
+    {
+      "id": "cp_69400",
+      "cp": 69400,
+      "departement": "69",
+      "communes": [
+        "Anse",
+        "Arnas",
+        "Gleizé",
+        "Lacenas",
+        "Limas",
+        "Pommiers",
+        "Porte des Pierres Dorées",
+        "Saint-Julien",
+        "Ville-sur-Jarnioux",
+        "Villefranche-sur-Saône"
+      ],
+      "buildings_count": 11116,
+      "owners_count": 3710,
+      "buildings_file": "buildings_69400.parquet",
+      "owners_file": "owners_69400.parquet",
+      "buildings_size_bytes": 2736884,
+      "owners_size_bytes": 103865,
+      "total_size_bytes": 2840749,
+      "bbox": [
+        4.617994,
+        45.950262,
+        4.752223,
+        46.034639
+      ],
+      "center": [
+        4.685108,
+        45.992451
+      ]
+    },
+    {
+      "id": "cp_69410",
+      "cp": 69410,
+      "departement": "69",
+      "communes": [
+        "Champagne-au-Mont-d'Or",
+        "Limonest",
+        "Saint-Didier-au-Mont-d'Or"
+      ],
+      "buildings_count": 1000,
+      "owners_count": 443,
+      "buildings_file": "buildings_69410.parquet",
+      "owners_file": "owners_69410.parquet",
+      "buildings_size_bytes": 348311,
+      "owners_size_bytes": 20385,
+      "total_size_bytes": 368696,
+      "bbox": [
+        4.771177,
+        45.789804,
+        4.800009,
+        45.808587
+      ],
+      "center": [
+        4.785593,
+        45.799195
+      ]
+    },
+    {
+      "id": "cp_69420",
+      "cp": 69420,
+      "departement": "69",
+      "communes": [
+        "Ampuis",
+        "Condrieu",
+        "Les Haies",
+        "Longes",
+        "Saint-Cyr-sur-le-Rhône",
+        "Trèves",
+        "Tupin-et-Semons"
+      ],
+      "buildings_count": 3594,
+      "owners_count": 499,
+      "buildings_file": "buildings_69420.parquet",
+      "owners_file": "owners_69420.parquet",
+      "buildings_size_bytes": 857396,
+      "owners_size_bytes": 21715,
+      "total_size_bytes": 879111,
+      "bbox": [
+        4.649807,
+        45.456776,
+        4.839506,
+        45.553381
+      ],
+      "center": [
+        4.744656,
+        45.505078
+      ]
+    },
+    {
+      "id": "cp_69430",
+      "cp": 69430,
+      "departement": "69",
+      "communes": [
+        "Beaujeu",
+        "Chénelette",
+        "Deux-Grosnes",
+        "Lantignié",
+        "Les Ardillats",
+        "Marchampt",
+        "Quincié-en-Beaujolais",
+        "Régnié-Durette",
+        "Saint-Didier-sur-Beaujeu",
+        "Vernay",
+        "Villié-Morgon"
+      ],
+      "buildings_count": 3928,
+      "owners_count": 365,
+      "buildings_file": "buildings_69430.parquet",
+      "owners_file": "owners_69430.parquet",
+      "buildings_size_bytes": 899763,
+      "owners_size_bytes": 18708,
+      "total_size_bytes": 918471,
+      "bbox": [
+        4.476445,
+        46.090828,
+        4.675073,
+        46.216009
+      ],
+      "center": [
+        4.575759,
+        46.153418
+      ]
+    },
+    {
+      "id": "cp_69440",
+      "cp": 69440,
+      "departement": "69",
+      "communes": [
+        "Chabanière",
+        "Chaussan",
+        "Mornant",
+        "Riverie",
+        "Rontalon",
+        "Saint-André-la-Côte",
+        "Saint-Laurent-d'Agny",
+        "Sainte-Catherine",
+        "Taluyers"
+      ],
+      "buildings_count": 6899,
+      "owners_count": 775,
+      "buildings_file": "buildings_69440.parquet",
+      "owners_file": "owners_69440.parquet",
+      "buildings_size_bytes": 1527256,
+      "owners_size_bytes": 28369,
+      "total_size_bytes": 1555625,
+      "bbox": [
+        4.54461,
+        45.540707,
+        4.745454,
+        45.658885
+      ],
+      "center": [
+        4.645032,
+        45.599796
+      ]
+    },
+    {
+      "id": "cp_69450",
+      "cp": 69450,
+      "departement": "69",
+      "communes": [
+        "Saint-Cyr-au-Mont-d'Or",
+        "Saint-Didier-au-Mont-d'Or"
+      ],
+      "buildings_count": 1933,
+      "owners_count": 315,
+      "buildings_file": "buildings_69450.parquet",
+      "owners_file": "owners_69450.parquet",
+      "buildings_size_bytes": 596310,
+      "owners_size_bytes": 16343,
+      "total_size_bytes": 612653,
+      "bbox": [
+        4.805486,
+        45.799461,
+        4.838901,
+        45.839105
+      ],
+      "center": [
+        4.822194,
+        45.819283
+      ]
+    },
+    {
+      "id": "cp_69460",
+      "cp": 69460,
+      "departement": "69",
+      "communes": [
+        "Blacé",
+        "Le Perréon",
+        "Odenas",
+        "Saint-Étienne-des-Oullières",
+        "Saint-Étienne-la-Varenne",
+        "Salles-Arbuissonnas-en-Beaujolais",
+        "Vaux-en-Beaujolais"
+      ],
+      "buildings_count": 3945,
+      "owners_count": 398,
+      "buildings_file": "buildings_69460.parquet",
+      "owners_file": "owners_69460.parquet",
+      "buildings_size_bytes": 908844,
+      "owners_size_bytes": 18607,
+      "total_size_bytes": 927451,
+      "bbox": [
+        4.549356,
+        46.021653,
+        4.680429,
+        46.108563
+      ],
+      "center": [
+        4.614892,
+        46.065108
+      ]
+    },
+    {
+      "id": "cp_69470",
+      "cp": 69470,
+      "departement": "69",
+      "communes": [
+        "Cours",
+        "Ranchal"
+      ],
+      "buildings_count": 2492,
+      "owners_count": 312,
+      "buildings_file": "buildings_69470.parquet",
+      "owners_file": "owners_69470.parquet",
+      "buildings_size_bytes": 596924,
+      "owners_size_bytes": 16392,
+      "total_size_bytes": 613316,
+      "bbox": [
+        4.297553,
+        46.055228,
+        4.423098,
+        46.149403
+      ],
+      "center": [
+        4.360326,
+        46.102316
+      ]
+    },
+    {
+      "id": "cp_69480",
+      "cp": 69480,
+      "departement": "69",
+      "communes": [
+        "Ambérieux",
+        "Anse",
+        "Lachassagne",
+        "Lucenay",
+        "Marcy",
+        "Morancé",
+        "Pommiers",
+        "Porte des Pierres Dorées"
+      ],
+      "buildings_count": 6031,
+      "owners_count": 713,
+      "buildings_file": "buildings_69480.parquet",
+      "owners_file": "owners_69480.parquet",
+      "buildings_size_bytes": 1401389,
+      "owners_size_bytes": 27780,
+      "total_size_bytes": 1429169,
+      "bbox": [
+        4.664101,
+        45.881339,
+        4.743861,
+        45.973678
+      ],
+      "center": [
+        4.703981,
+        45.927508
+      ]
+    },
+    {
+      "id": "cp_69490",
+      "cp": 69490,
+      "departement": "69",
+      "communes": [
+        "Ancy",
+        "Saint-Forgeux",
+        "Saint-Romain-de-Popey",
+        "Sarcey",
+        "Tarare",
+        "Vindry-sur-Turdine"
+      ],
+      "buildings_count": 4416,
+      "owners_count": 373,
+      "buildings_file": "buildings_69490.parquet",
+      "owners_file": "owners_69490.parquet",
+      "buildings_size_bytes": 1000094,
+      "owners_size_bytes": 19201,
+      "total_size_bytes": 1019295,
+      "bbox": [
+        4.424491,
+        45.819377,
+        4.581284,
+        45.911568
+      ],
+      "center": [
+        4.502888,
+        45.865472
+      ]
+    },
+    {
+      "id": "cp_69500",
+      "cp": 69500,
+      "departement": "69",
+      "communes": [
+        "Bron",
+        "Lyon 3e Arrondissement",
+        "Saint-Priest",
+        "Vénissieux"
+      ],
+      "buildings_count": 3956,
+      "owners_count": 1665,
+      "buildings_file": "buildings_69500.parquet",
+      "owners_file": "owners_69500.parquet",
+      "buildings_size_bytes": 1161438,
+      "owners_size_bytes": 51477,
+      "total_size_bytes": 1212915,
+      "bbox": [
+        4.88697,
+        45.718049,
+        4.935903,
+        45.752571
+      ],
+      "center": [
+        4.911436,
+        45.73531
+      ]
+    },
+    {
+      "id": "cp_69510",
+      "cp": 69510,
+      "departement": "69",
+      "communes": [
+        "Chaussan",
+        "Messimy",
+        "Rontalon",
+        "Saint-Martin-en-Haut",
+        "Soucieu-en-Jarrest",
+        "Thurins",
+        "Vaugneray",
+        "Yzeron"
+      ],
+      "buildings_count": 4836,
+      "owners_count": 480,
+      "buildings_file": "buildings_69510.parquet",
+      "owners_file": "owners_69510.parquet",
+      "buildings_size_bytes": 1132334,
+      "owners_size_bytes": 21115,
+      "total_size_bytes": 1153449,
+      "bbox": [
+        4.568912,
+        45.641406,
+        4.726683,
+        45.726293
+      ],
+      "center": [
+        4.647798,
+        45.68385
+      ]
+    },
+    {
+      "id": "cp_69520",
+      "cp": 69520,
+      "departement": "69",
+      "communes": [
+        "Grigny-sur-Rhône"
+      ],
+      "buildings_count": 1932,
+      "owners_count": 322,
+      "buildings_file": "buildings_69520.parquet",
+      "owners_file": "owners_69520.parquet",
+      "buildings_size_bytes": 491623,
+      "owners_size_bytes": 16192,
+      "total_size_bytes": 507815,
+      "bbox": [
+        4.766626,
+        45.594078,
+        4.801996,
+        45.620715
+      ],
+      "center": [
+        4.784311,
+        45.607396
+      ]
+    },
+    {
+      "id": "cp_69530",
+      "cp": 69530,
+      "departement": "69",
+      "communes": [
+        "Brignais",
+        "Orliénas",
+        "Vourles"
+      ],
+      "buildings_count": 3756,
+      "owners_count": 926,
+      "buildings_file": "buildings_69530.parquet",
+      "owners_file": "owners_69530.parquet",
+      "buildings_size_bytes": 979205,
+      "owners_size_bytes": 32237,
+      "total_size_bytes": 1011442,
+      "bbox": [
+        4.690261,
+        45.647542,
+        4.780973,
+        45.690465
+      ],
+      "center": [
+        4.735617,
+        45.669004
+      ]
+    },
+    {
+      "id": "cp_69540",
+      "cp": 69540,
+      "departement": "69",
+      "communes": [
+        "Irigny",
+        "Saint-Genis-Laval",
+        "Vernaison"
+      ],
+      "buildings_count": 2071,
+      "owners_count": 284,
+      "buildings_file": "buildings_69540.parquet",
+      "owners_file": "owners_69540.parquet",
+      "buildings_size_bytes": 576651,
+      "owners_size_bytes": 15561,
+      "total_size_bytes": 592212,
+      "bbox": [
+        4.79198,
+        45.657938,
+        4.832317,
+        45.69536
+      ],
+      "center": [
+        4.812148,
+        45.676649
+      ]
+    },
+    {
+      "id": "cp_69550",
+      "cp": 69550,
+      "departement": "69",
+      "communes": [
+        "Amplepuis",
+        "Cublize",
+        "Meaux-la-Montagne",
+        "Ronno",
+        "Saint-Jean-la-Bussière"
+      ],
+      "buildings_count": 3551,
+      "owners_count": 416,
+      "buildings_file": "buildings_69550.parquet",
+      "owners_file": "owners_69550.parquet",
+      "buildings_size_bytes": 811923,
+      "owners_size_bytes": 19163,
+      "total_size_bytes": 831086,
+      "bbox": [
+        4.252037,
+        45.932794,
+        4.438432,
+        46.055692
+      ],
+      "center": [
+        4.345234,
+        45.994243
+      ]
+    },
+    {
+      "id": "cp_69560",
+      "cp": 69560,
+      "departement": "69",
+      "communes": [
+        "Ampuis",
+        "Saint-Cyr-sur-le-Rhône",
+        "Saint-Romain-en-Gal",
+        "Sainte-Colombe"
+      ],
+      "buildings_count": 1510,
+      "owners_count": 322,
+      "buildings_file": "buildings_69560.parquet",
+      "owners_file": "owners_69560.parquet",
+      "buildings_size_bytes": 426149,
+      "owners_size_bytes": 16210,
+      "total_size_bytes": 442359,
+      "bbox": [
+        4.796167,
+        45.50882,
+        4.871569,
+        45.554632
+      ],
+      "center": [
+        4.833868,
+        45.531726
+      ]
+    },
+    {
+      "id": "cp_69570",
+      "cp": 69570,
+      "departement": "69",
+      "communes": [
+        "Dardilly",
+        "Limonest",
+        "Écully"
+      ],
+      "buildings_count": 2276,
+      "owners_count": 680,
+      "buildings_file": "buildings_69570.parquet",
+      "owners_file": "owners_69570.parquet",
+      "buildings_size_bytes": 684306,
+      "owners_size_bytes": 26615,
+      "total_size_bytes": 710921,
+      "bbox": [
+        4.727468,
+        45.791475,
+        4.770784,
+        45.836552
+      ],
+      "center": [
+        4.749126,
+        45.814014
+      ]
+    },
+    {
+      "id": "cp_69580",
+      "cp": 69580,
+      "departement": "69",
+      "communes": [
+        "Sathonay-Camp",
+        "Sathonay-Village"
+      ],
+      "buildings_count": 1323,
+      "owners_count": 267,
+      "buildings_file": "buildings_69580.parquet",
+      "owners_file": "owners_69580.parquet",
+      "buildings_size_bytes": 402419,
+      "owners_size_bytes": 15333,
+      "total_size_bytes": 417752,
+      "bbox": [
+        4.865557,
+        45.815598,
+        4.884318,
+        45.850152
+      ],
+      "center": [
+        4.874938,
+        45.832875
+      ]
+    },
+    {
+      "id": "cp_69590",
+      "cp": 69590,
+      "departement": "69",
+      "communes": [
+        "Coise",
+        "La Chapelle-sur-Coise",
+        "Larajasse",
+        "Pomeys",
+        "Saint-Symphorien-sur-Coise"
+      ],
+      "buildings_count": 3392,
+      "owners_count": 408,
+      "buildings_file": "buildings_69590.parquet",
+      "owners_file": "owners_69590.parquet",
+      "buildings_size_bytes": 817211,
+      "owners_size_bytes": 18602,
+      "total_size_bytes": 835813,
+      "bbox": [
+        4.4109,
+        45.572921,
+        4.554896,
+        45.664824
+      ],
+      "center": [
+        4.482898,
+        45.618872
+      ]
+    },
+    {
+      "id": "cp_69600",
+      "cp": 69600,
+      "departement": "69",
+      "communes": [
+        "Oullins-Pierre-Bénite",
+        "Saint-Genis-Laval"
+      ],
+      "buildings_count": 2985,
+      "owners_count": 1214,
+      "buildings_file": "buildings_69600.parquet",
+      "owners_file": "owners_69600.parquet",
+      "buildings_size_bytes": 806954,
+      "owners_size_bytes": 39673,
+      "total_size_bytes": 846627,
+      "bbox": [
+        4.780124,
+        45.703644,
+        4.820821,
+        45.724285
+      ],
+      "center": [
+        4.800472,
+        45.713964
+      ]
+    },
+    {
+      "id": "cp_69610",
+      "cp": 69610,
+      "departement": "69",
+      "communes": [
+        "Aveize",
+        "Courzieu",
+        "Duerne",
+        "Grézieu-le-Marché",
+        "Haute-Rivoire",
+        "Les Halles",
+        "Meys",
+        "Montromant",
+        "Saint-Genis-l'Argentière",
+        "Sainte-Foy-l'Argentière",
+        "Souzy"
+      ],
+      "buildings_count": 3667,
+      "owners_count": 374,
+      "buildings_file": "buildings_69610.parquet",
+      "owners_file": "owners_69610.parquet",
+      "buildings_size_bytes": 865194,
+      "owners_size_bytes": 17911,
+      "total_size_bytes": 883105,
+      "bbox": [
+        4.367109,
+        45.638911,
+        4.575527,
+        45.741569
+      ],
+      "center": [
+        4.471318,
+        45.69024
+      ]
+    },
+    {
+      "id": "cp_69620",
+      "cp": 69620,
+      "departement": "69",
+      "communes": [
+        "Bagnols",
+        "Chamelet",
+        "Frontenas",
+        "Le Breuil",
+        "Légny",
+        "Létra",
+        "Moiré",
+        "Saint-Just-d'Avray",
+        "Saint-Vérand",
+        "Sainte-Paule",
+        "Ternand",
+        "Theizé",
+        "Val d'Oingt"
+      ],
+      "buildings_count": 5706,
+      "owners_count": 508,
+      "buildings_file": "buildings_69620.parquet",
+      "owners_file": "owners_69620.parquet",
+      "buildings_size_bytes": 1318969,
+      "owners_size_bytes": 22588,
+      "total_size_bytes": 1341557,
+      "bbox": [
+        4.470282,
+        45.877636,
+        4.663257,
+        45.999742
+      ],
+      "center": [
+        4.566769,
+        45.938689
+      ]
+    },
+    {
+      "id": "cp_69630",
+      "cp": 69630,
+      "departement": "69",
+      "communes": [
+        "Chaponost",
+        "Francheville",
+        "Saint-Genis-Laval",
+        "Sainte-Foy-lès-Lyon",
+        "Soucieu-en-Jarrest"
+      ],
+      "buildings_count": 2885,
+      "owners_count": 505,
+      "buildings_file": "buildings_69630.parquet",
+      "owners_file": "owners_69630.parquet",
+      "buildings_size_bytes": 719935,
+      "owners_size_bytes": 21353,
+      "total_size_bytes": 741288,
+      "bbox": [
+        4.712966,
+        45.689687,
+        4.780036,
+        45.729243
+      ],
+      "center": [
+        4.746501,
+        45.709465
+      ]
+    },
+    {
+      "id": "cp_69640",
+      "cp": 69640,
+      "departement": "69",
+      "communes": [
+        "Blacé",
+        "Cogny",
+        "Denicé",
+        "Lacenas",
+        "Montmelas-Saint-Sorlin",
+        "Porte des Pierres Dorées",
+        "Rivolet",
+        "Saint-Georges-de-Reneins",
+        "Saint-Julien",
+        "Ville-sur-Jarnioux"
+      ],
+      "buildings_count": 2878,
+      "owners_count": 246,
+      "buildings_file": "buildings_69640.parquet",
+      "owners_file": "owners_69640.parquet",
+      "buildings_size_bytes": 708732,
+      "owners_size_bytes": 14362,
+      "total_size_bytes": 723094,
+      "bbox": [
+        4.558544,
+        45.950143,
+        4.682928,
+        46.033754
+      ],
+      "center": [
+        4.620736,
+        45.991948
+      ]
+    },
+    {
+      "id": "cp_69650",
+      "cp": 69650,
+      "departement": "69",
+      "communes": [
+        "Quincieux",
+        "Saint-Germain-au-Mont-d'Or"
+      ],
+      "buildings_count": 1902,
+      "owners_count": 292,
+      "buildings_file": "buildings_69650.parquet",
+      "owners_file": "owners_69650.parquet",
+      "buildings_size_bytes": 512124,
+      "owners_size_bytes": 15274,
+      "total_size_bytes": 527398,
+      "bbox": [
+        4.735392,
+        45.875111,
+        4.81793,
+        45.93841
+      ],
+      "center": [
+        4.776661,
+        45.90676
+      ]
+    },
+    {
+      "id": "cp_69660",
+      "cp": 69660,
+      "departement": "69",
+      "communes": [
+        "Collonges-au-Mont-d'Or"
+      ],
+      "buildings_count": 1312,
+      "owners_count": 212,
+      "buildings_file": "buildings_69660.parquet",
+      "owners_file": "owners_69660.parquet",
+      "buildings_size_bytes": 430584,
+      "owners_size_bytes": 14352,
+      "total_size_bytes": 444936,
+      "bbox": [
+        4.827225,
+        45.804123,
+        4.856634,
+        45.831956
+      ],
+      "center": [
+        4.84193,
+        45.81804
+      ]
+    },
+    {
+      "id": "cp_69670",
+      "cp": 69670,
+      "departement": "69",
+      "communes": [
+        "Vaugneray"
+      ],
+      "buildings_count": 2033,
+      "owners_count": 233,
+      "buildings_file": "buildings_69670.parquet",
+      "owners_file": "owners_69670.parquet",
+      "buildings_size_bytes": 554895,
+      "owners_size_bytes": 14472,
+      "total_size_bytes": 569367,
+      "bbox": [
+        4.610228,
+        45.705387,
+        4.696111,
+        45.754808
+      ],
+      "center": [
+        4.65317,
+        45.730098
+      ]
+    },
+    {
+      "id": "cp_69680",
+      "cp": 69680,
+      "departement": "69",
+      "communes": [
+        "Chassieu",
+        "Décines-Charpieu",
+        "Saint-Priest"
+      ],
+      "buildings_count": 2852,
+      "owners_count": 709,
+      "buildings_file": "buildings_69680.parquet",
+      "owners_file": "owners_69680.parquet",
+      "buildings_size_bytes": 804086,
+      "owners_size_bytes": 27433,
+      "total_size_bytes": 831519,
+      "bbox": [
+        4.933001,
+        45.718976,
+        4.985046,
+        45.751224
+      ],
+      "center": [
+        4.959024,
+        45.7351
+      ]
+    },
+    {
+      "id": "cp_69690",
+      "cp": 69690,
+      "departement": "69",
+      "communes": [
+        "Bessenay",
+        "Bibost",
+        "Brullioles",
+        "Brussieu",
+        "Courzieu",
+        "Montrottier",
+        "Saint-Julien-sur-Bibost"
+      ],
+      "buildings_count": 2923,
+      "owners_count": 278,
+      "buildings_file": "buildings_69690.parquet",
+      "owners_file": "owners_69690.parquet",
+      "buildings_size_bytes": 696560,
+      "owners_size_bytes": 15443,
+      "total_size_bytes": 712003,
+      "bbox": [
+        4.454801,
+        45.716376,
+        4.617259,
+        45.81675
+      ],
+      "center": [
+        4.53603,
+        45.766563
+      ]
+    },
+    {
+      "id": "cp_69700",
+      "cp": 69700,
+      "departement": "69",
+      "communes": [
+        "Beauvallon",
+        "Chabanière",
+        "Givors",
+        "Loire-sur-Rhône",
+        "Millery",
+        "Montagny",
+        "Mornant",
+        "Saint-Romain-en-Gal",
+        "Saint-Romain-en-Gier",
+        "Taluyers",
+        "Échalas"
+      ],
+      "buildings_count": 8129,
+      "owners_count": 1251,
+      "buildings_file": "buildings_69700.parquet",
+      "owners_file": "owners_69700.parquet",
+      "buildings_size_bytes": 1844062,
+      "owners_size_bytes": 40080,
+      "total_size_bytes": 1884142,
+      "bbox": [
+        4.652572,
+        45.524043,
+        4.815722,
+        45.646745
+      ],
+      "center": [
+        4.734147,
+        45.585394
+      ]
+    },
+    {
+      "id": "cp_69720",
+      "cp": 69720,
+      "departement": "69",
+      "communes": [
+        "Saint-Bonnet-de-Mure",
+        "Saint-Laurent-de-Mure"
+      ],
+      "buildings_count": 4212,
+      "owners_count": 622,
+      "buildings_file": "buildings_69720.parquet",
+      "owners_file": "owners_69720.parquet",
+      "buildings_size_bytes": 1017938,
+      "owners_size_bytes": 25794,
+      "total_size_bytes": 1043732,
+      "bbox": [
+        4.996649,
+        45.673226,
+        5.086009,
+        45.720128
+      ],
+      "center": [
+        5.041329,
+        45.696677
+      ]
+    },
+    {
+      "id": "cp_69730",
+      "cp": 69730,
+      "departement": "69",
+      "communes": [
+        "Genay",
+        "Neuville-sur-Saône"
+      ],
+      "buildings_count": 1474,
+      "owners_count": 329,
+      "buildings_file": "buildings_69730.parquet",
+      "owners_file": "owners_69730.parquet",
+      "buildings_size_bytes": 421180,
+      "owners_size_bytes": 16925,
+      "total_size_bytes": 438105,
+      "bbox": [
+        4.810619,
+        45.885749,
+        4.857536,
+        45.911573
+      ],
+      "center": [
+        4.834077,
+        45.898661
+      ]
+    },
+    {
+      "id": "cp_69740",
+      "cp": 69740,
+      "departement": "69",
+      "communes": [
+        "Chassieu",
+        "Genas"
+      ],
+      "buildings_count": 4489,
+      "owners_count": 803,
+      "buildings_file": "buildings_69740.parquet",
+      "owners_file": "owners_69740.parquet",
+      "buildings_size_bytes": 1077480,
+      "owners_size_bytes": 29749,
+      "total_size_bytes": 1107229,
+      "bbox": [
+        4.974158,
+        45.710028,
+        5.054551,
+        45.748099
+      ],
+      "center": [
+        5.014354,
+        45.729064
+      ]
+    },
+    {
+      "id": "cp_69760",
+      "cp": 69760,
+      "departement": "69",
+      "communes": [
+        "Dardilly",
+        "Limonest"
+      ],
+      "buildings_count": 943,
+      "owners_count": 329,
+      "buildings_file": "buildings_69760.parquet",
+      "owners_file": "owners_69760.parquet",
+      "buildings_size_bytes": 339134,
+      "owners_size_bytes": 17506,
+      "total_size_bytes": 356640,
+      "bbox": [
+        4.750782,
+        45.803514,
+        4.789453,
+        45.846952
+      ],
+      "center": [
+        4.770118,
+        45.825233
+      ]
+    },
+    {
+      "id": "cp_69770",
+      "cp": 69770,
+      "departement": "69",
+      "communes": [
+        "Chambost-Longessaigne",
+        "Longessaigne",
+        "Montrottier",
+        "Villechenève"
+      ],
+      "buildings_count": 1929,
+      "owners_count": 132,
+      "buildings_file": "buildings_69770.parquet",
+      "owners_file": "owners_69770.parquet",
+      "buildings_size_bytes": 515423,
+      "owners_size_bytes": 11406,
+      "total_size_bytes": 526829,
+      "bbox": [
+        4.349299,
+        45.75017,
+        4.500478,
+        45.833014
+      ],
+      "center": [
+        4.424888,
+        45.791592
+      ]
+    },
+    {
+      "id": "cp_69780",
+      "cp": 69780,
+      "departement": "69",
+      "communes": [
+        "Mions",
+        "Saint-Pierre-de-Chandieu",
+        "Toussieu"
+      ],
+      "buildings_count": 6670,
+      "owners_count": 922,
+      "buildings_file": "buildings_69780.parquet",
+      "owners_file": "owners_69780.parquet",
+      "buildings_size_bytes": 1476398,
+      "owners_size_bytes": 32483,
+      "total_size_bytes": 1508881,
+      "bbox": [
+        4.929543,
+        45.613766,
+        5.055432,
+        45.683051
+      ],
+      "center": [
+        4.992487,
+        45.648408
+      ]
+    },
+    {
+      "id": "cp_69790",
+      "cp": 69790,
+      "departement": "69",
+      "communes": [
+        "Aigueperse",
+        "Azolette",
+        "Propières",
+        "Saint-Bonnet-des-Bruyères",
+        "Saint-Clément-de-Vers",
+        "Saint-Igny-de-Vers"
+      ],
+      "buildings_count": 1530,
+      "owners_count": 105,
+      "buildings_file": "buildings_69790.parquet",
+      "owners_file": "owners_69790.parquet",
+      "buildings_size_bytes": 396108,
+      "owners_size_bytes": 10628,
+      "total_size_bytes": 406736,
+      "bbox": [
+        4.387855,
+        46.16958,
+        4.509999,
+        46.298735
+      ],
+      "center": [
+        4.448927,
+        46.234158
+      ]
+    },
+    {
+      "id": "cp_69800",
+      "cp": 69800,
+      "departement": "69",
+      "communes": [
+        "Bron",
+        "Mions",
+        "Saint-Priest"
+      ],
+      "buildings_count": 6125,
+      "owners_count": 2214,
+      "buildings_file": "buildings_69800.parquet",
+      "owners_file": "owners_69800.parquet",
+      "buildings_size_bytes": 1634642,
+      "owners_size_bytes": 65747,
+      "total_size_bytes": 1700389,
+      "bbox": [
+        4.897035,
+        45.678384,
+        4.995516,
+        45.725079
+      ],
+      "center": [
+        4.946276,
+        45.701732
+      ]
+    },
+    {
+      "id": "cp_69820",
+      "cp": 69820,
+      "departement": "69",
+      "communes": [
+        "Fleurie",
+        "Lancié",
+        "Vauxrenard"
+      ],
+      "buildings_count": 956,
+      "owners_count": 157,
+      "buildings_file": "buildings_69820.parquet",
+      "owners_file": "owners_69820.parquet",
+      "buildings_size_bytes": 296072,
+      "owners_size_bytes": 12317,
+      "total_size_bytes": 308389,
+      "bbox": [
+        4.6106,
+        46.176188,
+        4.722281,
+        46.228579
+      ],
+      "center": [
+        4.66644,
+        46.202384
+      ]
+    },
+    {
+      "id": "cp_69830",
+      "cp": 69830,
+      "departement": "69",
+      "communes": [
+        "Charentay",
+        "Saint-Georges-de-Reneins"
+      ],
+      "buildings_count": 1758,
+      "owners_count": 237,
+      "buildings_file": "buildings_69830.parquet",
+      "owners_file": "owners_69830.parquet",
+      "buildings_size_bytes": 493702,
+      "owners_size_bytes": 15071,
+      "total_size_bytes": 508773,
+      "bbox": [
+        4.673277,
+        46.035572,
+        4.752512,
+        46.087035
+      ],
+      "center": [
+        4.712894,
+        46.061304
+      ]
+    },
+    {
+      "id": "cp_69840",
+      "cp": 69840,
+      "departement": "69",
+      "communes": [
+        "Cenves",
+        "Chénas",
+        "Juliénas",
+        "Jullié",
+        "Émeringes"
+      ],
+      "buildings_count": 1486,
+      "owners_count": 198,
+      "buildings_file": "buildings_69840.parquet",
+      "owners_file": "owners_69840.parquet",
+      "buildings_size_bytes": 411170,
+      "owners_size_bytes": 13551,
+      "total_size_bytes": 424721,
+      "bbox": [
+        4.616681,
+        46.204289,
+        4.734315,
+        46.301701
+      ],
+      "center": [
+        4.675498,
+        46.252995
+      ]
+    },
+    {
+      "id": "cp_69850",
+      "cp": 69850,
+      "departement": "69",
+      "communes": [
+        "Duerne",
+        "Larajasse",
+        "Saint-Genis-l'Argentière",
+        "Saint-Martin-en-Haut"
+      ],
+      "buildings_count": 1927,
+      "owners_count": 214,
+      "buildings_file": "buildings_69850.parquet",
+      "owners_file": "owners_69850.parquet",
+      "buildings_size_bytes": 533315,
+      "owners_size_bytes": 13634,
+      "total_size_bytes": 546949,
+      "bbox": [
+        4.505815,
+        45.613288,
+        4.594981,
+        45.697473
+      ],
+      "center": [
+        4.550398,
+        45.65538
+      ]
+    },
+    {
+      "id": "cp_69860",
+      "cp": 69860,
+      "departement": "69",
+      "communes": [
+        "Deux-Grosnes"
+      ],
+      "buildings_count": 1138,
+      "owners_count": 159,
+      "buildings_file": "buildings_69860.parquet",
+      "owners_file": "owners_69860.parquet",
+      "buildings_size_bytes": 342103,
+      "owners_size_bytes": 11965,
+      "total_size_bytes": 354068,
+      "bbox": [
+        4.487792,
+        46.194761,
+        4.631765,
+        46.293633
+      ],
+      "center": [
+        4.559778,
+        46.244197
+      ]
+    },
+    {
+      "id": "cp_69870",
+      "cp": 69870,
+      "departement": "69",
+      "communes": [
+        "Chambost-Allières",
+        "Claveisolles",
+        "Grandris",
+        "Lamure-sur-Azergues",
+        "Poule-les-Écharmeaux",
+        "Saint-Bonnet-le-Troncy",
+        "Saint-Cyr-le-Chatoux",
+        "Saint-Just-d'Avray",
+        "Saint-Nizier-d'Azergues"
+      ],
+      "buildings_count": 3781,
+      "owners_count": 341,
+      "buildings_file": "buildings_69870.parquet",
+      "owners_file": "owners_69870.parquet",
+      "buildings_size_bytes": 817251,
+      "owners_size_bytes": 17133,
+      "total_size_bytes": 834384,
+      "bbox": [
+        4.390918,
+        45.988494,
+        4.561823,
+        46.170664
+      ],
+      "center": [
+        4.47637,
+        46.079579
+      ]
+    },
+    {
+      "id": "cp_69890",
+      "cp": 69890,
+      "departement": "69",
+      "communes": [
+        "La Tour-de-Salvagny"
+      ],
+      "buildings_count": 1527,
+      "owners_count": 218,
+      "buildings_file": "buildings_69890.parquet",
+      "owners_file": "owners_69890.parquet",
+      "buildings_size_bytes": 445417,
+      "owners_size_bytes": 14324,
+      "total_size_bytes": 459741,
+      "bbox": [
+        4.694026,
+        45.788213,
+        4.7313,
+        45.829284
+      ],
+      "center": [
+        4.712663,
+        45.808748
+      ]
+    },
+    {
+      "id": "cp_69910",
+      "cp": 69910,
+      "departement": "69",
+      "communes": [
+        "Corcelles-en-Beaujolais",
+        "Villié-Morgon"
+      ],
+      "buildings_count": 1113,
+      "owners_count": 149,
+      "buildings_file": "buildings_69910.parquet",
+      "owners_file": "owners_69910.parquet",
+      "buildings_size_bytes": 327141,
+      "owners_size_bytes": 11957,
+      "total_size_bytes": 339098,
+      "bbox": [
+        4.634973,
+        46.136732,
+        4.704613,
+        46.179995
+      ],
+      "center": [
+        4.669793,
+        46.158364
+      ]
+    },
+    {
+      "id": "cp_69930",
+      "cp": 69930,
+      "departement": "69",
+      "communes": [
+        "Saint-Clément-les-Places",
+        "Saint-Laurent-de-Chamousset"
+      ],
+      "buildings_count": 1022,
+      "owners_count": 141,
+      "buildings_file": "buildings_69930.parquet",
+      "owners_file": "owners_69930.parquet",
+      "buildings_size_bytes": 333494,
+      "owners_size_bytes": 11709,
+      "total_size_bytes": 345203,
+      "bbox": [
+        4.394463,
+        45.718993,
+        4.495726,
+        45.772469
+      ],
+      "center": [
+        4.445094,
+        45.745731
+      ]
+    },
+    {
+      "id": "cp_69960",
+      "cp": 69960,
+      "departement": "69",
+      "communes": [
+        "Corbas",
+        "Feyzin",
+        "Saint-Symphorien-d'Ozon"
+      ],
+      "buildings_count": 2827,
+      "owners_count": 669,
+      "buildings_file": "buildings_69960.parquet",
+      "owners_file": "owners_69960.parquet",
+      "buildings_size_bytes": 744250,
+      "owners_size_bytes": 24847,
+      "total_size_bytes": 769097,
+      "bbox": [
+        4.886658,
+        45.645954,
+        4.933512,
+        45.687737
+      ],
+      "center": [
+        4.910085,
+        45.666846
+      ]
+    },
+    {
+      "id": "cp_69970",
+      "cp": 69970,
+      "departement": "69",
+      "communes": [
+        "Chaponnay",
+        "Marennes"
+      ],
+      "buildings_count": 2236,
+      "owners_count": 280,
+      "buildings_file": "buildings_69970.parquet",
+      "owners_file": "owners_69970.parquet",
+      "buildings_size_bytes": 586211,
+      "owners_size_bytes": 15888,
+      "total_size_bytes": 602099,
+      "bbox": [
+        4.886994,
+        45.607248,
+        4.999617,
+        45.656925
+      ],
+      "center": [
+        4.943305,
+        45.632086
       ]
     }
   ]
