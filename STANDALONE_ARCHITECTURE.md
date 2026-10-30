@@ -30,9 +30,37 @@ flowchart TD
 
 ---
 
-## 1. Parquet Dataset Chunking & Postal Code Ranges
+## 1. Interactive Location-Based Entry & Polygon Selection Flow
 
-The dataset is partitioned into lightweight chunks by postal code (`cp`) and department (`dep`) via [app/chunk_dataset.py](file:///home/sebastien/.gemini/antigravity/scratch/tezeloma-assessment/app/chunk_dataset.py).
+Instead of automatically downloading a massive multi-megabyte dataset on startup, TeZeLoMa introduces a streamlined, user-friendly entry flow:
+
+1. **Location Prompt on Startup (`modal-location-entry`)**:
+   - The user is prompted with an intuitive search bar for any French address, commune, or postal code (powered by `api-adresse.data.gouv.fr` with instant offline fallback).
+   - Instant 1-click launch presets for pre-built agglomerations (e.g., **Lyon & Villeurbanne**, **Grenoble & Métropole**).
+   - Direct GPS button ("Ma position") and free visual map exploration.
+
+2. **Visual Zip Code Polygons (`postal-zones` layer)**:
+   - Displays surrounding zip code & commune boundaries color-coded by real-time status:
+     * 💾 **Disponible localement** (`#10b981` Emerald green): Already cached in the browser's Cache API (`tezeloma-data-v1`).
+     * ☁️ **Prêt au téléchargement** (`#0ea5e9` Sky cyan): Micro-chunk Parquet exists on remote hosting.
+     * ⏳ **À la demande** (`#f59e0b` Amber): Raw CSTB BDNB open data exists, but micro-chunks have not yet been pre-compiled. Clicking opens a request modal.
+     * 🚫 **Indisponible** (`#64748b` Slate grey): Uninhabited zones or outside coverage.
+     * ✅ **Sélectionné pour le chargement** (`#8b5cf6` Electric violet with thick `#c084fc` stroke).
+
+3. **Multi-Commune Chunk Hosting Logic**:
+   - When the user clicks on any downloadable or locally available zip code, all zip codes belonging to the hosting chunk (e.g. `38320` covering Eybens, Bresson, Brié-et-Angonnes, Herbeys, Poisat) toggle their selected state together.
+   - Users can add and remove chunks by clicking polygons on the map.
+
+4. **Floating Action Bar & Validation**:
+   - A docked floating bar at the bottom displays real-time counts, total buildings, and exact network download footprint (excluding chunks already in local cache).
+   - Clicking **"🚀 Valider et charger"** triggers fast parallel download, hyparquet decompression, and instant in-memory indexing.
+   - Users can reopen the visual territory selector at any time via the top header `📍 Territoire & Chunks` button or sidebar.
+
+---
+
+## 2. Parquet Dataset Chunking & Postal Code Ranges
+
+The dataset is partitioned into lightweight chunks by postal code (`cp`) and department (`dep`) via [app/chunk_dataset.py](file:///home/sebastien/.gemini/antigravity/scratch/tezeloma-assessment/app/chunk_dataset.py) and polygon boundaries via [app/build_postal_zones.py](file:///home/sebastien/.gemini/antigravity/scratch/tezeloma-assessment/app/build_postal_zones.py).
 
 ### Real Measured Benchmark (Current 24 Postal Codes in Repo):
 - **Total buildings:** 63,988 (~20 MB total)
@@ -57,13 +85,15 @@ When an NGO user enters a range such as `69001` to `69009` (all of Lyon) or `380
 
 ---
 
-## 2. Running Locally
+## 3. Running Locally
 
 To test the static web application locally:
 
 ```bash
-# 1. (Optional) Rebuild the dataset and postal-code chunks:
+# 1. (Optional) Rebuild dataset, chunks, and postal code zones:
 .venv/bin/python app/build_dataset.py
+.venv/bin/python app/chunk_dataset.py
+.venv/bin/python app/build_postal_zones.py
 
 # 2. Start the lightweight local HTTP runner:
 python3 app/run_static.py
@@ -72,7 +102,7 @@ Open [http://localhost:8080/app/static_app/index.html](http://localhost:8080/app
 
 ---
 
-## 3. GitHub Hosting & Releases ($0 / month)
+## 4. GitHub Hosting & Releases ($0 / month)
 
 ### A. Hosting the Static Web App (GitHub Pages)
 The static app has zero server dependencies.
@@ -92,7 +122,7 @@ In the static app UI, click **"📦 Données & Chunks"** and paste this URL into
 
 ---
 
-## 4. Standalone Desktop App (With or Without Installer)
+## 5. Standalone Desktop App (With or Without Installer)
 
 The app can be packaged as a standalone native desktop application using [Tauri](https://tauri.app/):
 

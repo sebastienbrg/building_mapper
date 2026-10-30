@@ -14,8 +14,18 @@ async def run():
         print("Navigating to http://localhost:8080/app/static_app/index.html ...")
         await page.goto("http://localhost:8080/app/static_app/index.html")
 
+        # Handle initial Location Entry Prompt
+        print("Selecting Lyon Preset from Location Prompt...")
+        await page.wait_for_selector("#preset-lyon", timeout=10000)
+        await page.click("#preset-lyon")
+        await asyncio.sleep(0.5)
+
+        # Validate and Load Selected Territory
+        await page.wait_for_selector("#btn-sel-validate", timeout=5000)
+        await page.click("#btn-sel-validate")
+
         # Wait for data to load
-        await page.wait_for_selector("#kpi-buildings", timeout=15000)
+        await page.wait_for_selector("#kpi-buildings", timeout=20000)
         # Wait until buildings count is loaded
         for _ in range(30):
             txt = await page.text_content("#kpi-buildings")

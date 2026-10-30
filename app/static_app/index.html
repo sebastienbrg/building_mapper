@@ -51,8 +51,8 @@
     </div>
 
     <div class="header-actions">
-      <button class="btn btn-secondary btn-sm" id="btn-open-territory-manager">
-        <span>📦</span> Données & Chunks
+      <button class="btn btn-secondary btn-sm" id="btn-open-territory-manager" title="Changer de localisation ou choisir les micro-chunks">
+        <span>📍</span> Territoire & Chunks
       </button>
       <button class="btn btn-primary btn-sm" id="btn-header-export">
         <span>📥</span> Exporter
@@ -106,10 +106,10 @@
 
             <div class="form-group">
               <label>
-                <span>Estomper le fond de carte</span>
+                <span>Blanchir le fond de carte</span>
                 <strong id="label-bg-dim">20%</strong>
               </label>
-              <input type="range" id="slider-bg-dim" min="0" max="90" step="5" value="20">
+              <input type="range" id="slider-bg-dim" min="0" max="100" step="5" value="20">
             </div>
 
             <div class="form-group">
@@ -133,6 +133,9 @@
             <span class="accordion-chevron">▶</span>
           </summary>
           <div class="accordion-body">
+            <button class="btn btn-secondary btn-block" id="btn-sidebar-open-territory" style="margin-bottom: 0.75rem; justify-content: center; gap: 0.5rem; background: rgba(56, 189, 248, 0.1); border-color: rgba(56, 189, 248, 0.4); color: var(--accent-primary);">
+              <span>🗺️</span> <strong>Choisir sur la carte (polygones)</strong>
+            </button>
             <div class="territory-selector">
               <div class="selector-tabs">
                 <button class="tab-btn active" data-mode="dep">Département</button>
@@ -353,6 +356,41 @@
       <!-- TAB 1: 🗺️ CARTE -->
       <div class="tab-pane active" id="pane-map">
         <div id="map"></div>
+
+        <!-- Mode Indicator during Territory Selection -->
+        <div class="territory-mode-indicator" id="territory-mode-indicator">
+          <span>📍</span>
+          <span><strong>Sélection du Territoire</strong> — Cliquez sur les codes postaux à charger</span>
+        </div>
+
+        <!-- Floating Territory Selection Bar (at bottom of map) -->
+        <div class="territory-selection-bar" id="territory-selection-bar">
+          <div class="sel-bar-info">
+            <div class="sel-bar-summary">
+              <span>🎯</span>
+              <span id="sel-bar-summary-text">0 code postal sélectionné</span>
+            </div>
+            <div class="sel-bar-metrics" id="sel-bar-metrics-text">
+              0 bâtiment • 0 Mo à télécharger
+            </div>
+          </div>
+
+          <div class="sel-bar-legend">
+            <span class="legend-chip" title="Déjà dans le cache navigateur"><span class="chip-dot" style="background:#10b981;"></span> 💾 En cache</span>
+            <span class="legend-chip" title="Prêt au téléchargement"><span class="chip-dot" style="background:#0ea5e9;"></span> ☁️ Prêt</span>
+            <span class="legend-chip" title="Données BDNB brutes existantes"><span class="chip-dot" style="background:#f59e0b;"></span> ⏳ À la demande</span>
+            <span class="legend-chip" title="Sélectionné pour chargement"><span class="chip-dot" style="background:#8b5cf6;"></span> ✅ Sélectionné</span>
+          </div>
+
+          <div class="sel-bar-actions">
+            <button class="btn btn-secondary btn-sm" id="btn-sel-clear">↺ Vider</button>
+            <button class="btn btn-secondary btn-sm" id="btn-sel-all">⚡ Tout cocher</button>
+            <button class="btn-validate-selection" id="btn-sel-validate" disabled>
+              <span>🚀</span>
+              <span>Valider et charger</span>
+            </button>
+          </div>
+        </div>
 
         <!-- Floating Map Style Switcher -->
         <div class="map-floating-panel">
@@ -1009,6 +1047,104 @@
       </div>
       <div class="modal-footer">
         <button class="btn btn-secondary" id="btn-close-export-footer">Annuler</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Initial Location Entry Modal Prompt -->
+  <div class="modal-overlay" id="modal-location-entry">
+    <div class="modal-content location-modal-content">
+      <div class="location-prompt-header">
+        <span class="location-prompt-icon">🏠</span>
+        <h2 class="location-prompt-title">Bienvenue sur TeZeLoMa</h2>
+        <p class="location-prompt-subtitle">
+          Localisez votre zone d'enquête pour explorer les données disponibles autour de vous, sélectionner vos codes postaux et charger le territoire.
+        </p>
+      </div>
+
+      <div class="modal-body" style="padding-top: 0;">
+        <!-- Search bar with live autocomplete -->
+        <div class="location-search-wrap">
+          <div class="location-search-box">
+            <span class="location-search-icon">🔍</span>
+            <input type="text" id="input-location-search" class="location-search-input" placeholder="Rechercher une commune, un code postal ou une adresse..." autocomplete="off">
+            <div class="location-search-actions">
+              <button class="btn btn-secondary btn-sm" id="btn-location-gps" title="Centrer sur ma position GPS" style="white-space: nowrap;">
+                <span>🧭</span> Ma position
+              </button>
+            </div>
+          </div>
+          <div class="location-suggestions-dropdown" id="location-suggestions">
+            <!-- Dynamically populated -->
+          </div>
+        </div>
+
+        <!-- Quick Launch Territory Presets -->
+        <div class="location-presets-title">Territoires immédiatement disponibles</div>
+        <div class="location-presets-grid">
+          
+          <div class="location-preset-card" id="preset-lyon">
+            <span class="location-preset-icon">🦁</span>
+            <div class="location-preset-info">
+              <div class="location-preset-name">Lyon & Villeurbanne (69)</div>
+              <div class="location-preset-meta">69001 à 69009, 69100 • 32 378 bâtiments</div>
+            </div>
+            <span class="status-badge status-cached">Prêt</span>
+          </div>
+
+          <div class="location-preset-card" id="preset-grenoble">
+            <span class="location-preset-icon">🏔️</span>
+            <div class="location-preset-info">
+              <div class="location-preset-name">Grenoble & Métropole (38)</div>
+              <div class="location-preset-meta">38000, 38100, 38400... • 31 610 bâtiments</div>
+            </div>
+            <span class="status-badge status-cached">Prêt</span>
+          </div>
+
+        </div>
+
+        <div style="text-align: center; margin-top: 1rem; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 1rem;">
+          <a href="#" id="link-explore-freely" style="color: var(--accent-primary); font-size: 0.85rem; text-decoration: none; display: inline-flex; align-items: center; gap: 0.4rem;">
+            <span>🗺️</span> <strong>Explorer la carte interactivement (sélection visuelle des polygones)</strong>
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal for Requestable Data (BDNB exists but chunk not built) -->
+  <div class="modal-overlay" id="modal-request-data">
+    <div class="modal-content" style="max-width: 520px;">
+      <div class="modal-header">
+        <h3 class="modal-title">⏳ Données Disponibles à la Demande</h3>
+        <button class="drawer-close" id="btn-close-request-modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div style="display: flex; gap: 0.85rem; align-items: flex-start; margin-bottom: 1rem;">
+          <span style="font-size: 2.2rem;">📋</span>
+          <div>
+            <h4 id="req-modal-commune" style="font-size: 1.05rem; margin-bottom: 0.25rem;">Commune</h4>
+            <span class="status-badge" style="background: rgba(245, 158, 11, 0.2); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.4);">
+              Données CSTB BDNB existantes (non compilées)
+            </span>
+          </div>
+        </div>
+        <p style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.5; margin-bottom: 1rem;">
+          Les données foncières et énergétiques ouvertes (CSTB BDNB) existent pour cette zone, mais les micro-chunks Parquet n'ont pas encore été pré-calculés dans cette version.
+        </p>
+        <div class="card" style="padding: 0.75rem; font-size: 0.8rem; margin-bottom: 1rem;">
+          <div><strong>Code Postal / Insee :</strong> <span id="req-modal-cp">—</span></div>
+          <div><strong>Département :</strong> <span id="req-modal-dep">—</span></div>
+          <div style="margin-top: 0.5rem; color: var(--text-muted);">
+            Vous pouvez demander la génération de ce territoire pour vos enquêtes ou exécuter le script <code>app/build_dataset.py</code> sur le fichier source du département.
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" id="btn-close-request-footer">Fermer</button>
+        <button class="btn btn-primary" id="btn-confirm-request-data">
+          <span>📨</span> Demander ce territoire
+        </button>
       </div>
     </div>
   </div>

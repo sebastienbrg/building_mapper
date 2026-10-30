@@ -15,7 +15,11 @@ if (typeof BigInt !== 'undefined') {
 // Application State
 const state = {
   manifest: null,
-  activeTerritory: { mode: 'dep', dep: '69', cp: null, range: [69001, 69009] },
+  activeTerritory: { mode: 'chunks', chunkIds: [], dep: '69', cp: null, range: [69001, 69009] },
+  territorySelectionMode: true,
+  postalZonesGeoJson: null,
+  pendingSelectedChunks: new Set(),
+  locallyCachedChunkIds: new Set(),
   buildings: [],        // Raw building objects from Parquet
   owners: [],           // Corporate owner records
   ownersByBuilding: new Map(), // batiment_groupe_id -> Array<Owner>
@@ -87,8 +91,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   initLandlordsTabControls();
   initExportTabControls();
   initEventListeners();
+  initLocationPromptControls();
   await loadManifest();
-  await loadTerritory();
+  await scanLocalCache();
+  await initPostalZonesLayer();
+  showLocationPromptModal();
 });
 
 /* ==========================================================================
@@ -112,6 +119,13 @@ function initMap() {
         },
       },
       layers: [
+        {
+          id: 'map-background',
+          type: 'background',
+          paint: {
+            'background-color': '#ffffff',
+          },
+        },
         {
           id: 'osm-tiles-layer',
           type: 'raster',
@@ -218,7 +232,708 @@ function initMap() {
 
     updateLegend();
     setMapDim(state.bgDimPct);
+    tryAttachPostalZones();
   });
+}
+
+/* ==========================================================================
+   Territory Selection Mode & Location Entry Flow
+   ========================================================================== */
+
+let zonePopup = null;
+
+async function scanLocalCache() {
+  state.locallyCachedChunkIds.clear();
+  if ('caches' in window && state.manifest?.chunks) {
+    try {
+      const cache = await caches.open('tezeloma-data-v1');
+      for (const chunk of state.manifest.chunks) {
+        const bUrl = `${state.dataBaseUrl}${chunk.buildings_file}`;
+        const match = await cache.match(bUrl);
+        if (match) {
+          state.locallyCachedChunkIds.add(chunk.id);
+        }
+      }
+    } catch (e) {
+      console.warn('Cache API scan error:', e);
+    }
+  }
+}
+
+async function initPostalZonesLayer() {
+  try {
+    const res = await fetch('postal_zones.geojson');
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    state.postalZonesGeoJson = await res.json();
+  } catch (err) {
+    console.error('Failed to load postal_zones.geojson:', err);
+    try {
+      const res2 = await fetch(`${state.dataBaseUrl}postal_zones.geojson`);
+      state.postalZonesGeoJson = await res2.json();
+    } catch (e2) {
+      console.warn('Fallback postal zones fetch failed:', e2);
+      state.postalZonesGeoJson = buildFallbackPostalZones();
+    }
+  }
+
+  refreshPostalZonesVisualState();
+  tryAttachPostalZones();
+}
+
+function buildFallbackPostalZones() {
+  if (!state.manifest?.chunks) return { type: 'FeatureCollection', features: [] };
+  const features = state.manifest.chunks.map(c => {
+    const minx = c.bbox[0], miny = c.bbox[1], maxx = c.bbox[2], maxy = c.bbox[3];
+    return {
+      type: 'Feature',
+      properties: {
+        id: c.id,
+        chunk_id: c.id,
+        cp: c.cp,
+        nom: c.communes.join(', '),
+        codeDepartement: c.departement,
+        departementLabel: c.departement === '69' ? 'Rhône (69)' : 'Isère (38)',
+        status: 'downloadable',
+        buildings_count: c.buildings_count,
+        total_size_bytes: c.total_size_bytes,
+        total_size_formatted: `${(c.total_size_bytes / 1048576).toFixed(1)} Mo`,
+        center: c.center,
+        bbox: c.bbox,
+      },
+      geometry: {
+        type: 'Polygon',
+        coordinates: [[[minx, miny], [maxx, miny], [maxx, maxy], [minx, maxy], [minx, miny]]]
+      }
+    };
+  });
+  return { type: 'FeatureCollection', features };
+}
+
+function tryAttachPostalZones() {
+  if (!state.map || !state.map.isStyleLoaded() || !state.postalZonesGeoJson) return;
+  if (state.map.getSource('postal-zones-source')) return;
+
+  state.map.addSource('postal-zones-source', {
+    type: 'geojson',
+    data: state.postalZonesGeoJson,
+    generateId: true,
+  });
+
+  // Postal Zones Fill Layer
+  state.map.addLayer({
+    id: 'postal-zones-fill',
+    type: 'fill',
+    source: 'postal-zones-source',
+    paint: {
+      'fill-color': ['get', 'render_color'],
+      'fill-opacity': [
+        'case',
+        ['get', 'selected'],
+        0.65,
+        ['boolean', ['feature-state', 'hover'], false],
+        0.55,
+        0.35,
+      ],
+    },
+  });
+
+  // Postal Zones Stroke Layer
+  state.map.addLayer({
+    id: 'postal-zones-stroke',
+    type: 'line',
+    source: 'postal-zones-source',
+    paint: {
+      'line-color': ['get', 'stroke_color'],
+      'line-width': [
+        'case',
+        ['get', 'selected'],
+        3.5,
+        ['boolean', ['feature-state', 'hover'], false],
+        2.5,
+        1.2,
+      ],
+      'line-opacity': 0.9,
+    },
+  });
+
+  setupPostalZonesInteractions();
+}
+
+function setupPostalZonesInteractions() {
+  if (!state.map) return;
+
+  state.map.on('mousemove', 'postal-zones-fill', (e) => {
+    if (!state.territorySelectionMode) return;
+    if (e.features && e.features.length > 0) {
+      state.map.getCanvas().style.cursor = 'pointer';
+      const props = e.features[0].properties;
+
+      let statusLabel = 'Prêt au téléchargement';
+      let statusClass = 'status-dl';
+      let icon = '☁️';
+
+      if (props.selected) {
+        statusLabel = 'Sélectionné pour chargement';
+        statusClass = 'status-selected';
+        icon = '✅';
+      } else if (props.status === 'available_locally') {
+        statusLabel = 'Disponible localement (en cache)';
+        statusClass = 'status-local';
+        icon = '💾';
+      } else if (props.status === 'requestable') {
+        statusLabel = 'À la demande (BDNB brute existante)';
+        statusClass = 'status-req';
+        icon = '⏳';
+      } else if (props.status === 'unavailable') {
+        statusLabel = 'Indisponible';
+        statusClass = 'status-unav';
+        icon = '🚫';
+      }
+
+      const bldgs = props.buildings_count ? `${Number(props.buildings_count).toLocaleString('fr-FR')} bâtiments` : '—';
+      const size = props.total_size_formatted || (props.total_size_bytes ? `${(props.total_size_bytes / 1048576).toFixed(1)} Mo` : '—');
+
+      const html = `
+        <div class="zone-popup">
+          <div class="zone-popup-header">
+            <span>${props.nom || 'Zone'}</span>
+            <span style="color: var(--accent-primary); font-size: 0.85rem;">${props.cp || ''}</span>
+          </div>
+          <div class="zone-popup-status ${statusClass}">${icon} ${statusLabel}</div>
+          <div class="zone-popup-details">
+            <div><strong>Département :</strong> ${props.departementLabel || props.codeDepartement || '—'}</div>
+            <div><strong>Bâtiments :</strong> ${bldgs}</div>
+            <div><strong>Taille :</strong> ${size}</div>
+          </div>
+          <div class="zone-popup-hint">
+            ${props.status === 'requestable' ? 'ℹ️ Cliquez pour voir la demande' : '👆 Cliquez pour sélectionner / retirer'}
+          </div>
+        </div>
+      `;
+
+      if (!zonePopup) {
+        zonePopup = new maplibregl.Popup({ closeButton: false, closeOnClick: false, offset: 12 });
+      }
+      zonePopup.setLngLat(e.lngLat).setHTML(html).addTo(state.map);
+    }
+  });
+
+  state.map.on('mouseleave', 'postal-zones-fill', () => {
+    state.map.getCanvas().style.cursor = '';
+    if (zonePopup) {
+      zonePopup.remove();
+      zonePopup = null;
+    }
+  });
+
+  state.map.on('click', 'postal-zones-fill', (e) => {
+    if (!state.territorySelectionMode) return;
+    if (e.features && e.features.length > 0) {
+      onPostalZoneClick(e.features[0]);
+    }
+  });
+}
+
+function findChunkForFeature(props) {
+  if (!state.manifest?.chunks) return null;
+  if (props.chunk_id) {
+    const byId = state.manifest.chunks.find(c => c.id === props.chunk_id);
+    if (byId) return byId;
+  }
+  if (props.cp) {
+    const cpNum = Number(props.cp);
+    const byCp = state.manifest.chunks.find(c => c.cp === cpNum);
+    if (byCp) return byCp;
+  }
+  return null;
+}
+
+function onPostalZoneClick(feat) {
+  const props = feat.properties;
+
+  if (props.status === 'requestable') {
+    showRequestableModal(props);
+    return;
+  }
+
+  if (props.status === 'unavailable') {
+    showToast('Indisponible : aucune donnée de bâti disponible pour cette zone.');
+    return;
+  }
+
+  const chunk = findChunkForFeature(props);
+  if (!chunk) {
+    showToast(`Chunk introuvable pour ${props.nom} (${props.cp})`);
+    return;
+  }
+
+  toggleChunkSelection(chunk.id);
+}
+
+function toggleChunkSelection(chunkId) {
+  if (state.pendingSelectedChunks.has(chunkId)) {
+    state.pendingSelectedChunks.delete(chunkId);
+  } else {
+    state.pendingSelectedChunks.add(chunkId);
+  }
+  refreshPostalZonesVisualState();
+  updateTerritorySelectionBar();
+}
+
+function refreshPostalZonesVisualState() {
+  if (!state.postalZonesGeoJson?.features) return;
+
+  for (const f of state.postalZonesGeoJson.features) {
+    const cId = f.properties.chunk_id;
+    const isSelected = Boolean(cId && state.pendingSelectedChunks.has(cId));
+    f.properties.selected = isSelected;
+
+    const isLocal = Boolean(cId && state.locallyCachedChunkIds.has(cId));
+    const isDownloadable = Boolean(cId && state.manifest?.chunks?.some(c => c.id === cId));
+
+    if (isSelected) {
+      f.properties.render_color = '#8b5cf6';
+      f.properties.stroke_color = '#c084fc';
+    } else if (isLocal) {
+      f.properties.render_color = '#10b981';
+      f.properties.stroke_color = '#059669';
+      f.properties.status = 'available_locally';
+    } else if (isDownloadable) {
+      f.properties.render_color = '#0ea5e9';
+      f.properties.stroke_color = '#0284c7';
+      f.properties.status = 'downloadable';
+    } else if (f.properties.status === 'requestable') {
+      f.properties.render_color = '#f59e0b';
+      f.properties.stroke_color = '#d97706';
+    } else {
+      f.properties.render_color = '#64748b';
+      f.properties.stroke_color = '#475569';
+      f.properties.status = 'unavailable';
+    }
+  }
+
+  const src = state.map?.getSource('postal-zones-source');
+  if (src) {
+    src.setData(state.postalZonesGeoJson);
+  }
+}
+
+function updateTerritorySelectionBar() {
+  const selBar = document.getElementById('territory-selection-bar');
+  if (!selBar) return;
+
+  const count = state.pendingSelectedChunks.size;
+  const btnValidate = document.getElementById('btn-sel-validate');
+  const summaryText = document.getElementById('sel-bar-summary-text');
+  const metricsText = document.getElementById('sel-bar-metrics-text');
+
+  if (count === 0) {
+    if (summaryText) summaryText.textContent = '0 code postal sélectionné';
+    if (metricsText) metricsText.textContent = 'Cliquez sur un polygone pour commencer la sélection';
+    if (btnValidate) btnValidate.disabled = true;
+    return;
+  }
+
+  if (btnValidate) btnValidate.disabled = false;
+
+  const selectedChunks = (state.manifest?.chunks || []).filter(c => state.pendingSelectedChunks.has(c.id));
+  const totalBldgs = selectedChunks.reduce((acc, c) => acc + (c.buildings_count || 0), 0);
+
+  let netBytesToDownload = 0;
+  let cachedChunksCount = 0;
+  for (const c of selectedChunks) {
+    if (state.locallyCachedChunkIds.has(c.id)) {
+      cachedChunksCount++;
+    } else {
+      netBytesToDownload += (c.total_size_bytes || 0);
+    }
+  }
+
+  const cpList = selectedChunks.map(c => c.cp).sort((a, b) => a - b).join(', ');
+  if (summaryText) {
+    summaryText.innerHTML = `<strong>${count} code${count > 1 ? 's' : ''} postal${count > 1 ? 's' : ''}</strong> (${cpList})`;
+  }
+
+  const netMb = (netBytesToDownload / 1048576).toFixed(1);
+  let sizeInfo = `${netMb} Mo à télécharger`;
+  if (cachedChunksCount > 0) {
+    sizeInfo += ` (${cachedChunksCount} déjà en cache local)`;
+  }
+  if (metricsText) {
+    metricsText.textContent = `${totalBldgs.toLocaleString('fr-FR')} bâtiments • ${sizeInfo}`;
+  }
+}
+
+async function validateAndLoadSelectedChunks() {
+  if (state.pendingSelectedChunks.size === 0) {
+    alert("Veuillez sélectionner au moins un code postal à charger.");
+    return;
+  }
+
+  state.activeTerritory = {
+    mode: 'chunks',
+    chunkIds: Array.from(state.pendingSelectedChunks),
+  };
+
+  exitTerritorySelectionMode();
+  await loadTerritory();
+}
+
+function enterTerritorySelectionMode(centerLocation = null) {
+  state.territorySelectionMode = true;
+  const selBar = document.getElementById('territory-selection-bar');
+  if (selBar) selBar.classList.add('active');
+
+  const modeIndicator = document.getElementById('territory-mode-indicator');
+  if (modeIndicator) modeIndicator.classList.add('active');
+
+  if (state.map?.getLayer('postal-zones-fill')) {
+    state.map.setLayoutProperty('postal-zones-fill', 'visibility', 'visible');
+    state.map.setLayoutProperty('postal-zones-stroke', 'visibility', 'visible');
+  }
+
+  if (centerLocation && state.map) {
+    state.map.flyTo({
+      center: centerLocation.center,
+      zoom: centerLocation.zoom || 12,
+      essential: true
+    });
+  }
+
+  refreshPostalZonesVisualState();
+  updateTerritorySelectionBar();
+}
+
+function exitTerritorySelectionMode() {
+  state.territorySelectionMode = false;
+  const selBar = document.getElementById('territory-selection-bar');
+  if (selBar) selBar.classList.remove('active');
+
+  const modeIndicator = document.getElementById('territory-mode-indicator');
+  if (modeIndicator) modeIndicator.classList.remove('active');
+
+  if (state.map?.getLayer('postal-zones-fill')) {
+    state.map.setLayoutProperty('postal-zones-fill', 'visibility', 'none');
+    state.map.setLayoutProperty('postal-zones-stroke', 'visibility', 'none');
+  }
+
+  if (zonePopup) {
+    zonePopup.remove();
+    zonePopup = null;
+  }
+}
+
+function showLocationPromptModal() {
+  const modal = document.getElementById('modal-location-entry');
+  if (modal) modal.classList.add('open');
+  const input = document.getElementById('input-location-search');
+  if (input) setTimeout(() => input.focus(), 150);
+}
+
+function closeLocationPromptModal() {
+  const modal = document.getElementById('modal-location-entry');
+  if (modal) modal.classList.remove('open');
+  const dropdown = document.getElementById('location-suggestions');
+  if (dropdown) dropdown.classList.remove('open');
+}
+
+function showRequestableModal(props) {
+  const modal = document.getElementById('modal-request-data');
+  if (!modal) return;
+
+  const communeEl = document.getElementById('req-modal-commune');
+  const cpEl = document.getElementById('req-modal-cp');
+  const depEl = document.getElementById('req-modal-dep');
+
+  if (communeEl) communeEl.textContent = props.nom || 'Commune';
+  if (cpEl) cpEl.textContent = `${props.cp || props.codeInsee || 'Inconnu'}`;
+  if (depEl) depEl.textContent = `${props.departementLabel || props.codeDepartement || 'France'}`;
+
+  modal.classList.add('open');
+}
+
+async function performLocationSearch(query) {
+  const dropdown = document.getElementById('location-suggestions');
+  if (!dropdown) return;
+
+  const results = [];
+  const qLower = query.toLowerCase();
+
+  // 1. Local manifest chunks matching (instant offline)
+  if (state.manifest?.chunks) {
+    for (const chunk of state.manifest.chunks) {
+      const matchCp = String(chunk.cp).includes(qLower);
+      const matchCommune = chunk.communes.some(c => c.toLowerCase().includes(qLower));
+      if (matchCp || matchCommune) {
+        const isLocal = state.locallyCachedChunkIds.has(chunk.id);
+        results.push({
+          title: `${chunk.communes.slice(0, 2).join(', ')} (${chunk.cp})`,
+          context: chunk.departement === '69' ? 'Rhône (Lyon & Métropole)' : 'Isère (Grenoble & Métropole)',
+          statusText: isLocal ? '💾 En cache' : '☁️ Prêt au téléchargement',
+          statusClass: isLocal ? 'status-local' : 'status-dl',
+          center: chunk.center,
+          bbox: chunk.bbox,
+          chunkId: chunk.id,
+          cp: chunk.cp,
+        });
+      }
+    }
+  }
+
+  // 2. Query official French national geocoder API if online
+  if (navigator.onLine) {
+    try {
+      const apiUrl = `https://api-adresse.data.gouv.fr/search/?q=${encodeURIComponent(query)}&limit=5`;
+      const res = await fetch(apiUrl);
+      if (res.ok) {
+        const data = await res.json();
+        for (const feat of data.features || []) {
+          const props = feat.properties;
+          const cp = parseInt(props.postcode, 10);
+          const chunk = state.manifest?.chunks?.find(c => c.cp === cp);
+          const isLocal = chunk && state.locallyCachedChunkIds.has(chunk.id);
+
+          let statusText = '⏳ À la demande';
+          let statusClass = 'status-req';
+          if (isLocal) {
+            statusText = '💾 En cache';
+            statusClass = 'status-local';
+          } else if (chunk) {
+            statusText = '☁️ Prêt';
+            statusClass = 'status-dl';
+          }
+
+          results.push({
+            title: props.label || props.name,
+            context: props.context || (props.city + ' (' + props.postcode + ')'),
+            statusText,
+            statusClass,
+            center: feat.geometry.coordinates,
+            bbox: null,
+            chunkId: chunk?.id || null,
+            cp,
+          });
+        }
+      }
+    } catch (e) {
+      console.warn('api-adresse geocoding error:', e);
+    }
+  }
+
+  // Deduplicate
+  const uniqueResults = [];
+  const seenTitles = new Set();
+  for (const r of results) {
+    if (!seenTitles.has(r.title)) {
+      seenTitles.add(r.title);
+      uniqueResults.push(r);
+    }
+    if (uniqueResults.length >= 7) break;
+  }
+
+  if (uniqueResults.length === 0) {
+    dropdown.innerHTML = `<div style="padding: 0.75rem 1rem; color: var(--text-muted); font-size: 0.82rem;">Aucun lieu trouvé pour "${query}"</div>`;
+    dropdown.classList.add('open');
+    return;
+  }
+
+  dropdown.innerHTML = uniqueResults.map((r, i) => `
+    <div class="location-suggestion-item" data-index="${i}">
+      <div class="suggestion-main">
+        <span class="suggestion-title">📍 ${r.title}</span>
+        <span class="suggestion-context">${r.context}</span>
+      </div>
+      <span class="suggestion-status ${r.statusClass}">${r.statusText}</span>
+    </div>
+  `).join('');
+
+  dropdown.classList.add('open');
+
+  dropdown.querySelectorAll('.location-suggestion-item').forEach((item, idx) => {
+    item.addEventListener('click', () => {
+      const sel = uniqueResults[idx];
+      dropdown.classList.remove('open');
+      closeLocationPromptModal();
+
+      if (sel.bbox && state.map) {
+        state.map.fitBounds(
+          [[sel.bbox[0], sel.bbox[1]], [sel.bbox[2], sel.bbox[3]]],
+          { padding: 60, maxZoom: 14 }
+        );
+      } else if (sel.center && state.map) {
+        state.map.flyTo({ center: sel.center, zoom: 13, essential: true });
+      }
+
+      enterTerritorySelectionMode();
+
+      if (sel.chunkId) {
+        state.pendingSelectedChunks.add(sel.chunkId);
+        refreshPostalZonesVisualState();
+        updateTerritorySelectionBar();
+      }
+    });
+  });
+}
+
+function initLocationPromptControls() {
+  const inputSearch = document.getElementById('input-location-search');
+  const suggestionsDropdown = document.getElementById('location-suggestions');
+
+  if (inputSearch && suggestionsDropdown) {
+    let searchDebounceTimer = null;
+    inputSearch.addEventListener('input', (e) => {
+      const query = e.target.value.trim();
+      clearTimeout(searchDebounceTimer);
+      if (!query || query.length < 2) {
+        suggestionsDropdown.classList.remove('open');
+        suggestionsDropdown.innerHTML = '';
+        return;
+      }
+
+      searchDebounceTimer = setTimeout(async () => {
+        await performLocationSearch(query);
+      }, 250);
+    });
+
+    document.addEventListener('click', (e) => {
+      if (!inputSearch.contains(e.target) && !suggestionsDropdown.contains(e.target)) {
+        suggestionsDropdown.classList.remove('open');
+      }
+    });
+  }
+
+  // Preset Lyon
+  document.getElementById('preset-lyon')?.addEventListener('click', () => {
+    closeLocationPromptModal();
+    state.pendingSelectedChunks.clear();
+    if (state.manifest?.chunks) {
+      state.manifest.chunks
+        .filter(c => c.departement === '69')
+        .forEach(c => state.pendingSelectedChunks.add(c.id));
+    }
+    enterTerritorySelectionMode({ center: [4.8467, 45.7628], zoom: 12.5 });
+    refreshPostalZonesVisualState();
+    updateTerritorySelectionBar();
+  });
+
+  // Preset Grenoble
+  document.getElementById('preset-grenoble')?.addEventListener('click', () => {
+    closeLocationPromptModal();
+    state.pendingSelectedChunks.clear();
+    if (state.manifest?.chunks) {
+      state.manifest.chunks
+        .filter(c => c.departement === '38')
+        .forEach(c => state.pendingSelectedChunks.add(c.id));
+    }
+    enterTerritorySelectionMode({ center: [5.7255, 45.1785], zoom: 12.5 });
+    refreshPostalZonesVisualState();
+    updateTerritorySelectionBar();
+  });
+
+  // Free exploration link
+  document.getElementById('link-explore-freely')?.addEventListener('click', (e) => {
+    e.preventDefault();
+    closeLocationPromptModal();
+    enterTerritorySelectionMode({ center: [4.8467, 45.7628], zoom: 11 });
+    refreshPostalZonesVisualState();
+    updateTerritorySelectionBar();
+  });
+
+  // GPS position button
+  document.getElementById('btn-location-gps')?.addEventListener('click', () => {
+    if (!navigator.geolocation) {
+      alert("La géolocalisation n'est pas supportée par votre navigateur.");
+      return;
+    }
+    showLoading("Recherche de votre position...");
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        hideLoading();
+        closeLocationPromptModal();
+        const coords = [pos.coords.longitude, pos.coords.latitude];
+        enterTerritorySelectionMode({ center: coords, zoom: 13.5 });
+        refreshPostalZonesVisualState();
+        updateTerritorySelectionBar();
+      },
+      (err) => {
+        hideLoading();
+        alert(`Impossible de récupérer votre position : ${err.message}`);
+      },
+      { timeout: 10000, enableHighAccuracy: true }
+    );
+  });
+
+  // Selection bar buttons
+  document.getElementById('btn-sel-clear')?.addEventListener('click', () => {
+    state.pendingSelectedChunks.clear();
+    refreshPostalZonesVisualState();
+    updateTerritorySelectionBar();
+  });
+
+  document.getElementById('btn-sel-all')?.addEventListener('click', () => {
+    if (!state.manifest?.chunks) return;
+    const center = state.map ? state.map.getCenter() : { lng: 4.8 };
+    const targetDep = center.lng > 5.3 ? '38' : '69';
+    state.manifest.chunks
+      .filter(c => c.departement === targetDep)
+      .forEach(c => state.pendingSelectedChunks.add(c.id));
+    refreshPostalZonesVisualState();
+    updateTerritorySelectionBar();
+  });
+
+  document.getElementById('btn-sel-validate')?.addEventListener('click', async () => {
+    await validateAndLoadSelectedChunks();
+  });
+
+  // Sidebar map button
+  document.getElementById('btn-sidebar-open-territory')?.addEventListener('click', () => {
+    enterTerritorySelectionMode();
+  });
+
+  // Request modal buttons
+  document.getElementById('btn-close-request-modal')?.addEventListener('click', () => {
+    document.getElementById('modal-request-data')?.classList.remove('open');
+  });
+  document.getElementById('btn-close-request-footer')?.addEventListener('click', () => {
+    document.getElementById('modal-request-data')?.classList.remove('open');
+  });
+  document.getElementById('btn-confirm-request-data')?.addEventListener('click', () => {
+    document.getElementById('modal-request-data')?.classList.remove('open');
+    showToast("Demande enregistrée ! Ce territoire sera inclus dans un prochain import BDNB.");
+  });
+}
+
+function showToast(msg, duration = 3000) {
+  let toast = document.getElementById('tz-toast');
+  if (!toast) {
+    toast = document.createElement('div');
+    toast.id = 'tz-toast';
+    toast.style.cssText = `
+      position: fixed;
+      bottom: 2rem;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(15, 23, 42, 0.95);
+      color: #fff;
+      padding: 0.75rem 1.25rem;
+      border-radius: 8px;
+      border: 1px solid rgba(56, 189, 248, 0.4);
+      box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+      z-index: 9999;
+      font-size: 0.88rem;
+      font-weight: 600;
+      pointer-events: none;
+      transition: opacity 0.25s ease;
+      opacity: 0;
+    `;
+    document.body.appendChild(toast);
+  }
+  toast.textContent = msg;
+  toast.style.opacity = '1';
+  clearTimeout(toast._timer);
+  toast._timer = setTimeout(() => {
+    toast.style.opacity = '0';
+  }, duration);
 }
 
 /* ==========================================================================
@@ -332,7 +1047,10 @@ async function loadTerritory() {
   let targetChunks = [];
   let bundleFile = null;
 
-  if (mode === 'dep') {
+  if (mode === 'chunks') {
+    const chunkIds = new Set(state.activeTerritory.chunkIds || []);
+    targetChunks = state.manifest.chunks.filter(c => chunkIds.has(c.id));
+  } else if (mode === 'dep') {
     const dep = state.activeTerritory.dep;
     const depMeta = state.manifest.departments[dep];
     if (depMeta) {
@@ -409,6 +1127,14 @@ async function loadTerritory() {
 
     state.buildings = allBuildings;
     state.owners = allOwners;
+
+    // Record loaded chunks as locally cached
+    if (targetChunks.length > 0) {
+      for (const c of targetChunks) {
+        state.locallyCachedChunkIds.add(c.id);
+      }
+    }
+    refreshPostalZonesVisualState();
 
     // Index corporate owners by building id for instant lookup
     state.ownersByBuilding.clear();
@@ -644,10 +1370,19 @@ function updateMapSource(buildings) {
 }
 
 function setMapDim(dimPct) {
-  if (!state.map || !state.map.getLayer('osm-tiles-layer')) return;
-  const opacity = Math.max(0.1, 1.0 - (dimPct / 100) * 0.85);
-  const saturation = -Math.min(1.0, (dimPct / 100) * 1.2);
+  if (!state.map || !state.map.isStyleLoaded() || !state.map.getLayer('osm-tiles-layer')) return;
+  const factor = Math.max(0, Math.min(100, dimPct)) / 100;
+  
+  // As dimPct increases (0% -> 100%), the map becomes progressively more and more white:
+  // 1. Lower opacity reveals the pure white background layer beneath
+  const opacity = Math.max(0.02, 1.0 - factor * 0.95);
+  // 2. Increase brightness-min to wash out dark streets and text into pure white
+  const brightnessMin = factor * 0.85;
+  // 3. Desaturate to eliminate distracting colored features
+  const saturation = -Math.min(1.0, factor * 1.2);
+
   state.map.setPaintProperty('osm-tiles-layer', 'raster-opacity', opacity);
+  state.map.setPaintProperty('osm-tiles-layer', 'raster-brightness-min', brightnessMin);
   state.map.setPaintProperty('osm-tiles-layer', 'raster-saturation', saturation);
 }
 
@@ -2589,9 +3324,13 @@ function initEventListeners() {
     }
   });
 
-  // Modals
+  // Modals & Territory Manager
   document.getElementById('btn-open-territory-manager').addEventListener('click', () => {
-    document.getElementById('modal-territory').classList.add('open');
+    if (state.territorySelectionMode) {
+      exitTerritorySelectionMode();
+    } else {
+      enterTerritorySelectionMode();
+    }
   });
   document.getElementById('btn-close-territory-modal').addEventListener('click', () => {
     document.getElementById('modal-territory').classList.remove('open');
