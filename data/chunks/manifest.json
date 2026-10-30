@@ -1,0 +1,697 @@
+{
+  "format_version": "1.0",
+  "created_at": "2026-10-29T17:35:59.192558+00:00",
+  "total_buildings": 63988,
+  "total_owners": 70968,
+  "total_chunks": 24,
+  "total_buildings_size_bytes": 22567265,
+  "total_owners_size_bytes": 1953011,
+  "compression": "zstd",
+  "departments": {
+    "38": {
+      "departement": "38",
+      "label": "38 — Isère (Grenoble & Métropole)",
+      "postal_codes": [
+        38000,
+        38100,
+        38120,
+        38130,
+        38170,
+        38180,
+        38240,
+        38320,
+        38360,
+        38400,
+        38600,
+        38610,
+        38700,
+        38800
+      ],
+      "buildings_count": 31610,
+      "owners_count": 23183,
+      "buildings_file": "buildings_dep_38.parquet",
+      "owners_file": "owners_dep_38.parquet",
+      "buildings_size_bytes": 9586295,
+      "owners_size_bytes": 556148,
+      "bbox": [
+        5.639384,
+        45.110016,
+        5.811691,
+        45.247075
+      ],
+      "center": [
+        5.725538,
+        45.178546
+      ]
+    },
+    "69": {
+      "departement": "69",
+      "label": "69 — Rhône (Lyon & Villeurbanne)",
+      "postal_codes": [
+        69001,
+        69002,
+        69003,
+        69004,
+        69005,
+        69006,
+        69007,
+        69008,
+        69009,
+        69100
+      ],
+      "buildings_count": 32378,
+      "owners_count": 47785,
+      "buildings_file": "buildings_dep_69.parquet",
+      "owners_file": "owners_dep_69.parquet",
+      "buildings_size_bytes": 10819907,
+      "owners_size_bytes": 1172767,
+      "bbox": [
+        4.772417,
+        45.718982,
+        4.921026,
+        45.806805
+      ],
+      "center": [
+        4.846722,
+        45.762894
+      ]
+    }
+  },
+  "chunks": [
+    {
+      "id": "cp_38000",
+      "cp": 38000,
+      "departement": "38",
+      "communes": [
+        "Grenoble",
+        "La Tronche"
+      ],
+      "buildings_count": 4612,
+      "owners_count": 8682,
+      "buildings_file": "buildings_38000.parquet",
+      "owners_file": "owners_38000.parquet",
+      "buildings_size_bytes": 2244672,
+      "owners_size_bytes": 208267,
+      "total_size_bytes": 2452939,
+      "bbox": [
+        5.68203,
+        45.173989,
+        5.742205,
+        45.211671
+      ],
+      "center": [
+        5.712118,
+        45.19283
+      ]
+    },
+    {
+      "id": "cp_38100",
+      "cp": 38100,
+      "departement": "38",
+      "communes": [
+        "Eybens",
+        "Grenoble"
+      ],
+      "buildings_count": 3945,
+      "owners_count": 4603,
+      "buildings_file": "buildings_38100.parquet",
+      "owners_file": "owners_38100.parquet",
+      "buildings_size_bytes": 1570995,
+      "owners_size_bytes": 115980,
+      "total_size_bytes": 1686975,
+      "bbox": [
+        5.702065,
+        45.154916,
+        5.752559,
+        45.188257
+      ],
+      "center": [
+        5.727312,
+        45.171586
+      ]
+    },
+    {
+      "id": "cp_38120",
+      "cp": 38120,
+      "departement": "38",
+      "communes": [
+        "Saint-Égrève"
+      ],
+      "buildings_count": 2603,
+      "owners_count": 791,
+      "buildings_file": "buildings_38120.parquet",
+      "owners_file": "owners_38120.parquet",
+      "buildings_size_bytes": 743112,
+      "owners_size_bytes": 27560,
+      "total_size_bytes": 770672,
+      "bbox": [
+        5.658837,
+        45.215575,
+        5.695321,
+        45.247075
+      ],
+      "center": [
+        5.677079,
+        45.231325
+      ]
+    },
+    {
+      "id": "cp_38130",
+      "cp": 38130,
+      "departement": "38",
+      "communes": [
+        "Le Pont-de-Claix",
+        "Seyssins",
+        "Échirolles"
+      ],
+      "buildings_count": 2393,
+      "owners_count": 1498,
+      "buildings_file": "buildings_38130.parquet",
+      "owners_file": "owners_38130.parquet",
+      "buildings_size_bytes": 719150,
+      "owners_size_bytes": 45182,
+      "total_size_bytes": 764332,
+      "bbox": [
+        5.689486,
+        45.132643,
+        5.739124,
+        45.159654
+      ],
+      "center": [
+        5.714305,
+        45.146148
+      ]
+    },
+    {
+      "id": "cp_38170",
+      "cp": 38170,
+      "departement": "38",
+      "communes": [
+        "Seyssinet-Pariset",
+        "Seyssins"
+      ],
+      "buildings_count": 1488,
+      "owners_count": 658,
+      "buildings_file": "buildings_38170.parquet",
+      "owners_file": "owners_38170.parquet",
+      "buildings_size_bytes": 460664,
+      "owners_size_bytes": 24192,
+      "total_size_bytes": 484856,
+      "bbox": [
+        5.649815,
+        45.161804,
+        5.700152,
+        45.187239
+      ],
+      "center": [
+        5.674984,
+        45.174522
+      ]
+    },
+    {
+      "id": "cp_38180",
+      "cp": 38180,
+      "departement": "38",
+      "communes": [
+        "Seyssins"
+      ],
+      "buildings_count": 1830,
+      "owners_count": 332,
+      "buildings_file": "buildings_38180.parquet",
+      "owners_file": "owners_38180.parquet",
+      "buildings_size_bytes": 503392,
+      "owners_size_bytes": 16979,
+      "total_size_bytes": 520371,
+      "bbox": [
+        5.662386,
+        45.145461,
+        5.699812,
+        45.172341
+      ],
+      "center": [
+        5.681099,
+        45.158901
+      ]
+    },
+    {
+      "id": "cp_38240",
+      "cp": 38240,
+      "departement": "38",
+      "communes": [
+        "Meylan"
+      ],
+      "buildings_count": 2595,
+      "owners_count": 1368,
+      "buildings_file": "buildings_38240.parquet",
+      "owners_file": "owners_38240.parquet",
+      "buildings_size_bytes": 791701,
+      "owners_size_bytes": 40105,
+      "total_size_bytes": 831806,
+      "bbox": [
+        5.752755,
+        45.195136,
+        5.807013,
+        45.232513
+      ],
+      "center": [
+        5.779884,
+        45.213824
+      ]
+    },
+    {
+      "id": "cp_38320",
+      "cp": 38320,
+      "departement": "38",
+      "communes": [
+        "Eybens"
+      ],
+      "buildings_count": 1442,
+      "owners_count": 536,
+      "buildings_file": "buildings_38320.parquet",
+      "owners_file": "owners_38320.parquet",
+      "buildings_size_bytes": 484073,
+      "owners_size_bytes": 21922,
+      "total_size_bytes": 505995,
+      "bbox": [
+        5.735105,
+        45.141115,
+        5.762849,
+        45.166467
+      ],
+      "center": [
+        5.748977,
+        45.153791
+      ]
+    },
+    {
+      "id": "cp_38360",
+      "cp": 38360,
+      "departement": "38",
+      "communes": [
+        "Sassenage"
+      ],
+      "buildings_count": 2046,
+      "owners_count": 483,
+      "buildings_file": "buildings_38360.parquet",
+      "owners_file": "owners_38360.parquet",
+      "buildings_size_bytes": 591135,
+      "owners_size_bytes": 20598,
+      "total_size_bytes": 611733,
+      "bbox": [
+        5.639384,
+        45.197597,
+        5.685923,
+        45.230108
+      ],
+      "center": [
+        5.662653,
+        45.213852
+      ]
+    },
+    {
+      "id": "cp_38400",
+      "cp": 38400,
+      "departement": "38",
+      "communes": [
+        "Gières",
+        "Grenoble",
+        "Saint-Martin-d'Hères"
+      ],
+      "buildings_count": 2931,
+      "owners_count": 1776,
+      "buildings_file": "buildings_38400.parquet",
+      "owners_file": "owners_38400.parquet",
+      "buildings_size_bytes": 901724,
+      "owners_size_bytes": 51981,
+      "total_size_bytes": 953705,
+      "bbox": [
+        5.743774,
+        45.159922,
+        5.782943,
+        45.196513
+      ],
+      "center": [
+        5.763359,
+        45.178218
+      ]
+    },
+    {
+      "id": "cp_38600",
+      "cp": 38600,
+      "departement": "38",
+      "communes": [
+        "Fontaine",
+        "Sassenage"
+      ],
+      "buildings_count": 2388,
+      "owners_count": 1071,
+      "buildings_file": "buildings_38600.parquet",
+      "owners_file": "owners_38600.parquet",
+      "buildings_size_bytes": 697769,
+      "owners_size_bytes": 35379,
+      "total_size_bytes": 733148,
+      "bbox": [
+        5.664185,
+        45.185171,
+        5.700536,
+        45.205103
+      ],
+      "center": [
+        5.68236,
+        45.195137
+      ]
+    },
+    {
+      "id": "cp_38610",
+      "cp": 38610,
+      "departement": "38",
+      "communes": [
+        "Gières",
+        "Saint-Martin-d'Hères"
+      ],
+      "buildings_count": 1174,
+      "owners_count": 402,
+      "buildings_file": "buildings_38610.parquet",
+      "owners_file": "owners_38610.parquet",
+      "buildings_size_bytes": 379569,
+      "owners_size_bytes": 18959,
+      "total_size_bytes": 398528,
+      "bbox": [
+        5.770695,
+        45.168943,
+        5.811691,
+        45.197369
+      ],
+      "center": [
+        5.791193,
+        45.183156
+      ]
+    },
+    {
+      "id": "cp_38700",
+      "cp": 38700,
+      "departement": "38",
+      "communes": [
+        "La Tronche",
+        "Meylan"
+      ],
+      "buildings_count": 1237,
+      "owners_count": 436,
+      "buildings_file": "buildings_38700.parquet",
+      "owners_file": "owners_38700.parquet",
+      "buildings_size_bytes": 402281,
+      "owners_size_bytes": 20315,
+      "total_size_bytes": 422596,
+      "bbox": [
+        5.731857,
+        45.191321,
+        5.773463,
+        45.227179
+      ],
+      "center": [
+        5.75266,
+        45.20925
+      ]
+    },
+    {
+      "id": "cp_38800",
+      "cp": 38800,
+      "departement": "38",
+      "communes": [
+        "Le Pont-de-Claix",
+        "Échirolles"
+      ],
+      "buildings_count": 926,
+      "owners_count": 547,
+      "buildings_file": "buildings_38800.parquet",
+      "owners_file": "owners_38800.parquet",
+      "buildings_size_bytes": 329199,
+      "owners_size_bytes": 21443,
+      "total_size_bytes": 350642,
+      "bbox": [
+        5.690385,
+        45.110016,
+        5.713299,
+        45.141424
+      ],
+      "center": [
+        5.701842,
+        45.12572
+      ]
+    },
+    {
+      "id": "cp_69001",
+      "cp": 69001,
+      "departement": "69",
+      "communes": [
+        "Lyon 1er Arrondissement"
+      ],
+      "buildings_count": 1646,
+      "owners_count": 3188,
+      "buildings_file": "buildings_69001.parquet",
+      "owners_file": "owners_69001.parquet",
+      "buildings_size_bytes": 618786,
+      "owners_size_bytes": 89722,
+      "total_size_bytes": 708508,
+      "bbox": [
+        4.814087,
+        45.764814,
+        4.837825,
+        45.774327
+      ],
+      "center": [
+        4.825956,
+        45.76957
+      ]
+    },
+    {
+      "id": "cp_69002",
+      "cp": 69002,
+      "departement": "69",
+      "communes": [
+        "Lyon 2e Arrondissement"
+      ],
+      "buildings_count": 1711,
+      "owners_count": 4716,
+      "buildings_file": "buildings_69002.parquet",
+      "owners_file": "owners_69002.parquet",
+      "buildings_size_bytes": 663182,
+      "owners_size_bytes": 124478,
+      "total_size_bytes": 787660,
+      "bbox": [
+        4.814453,
+        45.732463,
+        4.837918,
+        45.76573
+      ],
+      "center": [
+        4.826186,
+        45.749096
+      ]
+    },
+    {
+      "id": "cp_69003",
+      "cp": 69003,
+      "departement": "69",
+      "communes": [
+        "Lyon 3e Arrondissement"
+      ],
+      "buildings_count": 5111,
+      "owners_count": 7452,
+      "buildings_file": "buildings_69003.parquet",
+      "owners_file": "owners_69003.parquet",
+      "buildings_size_bytes": 1839375,
+      "owners_size_bytes": 198164,
+      "total_size_bytes": 2037539,
+      "bbox": [
+        4.840917,
+        45.739628,
+        4.897836,
+        45.7636
+      ],
+      "center": [
+        4.869376,
+        45.751614
+      ]
+    },
+    {
+      "id": "cp_69004",
+      "cp": 69004,
+      "departement": "69",
+      "communes": [
+        "Lyon 1er Arrondissement",
+        "Lyon 4e Arrondissement"
+      ],
+      "buildings_count": 2041,
+      "owners_count": 2478,
+      "buildings_file": "buildings_69004.parquet",
+      "owners_file": "owners_69004.parquet",
+      "buildings_size_bytes": 678804,
+      "owners_size_bytes": 73361,
+      "total_size_bytes": 752165,
+      "bbox": [
+        4.810555,
+        45.771793,
+        4.840741,
+        45.788562
+      ],
+      "center": [
+        4.825648,
+        45.780178
+      ]
+    },
+    {
+      "id": "cp_69005",
+      "cp": 69005,
+      "departement": "69",
+      "communes": [
+        "Lyon 5e Arrondissement"
+      ],
+      "buildings_count": 2936,
+      "owners_count": 2800,
+      "buildings_file": "buildings_69005.parquet",
+      "owners_file": "owners_69005.parquet",
+      "buildings_size_bytes": 1114089,
+      "owners_size_bytes": 80546,
+      "total_size_bytes": 1194635,
+      "bbox": [
+        4.772417,
+        45.744629,
+        4.828883,
+        45.767332
+      ],
+      "center": [
+        4.80065,
+        45.755981
+      ]
+    },
+    {
+      "id": "cp_69006",
+      "cp": 69006,
+      "departement": "69",
+      "communes": [
+        "Lyon 6e Arrondissement",
+        "Villeurbanne"
+      ],
+      "buildings_count": 2150,
+      "owners_count": 6194,
+      "buildings_file": "buildings_69006.parquet",
+      "owners_file": "owners_69006.parquet",
+      "buildings_size_bytes": 941338,
+      "owners_size_bytes": 155294,
+      "total_size_bytes": 1096632,
+      "bbox": [
+        4.841214,
+        45.763684,
+        4.869696,
+        45.785708
+      ],
+      "center": [
+        4.855455,
+        45.774696
+      ]
+    },
+    {
+      "id": "cp_69007",
+      "cp": 69007,
+      "departement": "69",
+      "communes": [
+        "Lyon 7e Arrondissement"
+      ],
+      "buildings_count": 2764,
+      "owners_count": 6114,
+      "buildings_file": "buildings_69007.parquet",
+      "owners_file": "owners_69007.parquet",
+      "buildings_size_bytes": 1157435,
+      "owners_size_bytes": 165001,
+      "total_size_bytes": 1322436,
+      "bbox": [
+        4.821796,
+        45.719681,
+        4.85923,
+        45.755717
+      ],
+      "center": [
+        4.840513,
+        45.737699
+      ]
+    },
+    {
+      "id": "cp_69008",
+      "cp": 69008,
+      "departement": "69",
+      "communes": [
+        "Lyon 8e Arrondissement"
+      ],
+      "buildings_count": 3656,
+      "owners_count": 3878,
+      "buildings_file": "buildings_69008.parquet",
+      "owners_file": "owners_69008.parquet",
+      "buildings_size_bytes": 1263424,
+      "owners_size_bytes": 107711,
+      "total_size_bytes": 1371135,
+      "bbox": [
+        4.848562,
+        45.718982,
+        4.890402,
+        45.749148
+      ],
+      "center": [
+        4.869482,
+        45.734065
+      ]
+    },
+    {
+      "id": "cp_69009",
+      "cp": 69009,
+      "departement": "69",
+      "communes": [
+        "Lyon 5e Arrondissement",
+        "Lyon 9e Arrondissement"
+      ],
+      "buildings_count": 2468,
+      "owners_count": 3005,
+      "buildings_file": "buildings_69009.parquet",
+      "owners_file": "owners_69009.parquet",
+      "buildings_size_bytes": 952304,
+      "owners_size_bytes": 86368,
+      "total_size_bytes": 1038672,
+      "bbox": [
+        4.785641,
+        45.758831,
+        4.838027,
+        45.806805
+      ],
+      "center": [
+        4.811834,
+        45.782818
+      ]
+    },
+    {
+      "id": "cp_69100",
+      "cp": 69100,
+      "departement": "69",
+      "communes": [
+        "Lyon 3e Arrondissement",
+        "Villeurbanne"
+      ],
+      "buildings_count": 7895,
+      "owners_count": 7960,
+      "buildings_file": "buildings_69100.parquet",
+      "owners_file": "owners_69100.parquet",
+      "buildings_size_bytes": 2519092,
+      "owners_size_bytes": 203504,
+      "total_size_bytes": 2722596,
+      "bbox": [
+        4.859171,
+        45.748799,
+        4.921026,
+        45.789268
+      ],
+      "center": [
+        4.890099,
+        45.769034
+      ]
+    }
+  ]
+}
