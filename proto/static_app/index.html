@@ -221,9 +221,11 @@
             <div class="form-group">
               <label>Risque été</label>
               <div class="filter-pill-group" id="filter-overheating">
+                <button class="pill-btn active" data-val="Critique" style="border-color: #dc2626;">Critique 🔥🔥</button>
                 <button class="pill-btn active" data-val="Élevé" style="border-color: #ef4444;">Élevé 🔥</button>
                 <button class="pill-btn active" data-val="Modéré" style="border-color: #f59e0b;">Modéré</button>
                 <button class="pill-btn active" data-val="Faible">Faible</button>
+                <button class="pill-btn active" data-val="Non renseigné">NC</button>
               </div>
             </div>
 
@@ -401,27 +403,8 @@
         <!-- Scrollable Table -->
         <div class="data-table-container">
           <table class="tz-data-table" id="table-buildings">
-            <thead>
-              <tr>
-                <th>ID BDNB</th>
-                <th>Adresse</th>
-                <th>CP</th>
-                <th>Logements</th>
-                <th>DPE</th>
-                <th>% F/G</th>
-                <th>Risque Été</th>
-                <th>Score (/100)</th>
-                <th>Facteurs</th>
-                <th>Isolation Toit</th>
-                <th>Volets</th>
-                <th>Principal Bailleur</th>
-                <th>SIREN</th>
-                <th>Conc. %</th>
-                <th>Patrimoine Local</th>
-                <th>Loyer Max T2</th>
-                <th>Parc Social</th>
-                <th>Action</th>
-              </tr>
+            <thead id="table-buildings-head">
+              <!-- Populated dynamically via app.js -->
             </thead>
             <tbody id="table-buildings-body">
               <!-- Populated via app.js -->
@@ -432,19 +415,19 @@
 
       <!-- TAB 3: 🔍 BAILLEURS & SCI -->
       <div class="tab-pane content-pane" id="pane-landlords">
-        <div class="tz-table-header">
+        <div class="tz-table-header" style="padding: 0.45rem 0.85rem;">
           <span>🏛️ <strong>Top Propriétaires Personnes Morales dans la sélection active</strong></span>
-          <span style="font-size: 0.8rem; color: var(--text-muted);">Classés par nombre de locaux détenus</span>
+          <span style="font-size: 0.78rem; color: var(--text-muted);">Classés par nombre de locaux détenus (cliquer sur une colonne pour trier)</span>
         </div>
 
         <!-- Top Landlords Table -->
-        <div class="data-table-container" style="max-height: 280px;">
+        <div class="data-table-container" style="max-height: 225px; flex-shrink: 0;">
           <table class="tz-data-table" id="table-top-landlords">
             <thead>
               <tr>
+                <th>SIREN</th>
                 <th>Dénomination</th>
                 <th>Forme Juridique</th>
-                <th>SIREN</th>
                 <th>Bâtiments (sélection)</th>
                 <th>Locaux (sélection)</th>
                 <th>Patrimoine Total (locaux)</th>
@@ -458,47 +441,43 @@
           </table>
         </div>
 
-        <!-- Landlord Inspection & SCI Lookup Card -->
-        <div class="card" style="margin-top: 1rem;">
-          <div class="card-title"><span>🔍</span> Inspecter les Dirigeants d'un Bailleur (API Annuaire des Entreprises / RNE)</div>
-          
-          <div style="display: flex; gap: 0.75rem; margin-bottom: 1rem;">
-            <select id="select-landlord-to-inspect" style="flex: 2; font-size: 0.82rem;">
+        <!-- Landlord Inspection & SCI Lookup Section (Streamlit 2-col layout) -->
+        <div class="landlord-inspector-bar">
+          <div class="landlord-input-col" style="flex: 2;">
+            <label for="select-landlord-to-inspect">Inspecter les dirigeants d'un bailleur (API Gouv) :</label>
+            <select id="select-landlord-to-inspect">
               <option value="">Sélectionner un bailleur du tableau ci-dessus...</option>
             </select>
-            <input type="text" id="input-manual-siren" placeholder="Ou saisir un SIREN / nom (ex: 908120595)..." style="flex: 1; font-size: 0.82rem;">
-            <button class="btn btn-primary btn-sm" id="btn-inspect-landlord" style="white-space: nowrap;">
-              🔎 Interroger l'API
-            </button>
           </div>
-
-          <!-- Live API Lookup Results -->
-          <div id="landlord-api-results" style="display: none; background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 1rem;">
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
-              <div id="landlord-company-info"></div>
-              <div id="landlord-dirigeants-info"></div>
+          <div class="landlord-input-col" style="flex: 1;">
+            <label for="input-manual-siren">Ou saisir un SIREN / nom :</label>
+            <div style="display: flex; gap: 0.4rem;">
+              <input type="text" id="input-manual-siren" placeholder="Ex: 908120595 ou SCI..." style="flex: 1;">
+              <button class="btn btn-secondary btn-sm" id="btn-inspect-landlord" title="Rafraîchir l'interrogation API" style="white-space: nowrap; padding: 0.35rem 0.6rem;">
+                🔎
+              </button>
             </div>
-            
-            <div style="margin-top: 1rem;">
-              <strong style="font-size: 0.82rem; color: var(--text-secondary); display: block; margin-bottom: 0.5rem;">
-                🏢 Immeubles détenus par cette entité sur le territoire actif :
-              </strong>
-              <div class="data-table-container" style="max-height: 200px;">
-                <table class="tz-data-table" id="table-landlord-buildings">
-                  <thead>
-                    <tr>
-                      <th>Adresse</th>
-                      <th>CP</th>
-                      <th>Logements</th>
-                      <th>DPE</th>
-                      <th>% F/G</th>
-                      <th>Risque Surchauffe</th>
-                      <th>Action</th>
-                    </tr>
-                  </thead>
-                  <tbody id="table-landlord-buildings-body"></tbody>
-                </table>
-              </div>
+          </div>
+        </div>
+
+        <!-- Live API Lookup Results -->
+        <div id="landlord-api-results" style="display: none; flex-direction: column; gap: 0.6rem; flex: 1; min-height: 0;">
+          <div class="landlord-meta-grid">
+            <div id="landlord-company-info"></div>
+            <div id="landlord-dirigeants-info"></div>
+          </div>
+          
+          <div style="display: flex; flex-direction: column; flex: 1; min-height: 180px;">
+            <strong style="font-size: 0.8rem; color: var(--text-secondary); display: block; margin-bottom: 0.35rem;">
+              🏢 Immeubles détenus par cette entité sur le territoire actif :
+            </strong>
+            <div class="data-table-container" style="flex: 1; min-height: 190px; max-height: 340px;">
+              <table class="tz-data-table" id="table-landlord-buildings">
+                <thead id="table-landlord-buildings-head">
+                  <!-- Populated dynamically via app.js -->
+                </thead>
+                <tbody id="table-landlord-buildings-body"></tbody>
+              </table>
             </div>
           </div>
         </div>
@@ -541,91 +520,264 @@
       <!-- TAB 5: 📚 SOURCES DE DONNÉES -->
       <div class="tab-pane content-pane" id="pane-sources">
         <div class="tz-tag-legend">
-          <strong>🏷️ Étiquettes du mode de récupération :</strong>
-          <span class="tz-tag" title="Script local DuckDB ETL">⚙️ Build ETL</span>
-          <span class="tz-tag" title="Format colonne ultra-compact">🗄️ GeoParquet</span>
-          <span class="tz-tag" title="Tableaux bruts Open Data de l'État">📦 CSV Open Data</span>
-          <span class="tz-tag" title="Couche spatiale SIG par GPS">🗺️ WFS / Jointure</span>
-          <span class="tz-tag" title="Interrogation en direct sans stockage lourd">⚡ API REST</span>
-          <span class="tz-tag" title="Tableur de relevés importé">📋 Tableur terrain</span>
+          <b>🏷️ Étiquettes du mode de récupération</b> <span style="color: var(--text-muted);">(survolez une étiquette avec la souris pour lire l'explication non-technique) :</span>
+          <span class="tz-tag tz-tag-etl" data-tooltip="Étape de préparation (script proto/build_dataset.py) qui télécharge les gros fichiers bruts officiels, les nettoie, les relie entre eux et fabrique nos fichiers locaux prêts à l'emploi en 5 secondes.">⚙️ Fabriquer les archives de données (Build ETL) ℹ️</span>
+          <span class="tz-tag tz-tag-parquet" data-tooltip="Base de données ultra-compacte enregistrée dans un simple fichier sur l'ordinateur (buildings.parquet, 10 Mo). Remplace un serveur lourd (Postgres) et affiche les 32 378 bâtiments instantanément.">🗄️ Fichier de données local (GeoParquet) ℹ️</span>
+          <span class="tz-tag tz-tag-csv" data-tooltip="Grosse archive publique (505 Mo) publiée deux fois par an par l'État (CSTB), contenant 16 grands tableaux bruts avant leur nettoyage et recoupement.">📦 Archive de tables brutes (CSV Open Data) ℹ️</span>
+          <span class="tz-tag tz-tag-wfs" data-tooltip="Carte publique téléchargée sur Data Grand Lyon. Notre outil repère automatiquement dans quelle zone (îlot de chaleur ou zone de loyers) se situe chaque immeuble grâce à ses coordonnées GPS.">🗺️ Carte croisée par GPS (WFS / Jointure spatiale) ℹ️</span>
+          <span class="tz-tag tz-tag-api" data-tooltip="Demande envoyée en temps réel aux serveurs officiels de l'État (data.gouv.fr) au moment où vous cliquez sur un bailleur, sans stocker les millions d'entreprises françaises sur l'ordinateur.">⚡ Interrogation en direct sur Internet (API REST) ℹ️</span>
+          <span class="tz-tag tz-tag-xlsx" data-tooltip="Votre propre fichier Excel de suivi terrain importé dans la barre latérale. Ses colonnes sont rattachées automatiquement aux immeubles grâce à l'identifiant batiment_groupe_id.">📋 Tableur militant fusionné (.xlsx) ℹ️</span>
         </div>
 
-        <!-- France Section -->
-        <details class="tz-geo-section" open>
+        <!-- 1. INDEPENDENT FRANCE-WIDE SECTION -->
+        <details class="tz-geo-section tz-geo-france" open>
           <summary>
-            <span>🇫🇷 Échelle Nationale — France entière <small style="font-weight:400; color: var(--text-muted);">(Sources nationales sans découpage)</small></span>
-            <span class="accordion-chevron">▶</span>
+            <span>🇫🇷 Échelle Nationale — France entière <span style="font-weight:400;font-size:0.82rem;color:var(--text-muted);">(Section indépendante : sources nationales sans découpage départemental)</span></span>
+            <span class="tz-geo-hint">2 sources nationales ▼</span>
           </summary>
-          <div class="tz-src-grid-3">
-            <div class="tz-src-card">
-              <div class="tz-src-card-title">🔍 Annuaire & Dirigeants d'Entreprises / SCI (RNE & INSEE Sirene)</div>
-              <div><span class="tz-tag">⚡ API REST</span></div>
-              <div class="tz-src-meta"><b>Producteur :</b> DINUM / INSEE / INPI (<code>data.gouv.fr</code>)</div>
-              <div class="tz-src-meta"><b>Où on la récupère :</b> <code>GET https://recherche-entreprises.api.gouv.fr/search?q={SIREN}</code></div>
-              <div class="tz-src-meta"><b>Champs extraits :</b> <code>nom_complet</code>, <code>siren</code>, <code>siege.adresse</code>, <code>dirigeants</code></div>
-              <div class="tz-src-meta"><b>Usage :</b> Interrogation en direct dans l'onglet Bailleurs & SCI pour lever l'anonymat des gérants partout en France.</div>
-            </div>
-            <div class="tz-src-card">
-              <div class="tz-src-card-title">🏛️ Base de Données Nationale des Bâtiments (BDNB Open Data)</div>
-              <div><span class="tz-tag">📦 CSV Open Data</span> <span class="tz-tag">⚙️ Build ETL</span> <span class="tz-tag">🗄️ GeoParquet</span></div>
-              <div class="tz-src-meta"><b>Producteurs consolidés :</b> IGN (BD TOPO), ADEME (DPE), DGFiP (MAJIC), BAN, ANAH, RPLS, ANCT.</div>
-              <div class="tz-src-meta"><b>Producteur :</b> CSTB (Centre Scientifique et Technique du Bâtiment)</div>
-              <div class="tz-src-meta"><b>Usage :</b> Socle de tous les polygones, logements, copropriétés et propriétaires personnes morales.</div>
+          <div class="tz-geo-body">
+            <div class="tz-src-grid">
+              <div class="tz-src-card">
+                <div class="tz-src-card-title">
+                  <span>🔍 Annuaire & Dirigeants d'Entreprises / SCI (RNE & INSEE Sirene)</span>
+                </div>
+                <div class="tz-src-tags">
+                  <span class="tz-tag tz-tag-api" data-tooltip="Demande envoyée en temps réel aux serveurs officiels de l'État (data.gouv.fr) au moment où vous cliquez sur un bailleur, sans stocker les millions d'entreprises françaises sur l'ordinateur.">⚡ Interrogation en direct sur Internet (API REST) ℹ️</span>
+                </div>
+                <div class="tz-src-meta"><b>Producteur :</b> DINUM / INSEE / INPI (<code>data.gouv.fr</code> — couverture France entière)</div>
+                <div class="tz-src-meta"><b>Où on la récupère :</b> <code>GET https://recherche-entreprises.api.gouv.fr/search?q={SIREN}</code></div>
+                <div class="tz-src-meta"><b>Champs extraits :</b> <code>nom_complet</code>, <code>siren</code>, <code>siege.adresse</code>, <code>libelle_activite_principale</code>, <code>dirigeants</code> (<code>nom</code>, <code>prenoms</code>, <code>annee_de_naissance</code>, <code>qualite</code>)</div>
+                <div class="tz-src-meta"><b>Pourquoi à l'échelle France :</b> Une SCI ou foncière qui possède un immeuble à Lyon a souvent son siège social à Paris ou ailleurs en France. L'interrogation nationale en direct lève l'anonymat des gérants partout en France.</div>
+              </div>
+              <div class="tz-src-card">
+                <div class="tz-src-card-title">
+                  <span>🏛️ Grands Référentiels Nationaux Amont (IGN, ADEME, DGFiP, ANAH, ANCT)</span>
+                </div>
+                <div class="tz-src-tags">
+                  <span class="tz-tag tz-tag-csv" data-tooltip="Grosse archive publique (505 Mo) publiée deux fois par an par l'État (CSTB), contenant 16 grands tableaux bruts avant leur nettoyage et recoupement.">📦 Archive de tables brutes (CSV Open Data) ℹ️</span>
+                  <span class="tz-tag tz-tag-etl" data-tooltip="Étape de préparation (script proto/build_dataset.py) qui télécharge les gros fichiers bruts officiels, les nettoie, les relie entre eux et fabrique nos fichiers locaux prêts à l'emploi en 5 secondes.">⚙️ Fabriquer les archives de données (Build ETL) ℹ️</span>
+                </div>
+                <div class="tz-src-meta"><b>Producteurs nationaux :</b> IGN (BD TOPO), ADEME (Observatoire DPE), DGFiP (Fichiers Fonciers & MAJIC), BAN (Adresses), ANAH (RNIC Copropriétés), Ministère du Logement (RPLS), ANCT (Quartiers QPV).</div>
+                <div class="tz-src-meta"><b>Où on les récupère :</b> Consolidés à l'échelle nationale par le <b>CSTB</b> dans la <b>Base de Données Nationale des Bâtiments (BDNB)</b>, puis téléchargés sous forme d'archive départementale (voir <b>Département du Rhône 69</b> ci-dessous).</div>
+              </div>
             </div>
           </div>
         </details>
 
-        <!-- Dept 69 Section -->
-        <details class="tz-geo-section" open>
+        <!-- 2. DEPARTMENTAL SECTION: RHONE (69) WITH NESTED LYON SUBSECTION -->
+        <details class="tz-geo-section tz-geo-rhone" open>
           <summary>
-            <span>🦁 Département du Rhône (69) & Métropole de Lyon</span>
-            <span class="accordion-chevron">▶</span>
+            <span>🗺️ Département du Rhône (69) <span style="font-weight:400;font-size:0.82rem;color:var(--text-muted);">(Sources départementales + sous-section imbriquée Ville de Lyon)</span></span>
+            <span class="tz-geo-hint">6 tables départementales + 1 sous-section locale ▼</span>
           </summary>
-          <div class="tz-src-grid-3">
-            <div class="tz-src-card" style="border-left: 3px solid #d97706;">
-              <div class="tz-src-card-title">☀️ Îlots de Chaleur Urbains (ICU / LCZ)</div>
-              <div><span class="tz-tag">🗺️ WFS / Jointure</span> <span class="tz-tag">🗄️ GeoParquet</span></div>
-              <div class="tz-src-meta"><b>Producteur :</b> Métropole de Lyon (<b>Data Grand Lyon</b>)</div>
-              <div class="tz-src-meta"><b>Source :</b> WFS <code>metropole-de-lyon:ilots-de-chaleur-urbains</code> (29 657 polygones)</div>
-              <div class="tz-src-meta"><b>Usage :</b> Croisement spatial GPS sur centroïde ; bonus exposition nocturne dans Score Surchauffe.</div>
+          <div class="tz-geo-body">
+            <div style="margin-bottom:0.5rem;font-size:0.8rem;color:#6ee7b7;">
+              <b>📦 A. Sources à l'échelle de tout le Département du Rhône (69)</b> — Archive <code>open_data_millesime_2025-07-a_dep69_csv.zip</code> (CSTB BDNB, 505 Mo) compilée dans <code>buildings.parquet</code> (10,3 Mo) et <code>building_owners.parquet</code> (1,1 Mo) :
             </div>
-            <div class="tz-src-card" style="border-left: 3px solid #d97706;">
-              <div class="tz-src-card-title">💶 Encadrement des Loyers (2025-2026)</div>
-              <div><span class="tz-tag">🗺️ WFS / Jointure</span> <span class="tz-tag">🗄️ GeoParquet</span></div>
-              <div class="tz-src-meta"><b>Producteur :</b> Préfecture du Rhône / Data Grand Lyon</div>
-              <div class="tz-src-meta"><b>Source :</b> WFS <code>car_care.carencadrmtloyer_2025_2026</code> (233 IRIS)</div>
-              <div class="tz-src-meta"><b>Usage :</b> Calcul automatique du loyer plafond légal (€/m²) pour Lyon (1er–9e) et Villeurbanne.</div>
+            <div class="tz-src-grid-3">
+              <div class="tz-src-card">
+                <div class="tz-src-card-title">🏢 1. Bâtiments & Emprises GPS (69)</div>
+                <div class="tz-src-tags">
+                  <span class="tz-tag tz-tag-csv" data-tooltip="Grosse archive publique (505 Mo) publiée deux fois par an par l'État (CSTB), contenant 16 grands tableaux bruts avant leur nettoyage et recoupement.">📦 Archive de tables brutes (CSV Open Data) ℹ️</span>
+                  <span class="tz-tag tz-tag-etl" data-tooltip="Étape de préparation (script proto/build_dataset.py) qui télécharge les gros fichiers bruts officiels, les nettoie, les relie entre eux et fabrique nos fichiers locaux prêts à l'emploi en 5 secondes.">⚙️ Fabriquer les archives de données (Build ETL) ℹ️</span>
+                  <span class="tz-tag tz-tag-parquet" data-tooltip="Base de données ultra-compacte enregistrée dans un simple fichier sur l'ordinateur (buildings.parquet, 10 Mo). Remplace un serveur lourd (Postgres) et affiche les 32 378 bâtiments instantanément.">🗄️ Fichier de données local (GeoParquet) ℹ️</span>
+                </div>
+                <div class="tz-src-meta"><b>Tables :</b> <code>batiment_groupe.csv</code> + <code>_bdtopo_bat.csv</code> (IGN)</div>
+                <div class="tz-src-meta"><b>Champs :</b> <code>batiment_groupe_id</code>, <code>geom_groupe</code>, <code>s_geom_groupe</code>, <code>hauteur_mean</code></div>
+                <div class="tz-src-meta"><b>Usage :</b> Polygones sur la carte et identifiant pivot unique.</div>
+              </div>
+              <div class="tz-src-card">
+                <div class="tz-src-card-title">🏛️ 2. Propriétaires & Patrimoine 69 (MAJIC)</div>
+                <div class="tz-src-tags">
+                  <span class="tz-tag tz-tag-csv" data-tooltip="Grosse archive publique (505 Mo) publiée deux fois par an par l'État (CSTB), contenant 16 grands tableaux bruts avant leur nettoyage et recoupement.">📦 Archive de tables brutes (CSV Open Data) ℹ️</span>
+                  <span class="tz-tag tz-tag-etl" data-tooltip="Étape de préparation (script proto/build_dataset.py) qui télécharge les gros fichiers bruts officiels, les nettoie, les relie entre eux et fabrique nos fichiers locaux prêts à l'emploi en 5 secondes.">⚙️ Fabriquer les archives de données (Build ETL) ℹ️</span>
+                  <span class="tz-tag tz-tag-parquet" data-tooltip="Base de données ultra-compacte enregistrée dans un simple fichier sur l'ordinateur (buildings.parquet, 10 Mo). Remplace un serveur lourd (Postgres) et affiche les 32 378 bâtiments instantanément.">🗄️ Fichier de données local (GeoParquet) ℹ️</span>
+                </div>
+                <div class="tz-src-meta"><b>Tables :</b> <code>rel_batiment_groupe_proprietaire.csv</code> + <code>proprietaire.csv</code></div>
+                <div class="tz-src-meta"><b>Champs :</b> <code>siren</code>, <code>denomination</code>, <code>forme_juridique</code>, <code>nb_locaux_open_dans_MAJIC</code></div>
+                <div class="tz-src-meta"><b>Intérêt 69 :</b> Mesure le patrimoine total du bailleur sur <b>tout le Rhône</b> (même hors Lyon).</div>
+              </div>
+              <div class="tz-src-card">
+                <div class="tz-src-card-title">🌡️ 3. DPE Hiver & Enveloppe Été (ADEME 69)</div>
+                <div class="tz-src-tags">
+                  <span class="tz-tag tz-tag-csv" data-tooltip="Grosse archive publique (505 Mo) publiée deux fois par an par l'État (CSTB), contenant 16 grands tableaux bruts avant leur nettoyage et recoupement.">📦 Archive de tables brutes (CSV Open Data) ℹ️</span>
+                  <span class="tz-tag tz-tag-etl" data-tooltip="Étape de préparation (script proto/build_dataset.py) qui télécharge les gros fichiers bruts officiels, les nettoie, les relie entre eux et fabrique nos fichiers locaux prêts à l'emploi en 5 secondes.">⚙️ Fabriquer les archives de données (Build ETL) ℹ️</span>
+                  <span class="tz-tag tz-tag-parquet" data-tooltip="Base de données ultra-compacte enregistrée dans un simple fichier sur l'ordinateur (buildings.parquet, 10 Mo). Remplace un serveur lourd (Postgres) et affiche les 32 378 bâtiments instantanément.">🗄️ Fichier de données local (GeoParquet) ℹ️</span>
+                </div>
+                <div class="tz-src-meta"><b>Tables :</b> <code>_dpe_representatif_logement.csv</code> + <code>_statistique_logement.csv</code></div>
+                <div class="tz-src-meta"><b>Champs :</b> <code>classe_bilan_dpe</code> (A–G), <code>type_isolation_plancher_haut</code>, <code>type_fermeture</code> (volets), <code>classe_inertie</code></div>
+                <div class="tz-src-meta"><b>Usage :</b> Passoires F/G + Score de Surchauffe d'Été (/100).</div>
+              </div>
+              <div class="tz-src-card">
+                <div class="tz-src-card-title">🚪 4. Logements & Époque (FFO 69)</div>
+                <div class="tz-src-tags">
+                  <span class="tz-tag tz-tag-csv" data-tooltip="Grosse archive publique (505 Mo) publiée deux fois par an par l'État (CSTB), contenant 16 grands tableaux bruts avant leur nettoyage et recoupement.">📦 Archive de tables brutes (CSV Open Data) ℹ️</span>
+                  <span class="tz-tag tz-tag-etl" data-tooltip="Étape de préparation (script proto/build_dataset.py) qui télécharge les gros fichiers bruts officiels, les nettoie, les relie entre eux et fabrique nos fichiers locaux prêts à l'emploi en 5 secondes.">⚙️ Fabriquer les archives de données (Build ETL) ℹ️</span>
+                  <span class="tz-tag tz-tag-parquet" data-tooltip="Base de données ultra-compacte enregistrée dans un simple fichier sur l'ordinateur (buildings.parquet, 10 Mo). Remplace un serveur lourd (Postgres) et affiche les 32 378 bâtiments instantanément.">🗄️ Fichier de données local (GeoParquet) ℹ️</span>
+                </div>
+                <div class="tz-src-meta"><b>Table :</b> <code>batiment_groupe_ffo_bat.csv</code> (DGFiP Fichiers Fonciers)</div>
+                <div class="tz-src-meta"><b>Champs :</b> <code>nb_log</code>, <code>nb_niveau</code>, <code>annee_construction</code>, <code>mat_mur_txt</code>, <code>mat_toit_txt</code></div>
+                <div class="tz-src-meta"><b>Usage :</b> Taille d'immeuble et époque pour le calcul du loyer plafond.</div>
+              </div>
+              <div class="tz-src-card">
+                <div class="tz-src-card-title">📍 5. Adresses Postales (BAN 69)</div>
+                <div class="tz-src-tags">
+                  <span class="tz-tag tz-tag-csv" data-tooltip="Grosse archive publique (505 Mo) publiée deux fois par an par l'État (CSTB), contenant 16 grands tableaux bruts avant leur nettoyage et recoupement.">📦 Archive de tables brutes (CSV Open Data) ℹ️</span>
+                  <span class="tz-tag tz-tag-etl" data-tooltip="Étape de préparation (script proto/build_dataset.py) qui télécharge les gros fichiers bruts officiels, les nettoie, les relie entre eux et fabrique nos fichiers locaux prêts à l'emploi en 5 secondes.">⚙️ Fabriquer les archives de données (Build ETL) ℹ️</span>
+                  <span class="tz-tag tz-tag-parquet" data-tooltip="Base de données ultra-compacte enregistrée dans un simple fichier sur l'ordinateur (buildings.parquet, 10 Mo). Remplace un serveur lourd (Postgres) et affiche les 32 378 bâtiments instantanément.">🗄️ Fichier de données local (GeoParquet) ℹ️</span>
+                </div>
+                <div class="tz-src-meta"><b>Tables :</b> <code>rel_batiment_groupe_adresse.csv</code> + <code>adresse.csv</code></div>
+                <div class="tz-src-meta"><b>Champs :</b> <code>adr</code> (numéro + voie), <code>cp</code> (code postal), <code>nb_adresses</code></div>
+                <div class="tz-src-meta"><b>Usage :</b> Recherche par rue et filtre par code postal.</div>
+              </div>
+              <div class="tz-src-card">
+                <div class="tz-src-card-title">⚖️ 6. Copros, Parc Social, QPV & PLU (69)</div>
+                <div class="tz-src-tags">
+                  <span class="tz-tag tz-tag-csv" data-tooltip="Grosse archive publique (505 Mo) publiée deux fois par an par l'État (CSTB), contenant 16 grands tableaux bruts avant leur nettoyage et recoupement.">📦 Archive de tables brutes (CSV Open Data) ℹ️</span>
+                  <span class="tz-tag tz-tag-etl" data-tooltip="Étape de préparation (script proto/build_dataset.py) qui télécharge les gros fichiers bruts officiels, les nettoie, les relie entre eux et fabrique nos fichiers locaux prêts à l'emploi en 5 secondes.">⚙️ Fabriquer les archives de données (Build ETL) ℹ️</span>
+                  <span class="tz-tag tz-tag-parquet" data-tooltip="Base de données ultra-compacte enregistrée dans un simple fichier sur l'ordinateur (buildings.parquet, 10 Mo). Remplace un serveur lourd (Postgres) et affiche les 32 378 bâtiments instantanément.">🗄️ Fichier de données local (GeoParquet) ℹ️</span>
+                </div>
+                <div class="tz-src-meta"><b>Tables :</b> <code>_rnc.csv</code> (ANAH), <code>_rpls.csv</code>, <code>_qpv.csv</code> (ANCT), <code>_urbanisme.csv</code></div>
+                <div class="tz-src-meta"><b>Champs :</b> <code>nom_copro</code>, <code>est_logement_social_rpls</code>, <code>quartier_qpv</code>, <code>monument_historique</code></div>
+                <div class="tz-src-meta"><b>Usage :</b> Filtres QPV, parc social vs privé et contraintes ABF/PLU.</div>
+              </div>
             </div>
-            <div class="tz-src-card" style="border-left: 3px solid #d97706;">
-              <div class="tz-src-card-title">🏢 Bailleurs Personnes Morales & MAJIC (69)</div>
-              <div><span class="tz-tag">📦 CSV Open Data</span> <span class="tz-tag">🗄️ GeoParquet</span></div>
-              <div class="tz-src-meta"><b>Tables BDNB :</b> <code>rel_batiment_groupe_proprietaire</code> + <code>proprietaire</code></div>
-              <div class="tz-src-meta"><b>Usage :</b> Mesure du patrimoine total des bailleurs sur l'ensemble du Rhône.</div>
-            </div>
+
+            <!-- Nested Lyon Subsection (open by default so nested hierarchy is immediately visible) -->
+            <details class="tz-geo-section tz-geo-lyon" open>
+              <summary>
+                <span>↳ 🦁 B. Sous-section imbriquée : Lyon (& Villeurbanne — 69001 à 69009, 69100) <span style="font-weight:400;font-size:0.81rem;color:var(--text-muted);">— Cliquer pour déplier les sources spécifiques à Lyon</span></span>
+                <span class="tz-geo-hint">3 sources locales spécifiques ▼</span>
+              </summary>
+              <div class="tz-geo-body">
+                <div class="tz-src-grid-3">
+                  <div class="tz-src-card" style="border-left: 3px solid #d97706;">
+                    <div class="tz-src-card-title">☀️ 1. Îlots de Chaleur Urbains (ICU / LCZ)</div>
+                    <div class="tz-src-tags">
+                      <span class="tz-tag tz-tag-wfs" data-tooltip="Carte publique téléchargée sur Data Grand Lyon. Notre outil repère automatiquement dans quelle zone (îlot de chaleur ou zone de loyers) se situe chaque immeuble grâce à ses coordonnées GPS.">🗺️ Carte croisée par GPS (WFS / Jointure spatiale) ℹ️</span>
+                      <span class="tz-tag tz-tag-etl" data-tooltip="Étape de préparation (script proto/build_dataset.py) qui télécharge les gros fichiers bruts officiels, les nettoie, les relie entre eux et fabrique nos fichiers locaux prêts à l'emploi en 5 secondes.">⚙️ Fabriquer les archives de données (Build ETL) ℹ️</span>
+                      <span class="tz-tag tz-tag-parquet" data-tooltip="Base de données ultra-compacte enregistrée dans un simple fichier sur l'ordinateur (buildings.parquet, 10 Mo). Remplace un serveur lourd (Postgres) et affiche les 32 378 bâtiments instantanément.">🗄️ Fichier de données local (GeoParquet) ℹ️</span>
+                    </div>
+                    <div class="tz-src-meta"><b>Producteur :</b> Métropole de Lyon (<b>Data Grand Lyon</b>)</div>
+                    <div class="tz-src-meta"><b>Source :</b> WFS <code>metropole-de-lyon:ilots-de-chaleur-urbains</code> &rarr; <code>ilots_chaleur_urbains.geojson</code> (29 657 zones)</div>
+                    <div class="tz-src-meta"><b>Champs :</b> <code>icu_lcz_lib</code>, <code>icu_expo_jour</code>, <code>icu_expo_nuit</code>, <code>icu_vulnerabilite_nuit</code></div>
+                    <div class="tz-src-meta"><b>Usage à Lyon :</b> Croisement GPS par rue ; ajoute jusqu'à +15 pts au Score Surchauffe la nuit.</div>
+                  </div>
+                  <div class="tz-src-card" style="border-left: 3px solid #d97706;">
+                    <div class="tz-src-card-title">💶 2. Encadrement des Loyers (2025-2026)</div>
+                    <div class="tz-src-tags">
+                      <span class="tz-tag tz-tag-wfs" data-tooltip="Carte publique téléchargée sur Data Grand Lyon. Notre outil repère automatiquement dans quelle zone (îlot de chaleur ou zone de loyers) se situe chaque immeuble grâce à ses coordonnées GPS.">🗺️ Carte croisée par GPS (WFS / Jointure spatiale) ℹ️</span>
+                      <span class="tz-tag tz-tag-etl" data-tooltip="Étape de préparation (script proto/build_dataset.py) qui télécharge les gros fichiers bruts officiels, les nettoie, les relie entre eux et fabrique nos fichiers locaux prêts à l'emploi en 5 secondes.">⚙️ Fabriquer les archives de données (Build ETL) ℹ️</span>
+                      <span class="tz-tag tz-tag-parquet" data-tooltip="Base de données ultra-compacte enregistrée dans un simple fichier sur l'ordinateur (buildings.parquet, 10 Mo). Remplace un serveur lourd (Postgres) et affiche les 32 378 bâtiments instantanément.">🗄️ Fichier de données local (GeoParquet) ℹ️</span>
+                    </div>
+                    <div class="tz-src-meta"><b>Producteur :</b> Préfecture / Métropole (<b>Data Grand Lyon</b>)</div>
+                    <div class="tz-src-meta"><b>Source :</b> WFS <code>car_care.carencadrmtloyer_2025_2026</code> &rarr; <code>encadrement_loyers.geojson</code> (233 IRIS)</div>
+                    <div class="tz-src-meta"><b>Champs :</b> <code>zone_encadrement_loyers</code> (1–4), <code>loyer_max_t2_non_meuble_m2</code>, <code>loyer_max_t2_meuble_m2</code></div>
+                    <div class="tz-src-meta"><b>Spécifique Lyon :</b> Seules Lyon (1er–9e) & Villeurbanne ont l'encadrement légal des loyers dans le 69.</div>
+                  </div>
+                  <div class="tz-src-card" style="border-left: 3px solid #d97706;">
+                    <div class="tz-src-card-title">📋 3. Périmètre & Relevés Militants (.xlsx)</div>
+                    <div class="tz-src-tags">
+                      <span class="tz-tag tz-tag-xlsx" data-tooltip="Votre propre fichier Excel de suivi terrain importé dans la barre latérale. Ses colonnes sont rattachées automatiquement aux immeubles grâce à l'identifiant batiment_groupe_id.">📋 Tableur militant fusionné (.xlsx) ℹ️</span>
+                      <span class="tz-tag tz-tag-parquet" data-tooltip="Base de données ultra-compacte enregistrée dans un simple fichier sur l'ordinateur (buildings.parquet, 10 Mo). Remplace un serveur lourd (Postgres) et affiche les 32 378 bâtiments instantanément.">🗄️ Fichier de données local (GeoParquet) ℹ️</span>
+                    </div>
+                    <div class="tz-src-meta"><b>Producteur :</b> Association / Collectif <b>TeZeLoMa</b></div>
+                    <div class="tz-src-meta"><b>Fichiers :</b> Filtrage INSEE <code>69381..69389</code> & <code>69266</code> (32 378 bât.) + <code>fieldwork_saved.parquet</code></div>
+                    <div class="tz-src-meta"><b>Champs :</b> Toutes les colonnes personnalisées de votre tableur <code>.xlsx</code> (clé <code>batiment_groupe_id</code>)</div>
+                    <div class="tz-src-meta"><b>Usage :</b> Fusion terrain en direct, filtres dédiés et export combiné.</div>
+                  </div>
+                </div>
+              </div>
+            </details>
           </div>
         </details>
 
-        <!-- Dept 38 Section -->
-        <details class="tz-geo-section" open>
+        <!-- 3. DEPARTMENTAL SECTION: ISERE (38) WITH NESTED GRENOBLE SUBSECTION -->
+        <details class="tz-geo-section tz-geo-rhone" open>
           <summary>
-            <span>⛰️ Département de l'Isère (38) & Grenoble Alpes Métropole</span>
-            <span class="accordion-chevron">▶</span>
+            <span>⛰️ Département de l'Isère (38) <span style="font-weight:400;font-size:0.82rem;color:var(--text-muted);">(Sources départementales 38 + sous-section imbriquée Ville de Grenoble)</span></span>
+            <span class="tz-geo-hint">6 tables départementales + 1 sous-section locale ▼</span>
           </summary>
-          <div class="tz-src-grid-3">
-            <div class="tz-src-card" style="border-left: 3px solid #059669;">
-              <div class="tz-src-card-title">☀️ Local Climate Zones Cerema (Grenoble)</div>
-              <div><span class="tz-tag">🗺️ SIG / Shapefile</span> <span class="tz-tag">🗄️ GeoParquet</span></div>
-              <div class="tz-src-meta"><b>Producteur :</b> Cerema (<code>data.cerema.fr</code>)</div>
-              <div class="tz-src-meta"><b>Fichier :</b> <code>LCZ_SPOT_2022_Grenoble.shp</code> (Cartographie LCZ Spot 2022)</div>
-              <div class="tz-src-meta"><b>Usage :</b> Typologie urbaine et surchauffe estivale sur Grenoble et les communes périphériques.</div>
+          <div class="tz-geo-body">
+            <div style="margin-bottom:0.5rem;font-size:0.8rem;color:#6ee7b7;">
+              <b>📦 A. Sources à l'échelle du Département de l'Isère (38)</b> — Archive <code>open_data_millesime_2025-07-a_dep38_csv.zip</code> (CSTB BDNB, 611 Mo, SHA-256 vérifié) compilée dans <code>buildings.parquet</code> (31 610 bâtiments) et <code>building_owners.parquet</code> (23 183 liens propriétaires personnes morales) :
             </div>
-            <div class="tz-src-card" style="border-left: 3px solid #059669;">
-              <div class="tz-src-card-title">💶 Encadrement des Loyers Grenoble (OLL 3800)</div>
-              <div><span class="tz-tag">🗺️ SIG KML / CSV</span> <span class="tz-tag">🗄️ GeoParquet</span></div>
-              <div class="tz-src-meta"><b>Producteur :</b> Observatoire Local des Loyers / DDT Isère</div>
-              <div class="tz-src-meta"><b>Source :</b> <code>L3800_zone_cal_2024_1.kml</code> + <code>Base_OP_2024_L3800.csv</code></div>
-              <div class="tz-src-meta"><b>Usage :</b> Zonage des loyers de référence sur Grenoble Métropole.</div>
+            <div class="tz-src-grid-3">
+              <div class="tz-src-card">
+                <div class="tz-src-card-title">🏢 1. Bâtiments & Emprises GPS (38)</div>
+                <div class="tz-src-tags">
+                  <span class="tz-tag tz-tag-csv" data-tooltip="Grosse archive publique (505 Mo) publiée deux fois par an par l'État (CSTB), contenant 16 grands tableaux bruts avant leur nettoyage et recoupement.">📦 Archive de tables brutes (CSV Open Data) ℹ️</span>
+                  <span class="tz-tag tz-tag-etl" data-tooltip="Étape de préparation (script proto/build_dataset.py) qui télécharge les gros fichiers bruts officiels, les nettoie, les relie entre eux et fabrique nos fichiers locaux prêts à l'emploi en 5 secondes.">⚙️ Fabriquer les archives de données (Build ETL) ℹ️</span>
+                  <span class="tz-tag tz-tag-parquet" data-tooltip="Base de données ultra-compacte enregistrée dans un simple fichier sur l'ordinateur (buildings.parquet, 10 Mo). Remplace un serveur lourd (Postgres) et affiche les 32 378 bâtiments instantanément.">🗄️ Fichier de données local (GeoParquet) ℹ️</span>
+                </div>
+                <div class="tz-src-meta"><b>Tables BDNB 38 :</b> <code>batiment_groupe.csv</code> + <code>_bdtopo_bat.csv</code> (IGN)</div>
+                <div class="tz-src-meta"><b>Champs :</b> <code>batiment_groupe_id</code>, <code>geom_groupe</code>, <code>hauteur_mean</code></div>
+              </div>
+              <div class="tz-src-card">
+                <div class="tz-src-card-title">🏛️ 2. Propriétaires & Patrimoine 38 (MAJIC)</div>
+                <div class="tz-src-tags">
+                  <span class="tz-tag tz-tag-csv" data-tooltip="Grosse archive publique (505 Mo) publiée deux fois par an par l'État (CSTB), contenant 16 grands tableaux bruts avant leur nettoyage et recoupement.">📦 Archive de tables brutes (CSV Open Data) ℹ️</span>
+                  <span class="tz-tag tz-tag-etl" data-tooltip="Étape de préparation (script proto/build_dataset.py) qui télécharge les gros fichiers bruts officiels, les nettoie, les relie entre eux et fabrique nos fichiers locaux prêts à l'emploi en 5 secondes.">⚙️ Fabriquer les archives de données (Build ETL) ℹ️</span>
+                  <span class="tz-tag tz-tag-parquet" data-tooltip="Base de données ultra-compacte enregistrée dans un simple fichier sur l'ordinateur (buildings.parquet, 10 Mo). Remplace un serveur lourd (Postgres) et affiche les 32 378 bâtiments instantanément.">🗄️ Fichier de données local (GeoParquet) ℹ️</span>
+                </div>
+                <div class="tz-src-meta"><b>Tables BDNB 38 :</b> <code>rel_batiment_groupe_proprietaire.csv</code> + <code>proprietaire.csv</code></div>
+                <div class="tz-src-meta"><b>Intérêt 38 :</b> Compte le patrimoine total du bailleur sur <b>toute l'Isère (38)</b> (<code>nb_locaux_open_dans_MAJIC</code>).</div>
+              </div>
+              <div class="tz-src-card">
+                <div class="tz-src-card-title">🌡️ 3. DPE Hiver & Enveloppe Été (ADEME 38)</div>
+                <div class="tz-src-tags">
+                  <span class="tz-tag tz-tag-csv" data-tooltip="Grosse archive publique (505 Mo) publiée deux fois par an par l'État (CSTB), contenant 16 grands tableaux bruts avant leur nettoyage et recoupement.">📦 Archive de tables brutes (CSV Open Data) ℹ️</span>
+                  <span class="tz-tag tz-tag-etl" data-tooltip="Étape de préparation (script proto/build_dataset.py) qui télécharge les gros fichiers bruts officiels, les nettoie, les relie entre eux et fabrique nos fichiers locaux prêts à l'emploi en 5 secondes.">⚙️ Fabriquer les archives de données (Build ETL) ℹ️</span>
+                  <span class="tz-tag tz-tag-parquet" data-tooltip="Base de données ultra-compacte enregistrée dans un simple fichier sur l'ordinateur (buildings.parquet, 10 Mo). Remplace un serveur lourd (Postgres) et affiche les 32 378 bâtiments instantanément.">🗄️ Fichier de données local (GeoParquet) ℹ️</span>
+                </div>
+                <div class="tz-src-meta"><b>Tables BDNB 38 :</b> <code>_dpe_representatif_logement.csv</code> + <code>_statistique_logement.csv</code></div>
+                <div class="tz-src-meta"><b>Champs :</b> DPE A–G, isolation toiture/murs, volets (<code>type_fermeture</code>), inertie, traversant.</div>
+              </div>
             </div>
+
+            <!-- Nested Grenoble Subsection (open by default) -->
+            <details class="tz-geo-section tz-geo-lyon" open>
+              <summary>
+                <span>↳ 🏔️ B. Sous-section imbriquée : Grenoble (& Métropole — 38000, 38100, 38400, 38130...) <span style="font-weight:400;font-size:0.81rem;color:var(--text-muted);">— Sources spécifiques à Grenoble</span></span>
+                <span class="tz-geo-hint">3 sources locales spécifiques ▼</span>
+              </summary>
+              <div class="tz-geo-body">
+                <div class="tz-src-grid-3">
+                  <div class="tz-src-card" style="border-left: 3px solid #d97706;">
+                    <div class="tz-src-card-title">☀️ 1. Zones Climatiques Locales & ICU (Cerema Grenoble)</div>
+                    <div class="tz-src-tags">
+                      <span class="tz-tag tz-tag-wfs" data-tooltip="Carte publique téléchargée sur Data Grand Lyon. Notre outil repère automatiquement dans quelle zone (îlot de chaleur ou zone de loyers) se situe chaque immeuble grâce à ses coordonnées GPS.">🗺️ Carte croisée par GPS (WFS / Jointure spatiale) ℹ️</span>
+                      <span class="tz-tag tz-tag-etl" data-tooltip="Étape de préparation (script proto/build_dataset.py) qui télécharge les gros fichiers bruts officiels, les nettoie, les relie entre eux et fabrique nos fichiers locaux prêts à l'emploi en 5 secondes.">⚙️ Fabriquer les archives de données (Build ETL) ℹ️</span>
+                      <span class="tz-tag tz-tag-parquet" data-tooltip="Base de données ultra-compacte enregistrée dans un simple fichier sur l'ordinateur (buildings.parquet, 10 Mo). Remplace un serveur lourd (Postgres) et affiche les 32 378 bâtiments instantanément.">🗄️ Fichier de données local (GeoParquet) ℹ️</span>
+                    </div>
+                    <div class="tz-src-meta"><b>Producteur :</b> <b>Cerema</b> (<code>data.gouv.fr</code> — <code>lcz-spot-2022-grenoble.zip</code>)</div>
+                    <div class="tz-src-meta"><b>Fichier :</b> <code>data/grenoble/LCZ_SPOT_2022_Grenoble.shp</code> (93 Mo)</div>
+                    <div class="tz-src-meta"><b>Champs :</b> <code>lcz</code> (types urbains 1–10 et végétalisés A–G), <code>ver</code> (% végétation), <code>bur</code> (% bâti) &rarr; convertis en <code>icu_expo_nuit</code> / <code>icu_expo_jour</code>.</div>
+                    <div class="tz-src-meta"><b>Usage à Grenoble :</b> Cible les quartiers en cuvette à forte minéralisation nocturne.</div>
+                  </div>
+                  <div class="tz-src-card" style="border-left: 3px solid #d97706;">
+                    <div class="tz-src-card-title">💶 2. Zonage & Loyers de Référence Grenoble (L3800)</div>
+                    <div class="tz-src-tags">
+                      <span class="tz-tag tz-tag-wfs" data-tooltip="Carte publique téléchargée sur Data Grand Lyon. Notre outil repère automatiquement dans quelle zone (îlot de chaleur ou zone de loyers) se situe chaque immeuble grâce à ses coordonnées GPS.">🗺️ Carte croisée par GPS (WFS / Jointure spatiale) ℹ️</span>
+                      <span class="tz-tag tz-tag-etl" data-tooltip="Étape de préparation (script proto/build_dataset.py) qui télécharge les gros fichiers bruts officiels, les nettoie, les relie entre eux et fabrique nos fichiers locaux prêts à l'emploi en 5 secondes.">⚙️ Fabriquer les archives de données (Build ETL) ℹ️</span>
+                      <span class="tz-tag tz-tag-parquet" data-tooltip="Base de données ultra-compacte enregistrée dans un simple fichier sur l'ordinateur (buildings.parquet, 10 Mo). Remplace un serveur lourd (Postgres) et affiche les 32 378 bâtiments instantanément.">🗄️ Fichier de données local (GeoParquet) ℹ️</span>
+                    </div>
+                    <div class="tz-src-meta"><b>Producteur :</b> Observatoire des Loyers / Préfecture 38 (<code>Base_OP_2024_L3800.zip</code>)</div>
+                    <div class="tz-src-meta"><b>Fichiers :</b> <code>L3800_zone_cal_2024_1.kml</code> (Zones 1 à 6) + <code>Base_OP_2024_L3800.csv</code></div>
+                    <div class="tz-src-meta"><b>Champs :</b> <code>zone_encadrement_loyers</code> (Zones 1–3 Grenoble, Zones 4–6 Métropole), <code>loyer_ref_t2_non_meuble_m2</code>, <code>loyer_max_t2_non_meuble_m2</code> (+20%).</div>
+                  </div>
+                  <div class="tz-src-card" style="border-left: 3px solid #d97706;">
+                    <div class="tz-src-card-title">📋 3. Périmètre Grenoble & Métropole (31 610 bât.)</div>
+                    <div class="tz-src-tags">
+                      <span class="tz-tag tz-tag-xlsx" data-tooltip="Votre propre fichier Excel de suivi terrain importé dans la barre latérale. Ses colonnes sont rattachées automatiquement aux immeubles grâce à l'identifiant batiment_groupe_id.">📋 Tableur militant fusionné (.xlsx) ℹ️</span>
+                      <span class="tz-tag tz-tag-parquet" data-tooltip="Base de données ultra-compacte enregistrée dans un simple fichier sur l'ordinateur (buildings.parquet, 10 Mo). Remplace un serveur lourd (Postgres) et affiche les 32 378 bâtiments instantanément.">🗄️ Fichier de données local (GeoParquet) ℹ️</span>
+                    </div>
+                    <div class="tz-src-meta"><b>Communes :</b> Grenoble (<code>38000</code>, <code>38100</code> — 7 349 bât. / 102 399 log.) + 12 communes de la Métropole (Saint-Martin-d'Hères, Échirolles, Fontaine, Meylan, Saint-Égrève...).</div>
+                    <div class="tz-src-meta"><b>Usage :</b> Sélectionnez <code>38 — Isère (Grenoble & Métropole)</code> dans le filtre n°1 à gauche !</div>
+                  </div>
+                </div>
+              </div>
+            </details>
           </div>
         </details>
       </div>

@@ -24,7 +24,7 @@ const state = {
   mapStyleMode: 'dpe',  // 'dpe' | 'overheating' | 'concentration' | 'fieldwork'
   legalMode: 'inclusif',// 'inclusif' | 'exclusif'
   selectedDpes: new Set(['F', 'G']),
-  selectedOverheating: new Set(['Élevé', 'Modéré', 'Faible']),
+  selectedOverheating: new Set(['Critique', 'Élevé', 'Modéré', 'Faible', 'Non renseigné']),
   selectedLegal: new Set(['SCI', 'Bailleur social', 'Société commerciale', 'Personne physique']),
   minPctFg: 0,
   minConcentration: 0,
@@ -60,9 +60,11 @@ const DPE_COLORS = {
 
 // Overheating Color Palette
 const OVERHEATING_COLORS = {
+  'Critique': '#dc2626',
   'Élevé': '#ef4444',
   'Modéré': '#f59e0b',
   'Faible': '#38bdf8',
+  'Non renseigné': '#64748b',
   'Inconnu': '#64748b',
 };
 
@@ -479,7 +481,8 @@ function applyFilters() {
     if (pctFg < minPctFg) continue;
 
     // 3. Overheating risk filter
-    const risk = b.risque_surchauffe_ete || 'Faible';
+    const rawRisk = b.risque_surchauffe_ete;
+    const risk = (!rawRisk || rawRisk === 'NC' || rawRisk === 'Inconnu') ? 'Non renseigné' : rawRisk;
     if (!selectedOverheating.has(risk)) continue;
 
     // 3b. Overheating score min
@@ -488,13 +491,13 @@ function applyFilters() {
     // 3c. Uninsulated roof
     if (onlyUninsulatedRoof) {
       const roof = String(b.type_isolation_plancher_haut || '').toLowerCase();
-      if (roof && roof !== 'non isole' && roof !== 'nc') continue;
+      if (!roof.includes('non isol')) continue;
     }
 
     // 3d. No shutters
     if (onlyNoShutters) {
       const shutters = String(b.type_fermeture || '').toLowerCase();
-      if (shutters.includes('volet') || shutters.includes('persienne') || shutters.includes('jalousie')) continue;
+      if (!shutters.includes('sans fermeture') && !shutters.includes('absence')) continue;
     }
 
     // 4. Landlord Concentration filter
@@ -530,14 +533,19 @@ function applyFilters() {
     // 6. Legal Forms filter
     if (selectedLegal.size < 4) {
       const bLegals = String(b.formes_juridiques || '');
-      let hasMatch = false;
-      for (const leg of selectedLegal) {
-        if (bLegals.includes(leg)) {
-          hasMatch = true;
-          break;
+      if (legalMode === 'exclusif') {
+        const parts = bLegals.split(',').map(s => s.trim()).filter(Boolean);
+        if (parts.length === 0 || !parts.every(p => selectedLegal.has(p))) continue;
+      } else {
+        let hasMatch = false;
+        for (const leg of selectedLegal) {
+          if (bLegals.includes(leg)) {
+            hasMatch = true;
+            break;
+          }
         }
+        if (!hasMatch) continue;
       }
-      if (!hasMatch) continue;
     }
 
     // 7. Urbanisme & Social
@@ -591,7 +599,7 @@ function updateKPIs(filtered) {
     totalDwellings += Number(b.nb_log || 0);
     const dpe = b.dpe;
     if (dpe === 'F' || dpe === 'G') fgCount++;
-    if (b.risque_surchauffe_ete === 'Élevé') highOverheatCount++;
+    if (b.risque_surchauffe_ete === 'Critique' || b.risque_surchauffe_ete === 'Élevé') highOverheatCount++;
   }
 
   document.getElementById('kpi-buildings').textContent = totalBuildings.toLocaleString();
@@ -663,9 +671,11 @@ function updateLegend() {
   } else if (state.mapStyleMode === 'overheating') {
     title.textContent = 'Risque de Surchauffe Estivale';
     items.innerHTML = `
+      <div class="legend-item"><span class="legend-color" style="background: #991b1b;"></span><span>Critique 🔥🔥</span></div>
       <div class="legend-item"><span class="legend-color" style="background: #ef4444;"></span><span>Élevé 🔥</span></div>
       <div class="legend-item"><span class="legend-color" style="background: #f59e0b;"></span><span>Modéré</span></div>
       <div class="legend-item"><span class="legend-color" style="background: #38bdf8;"></span><span>Faible</span></div>
+      <div class="legend-item"><span class="legend-color" style="background: #64748b;"></span><span>Non renseigné</span></div>
     `;
   } else if (state.mapStyleMode === 'concentration') {
     title.textContent = 'Concentration Foncière (Principal Propriétaire)';
@@ -1014,18 +1024,335 @@ function switchTab(tabId) {
 /* ==========================================================================
    Tab 2: Buildings Data Table Logic
    ========================================================================== */
-let buildingsTableRenderLimit = 150;
+let buildingsTableRenderLimit = 200;
+let buildingsSortCol = null;
+let buildingsSortDir = null; // 'asc' | 'desc' | null
+let currentBuildingsDisplayRows = [];
+let currentBuildingsMatchingSet = new Set();
+let currentBuildingsColumns = [];
+
+const BASE_BUILDINGS_TABLE_COLUMNS = [
+  {
+    key: 'batiment_groupe_id',
+    label: 'ID BDNB',
+    type: 'text',
+    render: (b) => `<code>${escapeHtml(b.batiment_groupe_id || '')}</code>`,
+  },
+  {
+    key: 'adr',
+    label: 'Adresse',
+    type: 'text',
+    render: (b) => `<strong>${escapeHtml(b.adr || 'Adresse inconnue')}</strong>`,
+  },
+  {
+    key: 'cp',
+    label: 'CP',
+    type: 'text',
+    render: (b) => escapeHtml(b.cp != null ? String(b.cp) : ''),
+  },
+  {
+    key: 'nb_log',
+    label: 'Logements',
+    type: 'number',
+    render: (b) => escapeHtml(b.nb_log != null ? String(b.nb_log) : '1'),
+  },
+  {
+    key: 'dpe',
+    label: 'DPE',
+    type: 'text',
+    render: (b) => {
+      const dpe = b.dpe || 'NC';
+      const dpeColor = DPE_COLORS[dpe] || DPE_COLORS['Inconnu'];
+      return `<span class="badge-dpe" style="background: ${dpeColor};">${escapeHtml(dpe)}</span>`;
+    },
+  },
+  {
+    key: 'nb_dpe_fg',
+    label: 'Nb DPE F/G',
+    type: 'number',
+    render: (b) => (b.nb_dpe_fg != null ? String(b.nb_dpe_fg) : '—'),
+  },
+  {
+    key: 'pct_dpe_fg',
+    label: '% F/G',
+    type: 'number',
+    render: (b) => (b.pct_dpe_fg != null ? Math.round(Number(b.pct_dpe_fg)) + '%' : '0%'),
+  },
+  {
+    key: 'risque_surchauffe_ete',
+    label: 'Risque Été',
+    type: 'risk',
+    render: (b) => {
+      const risk = b.risque_surchauffe_ete || 'Non renseigné';
+      if (risk === 'Critique') {
+        return `<span class="badge-risk" style="background: rgba(153, 27, 27, 0.45); color: #fca5a5; border: 1px solid #ef4444;">🔥 Critique</span>`;
+      }
+      const riskColor = OVERHEATING_COLORS[risk] || '#64748b';
+      return `<span class="badge-risk" style="background: ${riskColor}22; color: ${riskColor}; border: 1px solid ${riskColor}55;">${escapeHtml(risk)}</span>`;
+    },
+  },
+  {
+    key: 'score_surchauffe_ete',
+    label: 'Score (/100)',
+    type: 'number',
+    render: (b) => `<strong>${b.score_surchauffe_ete != null ? b.score_surchauffe_ete : 0}</strong>`,
+  },
+  {
+    key: 'facteurs_surchauffe',
+    label: 'Facteurs',
+    type: 'text',
+    render: (b) => `<span style="max-width: 200px; display: inline-block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${escapeHtml(b.facteurs_surchauffe || '')}">${escapeHtml(b.facteurs_surchauffe || '—')}</span>`,
+  },
+  {
+    key: 'icu_expo_nuit',
+    label: 'ICU Nuit',
+    type: 'text',
+    render: (b) => escapeHtml(b.icu_expo_nuit != null ? String(b.icu_expo_nuit) : '—'),
+  },
+  {
+    key: 'type_isolation_plancher_haut',
+    label: 'Isolation Toit',
+    type: 'text',
+    render: (b) => escapeHtml(b.type_isolation_plancher_haut || '—'),
+  },
+  {
+    key: 'type_isolation_mur_exterieur',
+    label: 'Isolation Mur',
+    type: 'text',
+    render: (b) => escapeHtml(b.type_isolation_mur_exterieur || '—'),
+  },
+  {
+    key: 'type_fermeture',
+    label: 'Volets',
+    type: 'text',
+    render: (b) => escapeHtml(b.type_fermeture || '—'),
+  },
+  {
+    key: 'classe_inertie',
+    label: 'Inertie',
+    type: 'text',
+    render: (b) => escapeHtml(b.classe_inertie || '—'),
+  },
+  {
+    key: 'concentration_prop_max_denomination',
+    label: 'Principal Bailleur',
+    type: 'text',
+    render: (b) => `<strong>${escapeHtml(b.concentration_prop_max_denomination || '—')}</strong>`,
+  },
+  {
+    key: 'siren_principal',
+    label: 'SIREN',
+    type: 'text',
+    render: (b) => `<code>${escapeHtml(b.siren_principal || '—')}</code>`,
+  },
+  {
+    key: 'concentration_prop_max_pct',
+    label: 'Conc. %',
+    type: 'number',
+    sortValue: (b) => (b.concentration_prop_max_num != null ? Number(b.concentration_prop_max_num) : (b.concentration_prop_max_pct != null ? Number(b.concentration_prop_max_pct) : null)),
+    render: (b) => {
+      const val = b.concentration_prop_max_num != null ? b.concentration_prop_max_num : b.concentration_prop_max_pct;
+      const conc = val != null ? Math.round(Number(val)) : 0;
+      return conc > 0 ? conc + '%' : '—';
+    },
+  },
+  {
+    key: 'max_patrimoine_majic_bailleur',
+    label: 'Patrimoine Local',
+    type: 'number',
+    render: (b) => (b.max_patrimoine_majic_bailleur ? Number(b.max_patrimoine_majic_bailleur).toLocaleString('fr-FR') + ' loc.' : '—'),
+  },
+  {
+    key: 'loyer_max_t2_non_meuble_m2',
+    label: 'Loyer Max T2 NM',
+    type: 'number',
+    render: (b) => (b.loyer_max_t2_non_meuble_m2 ? Number(b.loyer_max_t2_non_meuble_m2).toFixed(1) + ' €' : (b.zone_encadrement_loyers ? 'Zoné' : 'Non')),
+  },
+  {
+    key: 'loyer_max_t2_meuble_m2',
+    label: 'Loyer Max T2 M',
+    type: 'number',
+    render: (b) => (b.loyer_max_t2_meuble_m2 ? Number(b.loyer_max_t2_meuble_m2).toFixed(1) + ' €' : (b.zone_encadrement_loyers ? 'Zoné' : 'Non')),
+  },
+  {
+    key: 'est_logement_social_rpls',
+    label: 'Parc Social',
+    type: 'text',
+    render: (b) => (b.est_logement_social_rpls ? '🏛️ Oui' : 'Non'),
+  },
+  {
+    key: 'nom_copro',
+    label: 'Copropriété',
+    type: 'text',
+    render: (b) => {
+      let val = b.nom_copro || '—';
+      if (typeof val === 'string' && val.startsWith('[') && val.endsWith(']')) {
+        try {
+          const parsed = JSON.parse(val);
+          if (Array.isArray(parsed)) val = parsed.join(', ');
+        } catch (_) {}
+      }
+      return escapeHtml(val);
+    },
+  },
+  {
+    key: 'quartier_qpv',
+    label: 'Quartier QPV',
+    type: 'text',
+    render: (b) => escapeHtml(b.quartier_qpv || '—'),
+  },
+];
+
+function getFieldworkColumns() {
+  if (!state.fieldwork || state.fieldwork.size === 0) return [];
+  const keys = new Set();
+  for (const row of state.fieldwork.values()) {
+    for (const k of Object.keys(row)) {
+      const lower = k.toLowerCase();
+      if (lower !== 'batiment_groupe_id' && lower !== 'id') {
+        keys.add(k);
+      }
+    }
+  }
+  return Array.from(keys).map(k => ({
+    key: `custom_${k}`,
+    customKey: k,
+    label: k,
+    type: 'custom',
+    sortValue: (b) => {
+      const r = state.fieldwork.get(b.batiment_groupe_id);
+      return r ? r[k] : null;
+    },
+    render: (b) => {
+      const r = state.fieldwork.get(b.batiment_groupe_id);
+      return escapeHtml(r && r[k] != null ? String(r[k]) : '—');
+    }
+  }));
+}
+
+function getAllBuildingsColumns() {
+  const fwCols = getFieldworkColumns();
+  const actionCol = {
+    key: '_action',
+    label: 'Action',
+    isAction: true,
+    render: (b) => `
+      <button class="btn btn-secondary btn-sm btn-table-view" data-bid="${escapeHtml(b.batiment_groupe_id)}" style="font-size: 0.7rem; padding: 0.2rem 0.5rem; white-space: nowrap;">
+        🗺️ Voir
+      </button>
+    `,
+  };
+  return [...BASE_BUILDINGS_TABLE_COLUMNS, ...fwCols, actionCol];
+}
+
+function getBuildingSortValue(b, col) {
+  if (col.sortValue) return col.sortValue(b);
+  if (col.customKey) {
+    const r = state.fieldwork ? state.fieldwork.get(b.batiment_groupe_id) : null;
+    return r ? r[col.customKey] : null;
+  }
+  return b[col.key];
+}
+
+function isBlankValue(val) {
+  return val === null || val === undefined || val === '' || val === 'NC' || val === '—';
+}
+
+function compareBuildingRows(a, b, col, dir) {
+  const vA = getBuildingSortValue(a, col);
+  const vB = getBuildingSortValue(b, col);
+  const blankA = isBlankValue(vA);
+  const blankB = isBlankValue(vB);
+
+  if (blankA && blankB) return 0;
+  if (blankA) return 1; // blanks always placed at the bottom
+  if (blankB) return -1;
+
+  let cmp = 0;
+  if (col.type === 'risk') {
+    const ranks = { 'Critique': 4, 'Élevé': 3, 'Modéré': 2, 'Faible': 1, 'Non renseigné': 0 };
+    const rA = ranks[vA] !== undefined ? ranks[vA] : 0;
+    const rB = ranks[vB] !== undefined ? ranks[vB] : 0;
+    cmp = rA - rB;
+  } else if (col.type === 'number') {
+    const nA = Number(vA);
+    const nB = Number(vB);
+    cmp = (isNaN(nA) ? 0 : nA) - (isNaN(nB) ? 0 : nB);
+  } else {
+    cmp = String(vA).localeCompare(String(vB), 'fr', { numeric: true, sensitivity: 'base' });
+  }
+
+  return dir === 'desc' ? -cmp : cmp;
+}
+
+function defaultBuildingSort(a, b) {
+  const sDiff = Number(b.score_surchauffe_ete || 0) - Number(a.score_surchauffe_ete || 0);
+  if (sDiff !== 0) return sDiff;
+  const fgA = a.nb_dpe_fg != null ? Number(a.nb_dpe_fg) : Number(a.nb_log || 0);
+  const fgB = b.nb_dpe_fg != null ? Number(b.nb_dpe_fg) : Number(b.nb_log || 0);
+  return fgB - fgA;
+}
+
+function renderBuildingsTableHeaders() {
+  const thead = document.getElementById('table-buildings-head') || document.querySelector('#table-buildings thead');
+  if (!thead) return;
+
+  currentBuildingsColumns = getAllBuildingsColumns();
+  const tr = document.createElement('tr');
+
+  for (const col of currentBuildingsColumns) {
+    const th = document.createElement('th');
+    if (col.isAction) {
+      th.textContent = col.label;
+    } else {
+      th.className = 'sortable';
+      if (buildingsSortCol === col.key) {
+        th.classList.add('sorted-active');
+        const icon = buildingsSortDir === 'asc' ? ' ▲' : (buildingsSortDir === 'desc' ? ' ▼' : '');
+        th.innerHTML = `${escapeHtml(col.label)}<span class="sort-indicator">${icon}</span>`;
+      } else {
+        th.textContent = col.label;
+      }
+
+      th.addEventListener('click', () => {
+        if (buildingsSortCol === col.key) {
+          if (buildingsSortDir === 'asc') {
+            buildingsSortDir = 'desc';
+          } else if (buildingsSortDir === 'desc') {
+            buildingsSortCol = null;
+            buildingsSortDir = null;
+          } else {
+            buildingsSortDir = 'asc';
+          }
+        } else {
+          buildingsSortCol = col.key;
+          buildingsSortDir = 'asc';
+        }
+        buildingsTableRenderLimit = 200;
+        const container = document.querySelector('#pane-buildings .data-table-container');
+        if (container) container.scrollTop = 0;
+        renderBuildingsTable();
+      });
+    }
+    tr.appendChild(th);
+  }
+
+  thead.innerHTML = '';
+  thead.appendChild(tr);
+}
 
 function initBuildingsTableControls() {
   const queryInput = document.getElementById('table-search-query');
   const modeSelect = document.getElementById('table-search-mode');
+  const container = document.querySelector('#pane-buildings .data-table-container');
 
   if (queryInput) {
     let timeout = null;
     queryInput.addEventListener('input', () => {
       clearTimeout(timeout);
       timeout = setTimeout(() => {
-        buildingsTableRenderLimit = 150;
+        buildingsTableRenderLimit = 200;
+        if (container) container.scrollTop = 0;
         renderBuildingsTable();
       }, 250);
     });
@@ -1033,7 +1360,21 @@ function initBuildingsTableControls() {
 
   if (modeSelect) {
     modeSelect.addEventListener('change', () => {
+      buildingsTableRenderLimit = 200;
+      if (container) container.scrollTop = 0;
       renderBuildingsTable();
+    });
+  }
+
+  if (container) {
+    container.addEventListener('scroll', () => {
+      if (container.scrollTop + container.clientHeight >= container.scrollHeight - 300) {
+        if (buildingsTableRenderLimit < currentBuildingsDisplayRows.length) {
+          const nextLimit = Math.min(buildingsTableRenderLimit + 200, currentBuildingsDisplayRows.length);
+          renderBuildingsBatch(buildingsTableRenderLimit, nextLimit);
+          buildingsTableRenderLimit = nextLimit;
+        }
+      }
     });
   }
 }
@@ -1042,43 +1383,64 @@ function renderBuildingsTable() {
   const tbody = document.getElementById('table-buildings-body');
   if (!tbody) return;
 
+  renderBuildingsTableHeaders();
+
   const query = (document.getElementById('table-search-query')?.value || '').trim().toLowerCase();
   const searchMode = document.getElementById('table-search-mode')?.value || 'filter';
 
-  // Base list sorted by overheating score DESC, then dwellings DESC
-  const list = [...state.filteredBuildings].sort((a, b) => {
-    const sDiff = Number(b.score_surchauffe_ete || 0) - Number(a.score_surchauffe_ete || 0);
-    if (sDiff !== 0) return sDiff;
-    return Number(b.nb_log || 0) - Number(a.nb_log || 0);
-  });
+  // Base list
+  let list = [...state.filteredBuildings];
+
+  // Apply sorting
+  if (buildingsSortCol && buildingsSortDir) {
+    const activeCol = currentBuildingsColumns.find(c => c.key === buildingsSortCol);
+    if (activeCol) {
+      list.sort((a, b) => compareBuildingRows(a, b, activeCol, buildingsSortDir));
+    } else {
+      list.sort(defaultBuildingSort);
+    }
+  } else {
+    list.sort(defaultBuildingSort);
+  }
 
   const tokens = query ? query.split(/\s+/).filter(Boolean) : [];
-  const matchingSet = new Set();
+  currentBuildingsMatchingSet.clear();
 
   if (tokens.length > 0) {
+    const searchableCols = currentBuildingsColumns.filter(c => !c.isAction);
     for (const b of list) {
-      const searchStr = `${b.adr || ''} ${b.batiment_groupe_id || ''} ${b.cp || ''} ${b.dpe || ''} ${b.concentration_prop_max_denomination || ''} ${b.siren_principal || ''} ${b.facteurs_surchauffe || ''} ${b.nom_copro || ''}`.toLowerCase();
-      const match = tokens.every(tok => searchStr.includes(tok));
-      if (match) matchingSet.add(b.batiment_groupe_id);
+      const searchBlob = searchableCols
+        .map(col => {
+          const val = getBuildingSortValue(b, col);
+          return val != null ? String(val) : '';
+        })
+        .join(' ')
+        .toLowerCase();
+      const match = tokens.every(tok => searchBlob.includes(tok));
+      if (match) currentBuildingsMatchingSet.add(b.batiment_groupe_id);
     }
   }
 
   let displayRows = [];
   if (tokens.length > 0) {
     if (searchMode === 'filter') {
-      displayRows = list.filter(b => matchingSet.has(b.batiment_groupe_id));
+      displayRows = list.filter(b => currentBuildingsMatchingSet.has(b.batiment_groupe_id));
     } else {
       // Highlight mode: matching rows first
-      const matches = list.filter(b => matchingSet.has(b.batiment_groupe_id));
-      const others = list.filter(b => !matchingSet.has(b.batiment_groupe_id));
+      const matches = list.filter(b => currentBuildingsMatchingSet.has(b.batiment_groupe_id));
+      const others = list.filter(b => !currentBuildingsMatchingSet.has(b.batiment_groupe_id));
       displayRows = [...matches, ...others];
     }
   } else {
     displayRows = list;
   }
 
-  // Synthesis metrics
-  const statsSource = tokens.length > 0 && searchMode === 'filter' ? displayRows : list;
+  currentBuildingsDisplayRows = displayRows;
+
+  // Synthesis metrics (reflect search matches in both filter and highlight modes, like Streamlit)
+  const statsSource = tokens.length > 0
+    ? (searchMode === 'filter' ? displayRows : list.filter(b => currentBuildingsMatchingSet.has(b.batiment_groupe_id)))
+    : list;
   const tBats = statsSource.length;
   let tLogs = 0;
   let tFg = 0;
@@ -1087,7 +1449,7 @@ function renderBuildingsTable() {
 
   for (const b of statsSource) {
     tLogs += Number(b.nb_log || 0);
-    if (b.dpe === 'F' || b.dpe === 'G') tFg += Number(b.nb_log || 1);
+    tFg += Number(b.nb_dpe_fg != null ? b.nb_dpe_fg : (b.dpe === 'F' || b.dpe === 'G' ? (b.nb_log || 1) : 0));
     if (b.risque_surchauffe_ete === 'Élevé' || b.risque_surchauffe_ete === 'Critique') tOverheat++;
     if (b.concentration_prop_max_denomination && b.concentration_prop_max_denomination !== 'NC') tPm++;
   }
@@ -1099,95 +1461,61 @@ function renderBuildingsTable() {
   const elPm = document.getElementById('tbl-kpi-pm');
   const elNote = document.getElementById('table-filter-note');
 
-  if (elBats) elBats.textContent = tBats.toLocaleString();
-  if (elLogs) elLogs.textContent = tLogs.toLocaleString();
-  if (elFg) elFg.textContent = tFg.toLocaleString();
-  if (elOverheat) elOverheat.textContent = tOverheat.toLocaleString();
-  if (elPm) elPm.textContent = tPm.toLocaleString();
+  if (elBats) elBats.textContent = tBats.toLocaleString('fr-FR');
+  if (elLogs) elLogs.textContent = tLogs.toLocaleString('fr-FR');
+  if (elFg) elFg.textContent = tFg.toLocaleString('fr-FR');
+  if (elOverheat) elOverheat.textContent = tOverheat.toLocaleString('fr-FR');
+  if (elPm) elPm.textContent = tPm.toLocaleString('fr-FR');
 
   if (elNote) {
     if (tokens.length > 0) {
-      elNote.innerHTML = ` — <b>${matchingSet.size.toLocaleString()} / ${list.length.toLocaleString()}</b> bât. pour « <b>${escapeHtml(query)}</b> »`;
+      elNote.innerHTML = ` — <b>${currentBuildingsMatchingSet.size.toLocaleString('fr-FR')} / ${list.length.toLocaleString('fr-FR')}</b> bât. pour « <b>${escapeHtml(query)}</b> »`;
     } else {
-      elNote.textContent = ` (sur ${state.buildings.length.toLocaleString()} bât. dans le territoire sélectionné)`;
+      elNote.textContent = ` (sur ${state.buildings.length.toLocaleString('fr-FR')} bât. dans le territoire sélectionné)`;
     }
   }
 
-  // Render Table Rows
+  // Clear tbody and render initial batch
   tbody.innerHTML = '';
-  const slice = displayRows.slice(0, buildingsTableRenderLimit);
+  renderBuildingsBatch(0, buildingsTableRenderLimit);
+}
+
+function renderBuildingsBatch(startIndex, endIndex) {
+  const tbody = document.getElementById('table-buildings-body');
+  if (!tbody) return;
+
+  const slice = currentBuildingsDisplayRows.slice(startIndex, endIndex);
+  if (slice.length === 0) return;
+
+  const searchMode = document.getElementById('table-search-mode')?.value || 'filter';
+  const hasTokens = currentBuildingsMatchingSet.size > 0;
   const fragment = document.createDocumentFragment();
 
   for (const b of slice) {
-    const isHighlighted = tokens.length > 0 && matchingSet.has(b.batiment_groupe_id);
+    const isHighlighted = hasTokens && currentBuildingsMatchingSet.has(b.batiment_groupe_id);
     const tr = document.createElement('tr');
     if (isHighlighted && searchMode === 'highlight') {
       tr.className = 'highlight-row';
     }
 
-    const dpe = b.dpe || 'NC';
-    const dpeColor = DPE_COLORS[dpe] || DPE_COLORS['Inconnu'];
-    const risk = b.risque_surchauffe_ete || 'Faible';
-    const riskColor = OVERHEATING_COLORS[risk] || '#38bdf8';
-    const conc = b.concentration_prop_max_num != null ? Math.round(Number(b.concentration_prop_max_num)) : 0;
-
-    tr.innerHTML = `
-      <td><code style="font-size: 0.72rem;">${(b.batiment_groupe_id || '').slice(0, 16)}…</code></td>
-      <td><strong>${escapeHtml(b.adr || 'Adresse inconnue')}</strong></td>
-      <td>${b.cp || ''}</td>
-      <td>${b.nb_log || 1}</td>
-      <td><span class="badge-dpe" style="background: ${dpeColor};">${dpe}</span></td>
-      <td>${b.pct_dpe_fg ? Math.round(Number(b.pct_dpe_fg)) + '%' : '0%'}</td>
-      <td><span class="badge-risk" style="background: ${riskColor}22; color: ${riskColor}; border: 1px solid ${riskColor}55;">${risk}</span></td>
-      <td><strong>${b.score_surchauffe_ete || 0}</strong></td>
-      <td style="max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${escapeHtml(b.facteurs_surchauffe || '')}">${escapeHtml(b.facteurs_surchauffe || '—')}</td>
-      <td>${escapeHtml(b.type_isolation_plancher_haut || '—')}</td>
-      <td>${escapeHtml(b.type_fermeture || '—')}</td>
-      <td><strong>${escapeHtml(b.concentration_prop_max_denomination || '—')}</strong></td>
-      <td><code>${escapeHtml(b.siren_principal || '—')}</code></td>
-      <td>${conc > 0 ? conc + '%' : '—'}</td>
-      <td>${b.max_patrimoine_majic_bailleur ? Number(b.max_patrimoine_majic_bailleur).toLocaleString() + ' loc.' : '—'}</td>
-      <td>${b.loyer_max_t2_non_meuble_m2 ? Number(b.loyer_max_t2_non_meuble_m2).toFixed(1) + ' €' : (b.zone_encadrement_loyers ? 'Zoné' : 'Non')}</td>
-      <td>${b.est_logement_social_rpls ? '🏛️ Oui' : 'Non'}</td>
-      <td>
-        <button class="btn btn-secondary btn-sm btn-table-view" data-bid="${b.batiment_groupe_id}" style="font-size: 0.7rem; padding: 0.2rem 0.5rem; white-space: nowrap;">
-          🗺️ Voir
-        </button>
-      </td>
-    `;
+    let rowHtml = '';
+    for (const col of currentBuildingsColumns) {
+      rowHtml += `<td>${col.render(b)}</td>`;
+    }
+    tr.innerHTML = rowHtml;
     fragment.appendChild(tr);
-  }
-
-  // Load more button if truncated
-  if (displayRows.length > buildingsTableRenderLimit) {
-    const trMore = document.createElement('tr');
-    trMore.innerHTML = `
-      <td colspan="18" style="text-align: center; padding: 0.75rem; background: var(--bg-card);">
-        <button class="btn btn-secondary btn-sm" id="btn-load-more-buildings">
-          Afficher 150 bâtiments de plus (${(displayRows.length - buildingsTableRenderLimit).toLocaleString()} restants)
-        </button>
-      </td>
-    `;
-    fragment.appendChild(trMore);
   }
 
   tbody.appendChild(fragment);
 
-  // Wire view buttons
-  tbody.querySelectorAll('.btn-table-view').forEach(btn => {
+  // Wire newly added view buttons
+  tbody.querySelectorAll('.btn-table-view:not([data-wired])').forEach(btn => {
+    btn.setAttribute('data-wired', 'true');
     btn.addEventListener('click', () => {
       const bId = btn.getAttribute('data-bid');
       viewBuildingOnMap(bId);
     });
   });
-
-  const btnMore = document.getElementById('btn-load-more-buildings');
-  if (btnMore) {
-    btnMore.addEventListener('click', () => {
-      buildingsTableRenderLimit += 150;
-      renderBuildingsTable();
-    });
-  }
 }
 
 function viewBuildingOnMap(bId) {
@@ -1232,10 +1560,271 @@ function getGeometryCenter(geom) {
    Tab 3: Corporate Landlords & Live RNE Directory Logic
    ========================================================================== */
 let currentLandlordsGrouped = [];
+let landlordsSortCol = null;
+let landlordsSortDir = null; // 'asc' | 'desc' | null
+
+let currentLandlordOwnedBuildings = [];
+let landlordBldgsSortCol = null;
+let landlordBldgsSortDir = null; // 'asc' | 'desc' | null
+
+const landlordApiCache = new Map();
+let currentLandlordQuerySeq = 0;
+let lastInspectedLandlordTarget = null;
+
+const TOP_LANDLORDS_COLUMNS = [
+  {
+    key: 'siren',
+    label: 'SIREN',
+    type: 'text',
+    sortValue: (g) => g.siren,
+    render: (g) => `<code>${escapeHtml(g.siren || 'NC')}</code>`,
+  },
+  {
+    key: 'denomination',
+    label: 'Dénomination',
+    type: 'text',
+    sortValue: (g) => g.denomination,
+    render: (g) => `<strong style="max-width: 280px; display: inline-block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: bottom;" title="${escapeHtml(g.denomination)}">${escapeHtml(g.denomination)}</strong>`,
+  },
+  {
+    key: 'forme_juridique',
+    label: 'Forme Juridique',
+    type: 'text',
+    sortValue: (g) => g.forme_juridique,
+    render: (g) => `<span style="color: var(--text-secondary); font-size: 0.75rem;">${escapeHtml(g.forme_juridique)}</span>`,
+  },
+  {
+    key: 'buildings_count',
+    label: 'Bâtiments (sélection)',
+    type: 'number',
+    sortValue: (g) => g.buildings.size,
+    render: (g) => `<strong>${g.buildings.size.toLocaleString('fr-FR')}</strong>`,
+  },
+  {
+    key: 'locauxCount',
+    label: 'Locaux (sélection)',
+    type: 'number',
+    sortValue: (g) => g.locauxCount,
+    render: (g) => `<strong>${g.locauxCount.toLocaleString('fr-FR')}</strong>`,
+  },
+  {
+    key: 'patrimoine_majic',
+    label: 'Patrimoine Total (locaux)',
+    type: 'number',
+    sortValue: (g) => g.patrimoine_majic,
+    render: (g) => (g.patrimoine_majic > 0 ? g.patrimoine_majic.toLocaleString('fr-FR') + ' loc.' : '—'),
+  },
+  {
+    key: 'commune_siege',
+    label: 'Commune du Siège',
+    type: 'text',
+    sortValue: (g) => g.commune_siege,
+    render: (g) => `<span style="max-width: 170px; display: inline-block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: bottom;" title="${escapeHtml(g.commune_siege || '')}">${escapeHtml(g.commune_siege || '—')}</span>`,
+  },
+  {
+    key: '_action',
+    label: 'Action',
+    isAction: true,
+    render: (g) => `
+      <button class="btn btn-secondary btn-sm btn-inspect-row" data-siren="${escapeHtml(g.siren)}" data-denom="${escapeHtml(g.denomination)}" style="font-size: 0.7rem; padding: 0.2rem 0.5rem; white-space: nowrap;">
+        🔎 Inspecter
+      </button>
+    `,
+  },
+];
+
+const LANDLORD_BUILDINGS_COLUMNS = [
+  {
+    key: 'batiment_groupe_id',
+    label: 'ID BDNB',
+    type: 'text',
+    render: (b) => `<code>${escapeHtml(b.batiment_groupe_id || '')}</code>`,
+  },
+  {
+    key: 'adr',
+    label: 'Adresse',
+    type: 'text',
+    render: (b) => `<strong>${escapeHtml(b.adr || 'Adresse inconnue')}</strong>`,
+  },
+  {
+    key: 'cp',
+    label: 'CP',
+    type: 'text',
+    render: (b) => escapeHtml(b.cp != null ? String(b.cp) : ''),
+  },
+  {
+    key: 'nb_log',
+    label: 'Logements',
+    type: 'number',
+    render: (b) => escapeHtml(b.nb_log != null ? String(b.nb_log) : '1'),
+  },
+  {
+    key: 'dpe',
+    label: 'DPE',
+    type: 'text',
+    render: (b) => {
+      const dpe = b.dpe || 'NC';
+      const dpeColor = DPE_COLORS[dpe] || DPE_COLORS['Inconnu'];
+      return `<span class="badge-dpe" style="background: ${dpeColor};">${escapeHtml(dpe)}</span>`;
+    },
+  },
+  {
+    key: 'pct_dpe_fg',
+    label: '% F/G',
+    type: 'number',
+    render: (b) => (b.pct_dpe_fg != null ? Math.round(Number(b.pct_dpe_fg)) + '%' : '0%'),
+  },
+  {
+    key: 'risque_surchauffe_ete',
+    label: 'Risque Été',
+    type: 'risk',
+    render: (b) => {
+      const risk = b.risque_surchauffe_ete || 'Non renseigné';
+      if (risk === 'Critique') {
+        return `<span class="badge-risk" style="background: rgba(153, 27, 27, 0.45); color: #fca5a5; border: 1px solid #ef4444;">🔥 Critique</span>`;
+      }
+      const riskColor = OVERHEATING_COLORS[risk] || '#64748b';
+      return `<span class="badge-risk" style="background: ${riskColor}22; color: ${riskColor}; border: 1px solid ${riskColor}55;">${escapeHtml(risk)}</span>`;
+    },
+  },
+  {
+    key: 'score_surchauffe_ete',
+    label: 'Score (/100)',
+    type: 'number',
+    render: (b) => `<strong>${b.score_surchauffe_ete != null ? b.score_surchauffe_ete : 0}</strong>`,
+  },
+  {
+    key: 'facteurs_surchauffe',
+    label: 'Facteurs',
+    type: 'text',
+    render: (b) => `<span style="max-width: 200px; display: inline-block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${escapeHtml(b.facteurs_surchauffe || '')}">${escapeHtml(b.facteurs_surchauffe || '—')}</span>`,
+  },
+  {
+    key: 'loyer_max_t2_non_meuble_m2',
+    label: 'Loyer Max T2 NM',
+    type: 'number',
+    render: (b) => (b.loyer_max_t2_non_meuble_m2 ? Number(b.loyer_max_t2_non_meuble_m2).toFixed(1) + ' €' : (b.zone_encadrement_loyers ? 'Zoné' : 'Non')),
+  },
+  {
+    key: '_action',
+    label: 'Action',
+    isAction: true,
+    render: (b) => `
+      <button class="btn btn-secondary btn-sm btn-view-landlord-bldg" data-bid="${escapeHtml(b.batiment_groupe_id)}" style="font-size: 0.7rem; padding: 0.2rem 0.5rem; white-space: nowrap;">
+        🗺️ Voir
+      </button>
+    `,
+  },
+];
+
+function renderTopLandlordsHeaders() {
+  const thead = document.querySelector('#table-top-landlords thead');
+  if (!thead) return;
+
+  const tr = document.createElement('tr');
+  for (const col of TOP_LANDLORDS_COLUMNS) {
+    const th = document.createElement('th');
+    if (col.isAction) {
+      th.textContent = col.label;
+    } else {
+      th.className = 'sortable';
+      if (landlordsSortCol === col.key) {
+        th.classList.add('sorted-active');
+        const icon = landlordsSortDir === 'asc' ? ' ▲' : (landlordsSortDir === 'desc' ? ' ▼' : '');
+        th.innerHTML = `${escapeHtml(col.label)}<span class="sort-indicator">${icon}</span>`;
+      } else {
+        th.textContent = col.label;
+      }
+      th.addEventListener('click', () => {
+        if (landlordsSortCol === col.key) {
+          if (landlordsSortDir === 'asc') landlordsSortDir = 'desc';
+          else if (landlordsSortDir === 'desc') {
+            landlordsSortCol = null;
+            landlordsSortDir = null;
+          } else landlordsSortDir = 'asc';
+        } else {
+          landlordsSortCol = col.key;
+          landlordsSortDir = 'asc';
+        }
+        renderTopLandlordsTableRows();
+      });
+    }
+    tr.appendChild(th);
+  }
+  thead.innerHTML = '';
+  thead.appendChild(tr);
+}
+
+function renderTopLandlordsTableRows() {
+  const tbody = document.getElementById('table-landlords-body');
+  if (!tbody) return;
+
+  renderTopLandlordsHeaders();
+
+  let list = [...currentLandlordsGrouped];
+  if (landlordsSortCol && landlordsSortDir) {
+    const activeCol = TOP_LANDLORDS_COLUMNS.find(c => c.key === landlordsSortCol);
+    if (activeCol) {
+      list.sort((a, b) => {
+        const vA = activeCol.sortValue(a);
+        const vB = activeCol.sortValue(b);
+        const blankA = isBlankValue(vA);
+        const blankB = isBlankValue(vB);
+        if (blankA && blankB) return 0;
+        if (blankA) return 1;
+        if (blankB) return -1;
+        let cmp = 0;
+        if (activeCol.type === 'number') {
+          cmp = Number(vA || 0) - Number(vB || 0);
+        } else {
+          cmp = String(vA).localeCompare(String(vB), 'fr', { numeric: true, sensitivity: 'base' });
+        }
+        return landlordsSortDir === 'desc' ? -cmp : cmp;
+      });
+    }
+  } else {
+    // Default sort: locauxCount desc, then buildings.size desc
+    list.sort((a, b) => {
+      if (b.locauxCount !== a.locauxCount) return b.locauxCount - a.locauxCount;
+      return b.buildings.size - a.buildings.size;
+    });
+  }
+
+  tbody.innerHTML = '';
+  if (list.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="${TOP_LANDLORDS_COLUMNS.length}" style="text-align: center; color: var(--text-muted); padding: 1.5rem;">Aucun propriétaire personne morale dans la sélection active.</td></tr>`;
+    return;
+  }
+
+  const fragment = document.createDocumentFragment();
+  for (const g of list.slice(0, 100)) {
+    const tr = document.createElement('tr');
+    let rowHtml = '';
+    for (const col of TOP_LANDLORDS_COLUMNS) {
+      rowHtml += `<td>${col.render(g)}</td>`;
+    }
+    tr.innerHTML = rowHtml;
+    fragment.appendChild(tr);
+  }
+  tbody.appendChild(fragment);
+
+  // Wire Row Buttons
+  tbody.querySelectorAll('.btn-inspect-row').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const target = btn.getAttribute('data-siren') || btn.getAttribute('data-denom');
+      const select = document.getElementById('select-landlord-to-inspect');
+      const inputManual = document.getElementById('input-manual-siren');
+      if (inputManual) inputManual.value = '';
+      if (select) select.value = target;
+      inspectLandlordTarget(target);
+    });
+  });
+}
 
 function renderLandlordsTab() {
   const tbody = document.getElementById('table-landlords-body');
   const select = document.getElementById('select-landlord-to-inspect');
+  const inputManual = document.getElementById('input-manual-siren');
   if (!tbody) return;
 
   const bIdSet = new Set(state.filteredBuildings.map(b => b.batiment_groupe_id));
@@ -1270,33 +1859,11 @@ function renderLandlordsTab() {
     return b.buildings.size - a.buildings.size;
   });
 
-  tbody.innerHTML = '';
-  if (currentLandlordsGrouped.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; color: var(--text-muted); padding: 1.5rem;">Aucun propriétaire personne morale dans la sélection active.</td></tr>`;
-  } else {
-    for (const g of currentLandlordsGrouped.slice(0, 100)) {
-      const tr = document.createElement('tr');
-      tr.innerHTML = `
-        <td><strong>${escapeHtml(g.denomination)}</strong></td>
-        <td><span style="color: var(--text-secondary); font-size: 0.75rem;">${escapeHtml(g.forme_juridique)}</span></td>
-        <td><code>${escapeHtml(g.siren || 'NC')}</code></td>
-        <td><strong>${g.buildings.size.toLocaleString()}</strong></td>
-        <td><strong>${g.locauxCount.toLocaleString()}</strong></td>
-        <td>${g.patrimoine_majic > 0 ? g.patrimoine_majic.toLocaleString() + ' loc.' : '—'}</td>
-        <td>${escapeHtml(g.commune_siege || '—')}</td>
-        <td>
-          <button class="btn btn-secondary btn-sm btn-inspect-row" data-siren="${escapeHtml(g.siren)}" data-denom="${escapeHtml(g.denomination)}" style="font-size: 0.7rem; padding: 0.2rem 0.5rem; white-space: nowrap;">
-            🔎 Inspecter
-          </button>
-        </td>
-      `;
-      tbody.appendChild(tr);
-    }
-  }
+  renderTopLandlordsTableRows();
 
   // Populate Select Dropdown
   if (select) {
-    select.innerHTML = `<option value="">Sélectionner un bailleur du tableau ci-dessus (${currentLandlordsGrouped.length} disponibles)...</option>`;
+    select.innerHTML = '';
     for (const g of currentLandlordsGrouped.slice(0, 150)) {
       const opt = document.createElement('option');
       opt.value = g.siren || g.denomination;
@@ -1305,14 +1872,22 @@ function renderLandlordsTab() {
     }
   }
 
-  // Wire Row Buttons
-  tbody.querySelectorAll('.btn-inspect-row').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const target = btn.getAttribute('data-siren') || btn.getAttribute('data-denom');
-      if (select) select.value = target;
-      inspectLandlordTarget(target);
-    });
-  });
+  // Determine auto-lookup target
+  let autoTarget = null;
+  const manualVal = (inputManual?.value || '').trim();
+  if (manualVal) {
+    autoTarget = manualVal;
+  } else if (select && select.value) {
+    autoTarget = select.value;
+  } else if (currentLandlordsGrouped.length > 0) {
+    const first = currentLandlordsGrouped[0];
+    autoTarget = first.siren || first.denomination;
+    if (select) select.value = autoTarget;
+  }
+
+  if (autoTarget && autoTarget !== lastInspectedLandlordTarget) {
+    inspectLandlordTarget(autoTarget);
+  }
 }
 
 function initLandlordsTabControls() {
@@ -1323,7 +1898,7 @@ function initLandlordsTabControls() {
   if (select) {
     select.addEventListener('change', () => {
       if (select.value) {
-        if (inputManual) inputManual.value = select.value;
+        if (inputManual) inputManual.value = '';
         inspectLandlordTarget(select.value);
       }
     });
@@ -1341,126 +1916,221 @@ function initLandlordsTabControls() {
   }
 
   if (inputManual) {
+    let manualTimeout = null;
+    inputManual.addEventListener('input', () => {
+      clearTimeout(manualTimeout);
+      const query = inputManual.value.trim();
+      manualTimeout = setTimeout(() => {
+        if (query) {
+          inspectLandlordTarget(query);
+        } else if (select && select.value) {
+          inspectLandlordTarget(select.value);
+        }
+      }, 600);
+    });
+
     inputManual.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') {
-        const query = inputManual.value.trim();
+        clearTimeout(manualTimeout);
+        const query = (inputManual.value || select?.value || '').trim();
         if (query) inspectLandlordTarget(query);
       }
     });
   }
 }
 
+function renderLandlordBuildingsTableHeaders() {
+  const thead = document.querySelector('#table-landlord-buildings thead');
+  if (!thead) return;
+
+  const tr = document.createElement('tr');
+  for (const col of LANDLORD_BUILDINGS_COLUMNS) {
+    const th = document.createElement('th');
+    if (col.isAction) {
+      th.textContent = col.label;
+    } else {
+      th.className = 'sortable';
+      if (landlordBldgsSortCol === col.key) {
+        th.classList.add('sorted-active');
+        const icon = landlordBldgsSortDir === 'asc' ? ' ▲' : (landlordBldgsSortDir === 'desc' ? ' ▼' : '');
+        th.innerHTML = `${escapeHtml(col.label)}<span class="sort-indicator">${icon}</span>`;
+      } else {
+        th.textContent = col.label;
+      }
+      th.addEventListener('click', () => {
+        if (landlordBldgsSortCol === col.key) {
+          if (landlordBldgsSortDir === 'asc') landlordBldgsSortDir = 'desc';
+          else if (landlordBldgsSortDir === 'desc') {
+            landlordBldgsSortCol = null;
+            landlordBldgsSortDir = null;
+          } else landlordBldgsSortDir = 'asc';
+        } else {
+          landlordBldgsSortCol = col.key;
+          landlordBldgsSortDir = 'asc';
+        }
+        renderLandlordBuildingsTableHeaders();
+        renderLandlordBuildingsSubTable();
+      });
+    }
+    tr.appendChild(th);
+  }
+  thead.innerHTML = '';
+  thead.appendChild(tr);
+}
+
+function renderLandlordBuildingsSubTable() {
+  const bldgsTbody = document.getElementById('table-landlord-buildings-body');
+  if (!bldgsTbody) return;
+
+  let list = [...currentLandlordOwnedBuildings];
+
+  if (landlordBldgsSortCol && landlordBldgsSortDir) {
+    const activeCol = LANDLORD_BUILDINGS_COLUMNS.find(c => c.key === landlordBldgsSortCol);
+    if (activeCol) {
+      list.sort((a, b) => compareBuildingRows(a, b, activeCol, landlordBldgsSortDir));
+    }
+  }
+
+  bldgsTbody.innerHTML = '';
+  if (list.length === 0) {
+    bldgsTbody.innerHTML = `<tr><td colspan="${LANDLORD_BUILDINGS_COLUMNS.length}" style="text-align: center; color: var(--text-muted); padding: 1rem;">Aucun bâtiment lié directement dans le territoire actuellement chargé.</td></tr>`;
+    return;
+  }
+
+  const fragment = document.createDocumentFragment();
+  for (const b of list) {
+    const tr = document.createElement('tr');
+    let rowHtml = '';
+    for (const col of LANDLORD_BUILDINGS_COLUMNS) {
+      rowHtml += `<td>${col.render(b)}</td>`;
+    }
+    tr.innerHTML = rowHtml;
+    fragment.appendChild(tr);
+  }
+  bldgsTbody.appendChild(fragment);
+
+  bldgsTbody.querySelectorAll('.btn-view-landlord-bldg').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const bId = btn.getAttribute('data-bid');
+      viewBuildingOnMap(bId);
+    });
+  });
+}
+
 async function inspectLandlordTarget(target) {
+  const query = (target || '').trim();
+  if (!query) return;
+
   const resultsDiv = document.getElementById('landlord-api-results');
   const compInfoDiv = document.getElementById('landlord-company-info');
   const dirigDiv = document.getElementById('landlord-dirigeants-info');
   const bldgsTbody = document.getElementById('table-landlord-buildings-body');
 
   if (!resultsDiv) return;
-  resultsDiv.style.display = 'block';
+  resultsDiv.style.display = 'flex';
+  lastInspectedLandlordTarget = query;
+
+  renderLandlordBuildingsTableHeaders();
+
+  const cacheKey = query.toUpperCase();
+  const querySeq = ++currentLandlordQuerySeq;
+
+  if (landlordApiCache.has(cacheKey)) {
+    const cachedData = landlordApiCache.get(cacheKey);
+    renderLandlordApiResults(cachedData, query);
+    return;
+  }
+
   compInfoDiv.innerHTML = '<span class="spinner" style="display:inline-block; width:14px; height:14px;"></span> Interrogation de l\'API Annuaire des Entreprises...';
   dirigDiv.innerHTML = '';
   bldgsTbody.innerHTML = '';
 
   try {
-    const res = await fetch(`https://recherche-entreprises.api.gouv.fr/search?q=${encodeURIComponent(target)}&per_page=1`);
+    const res = await fetch(`https://recherche-entreprises.api.gouv.fr/search?q=${encodeURIComponent(query)}&per_page=1`);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
 
-    if (!data.results || data.results.length === 0) {
-      compInfoDiv.innerHTML = `<p style="color: #f59e0b;">Aucune entreprise trouvée au RNE pour « <strong>${escapeHtml(target)}</strong> ».</p>`;
-      return;
-    }
+    if (querySeq !== currentLandlordQuerySeq) return; // Stale response guard
 
-    const comp = data.results[0];
-    const siren = comp.siren || target;
-    const nom = comp.nom_complet || target;
-    const siege = comp.siege?.adresse || 'Non renseignée';
-    const activite = comp.libelle_activite_principale || comp.activite_principale || 'Non renseignée';
-    const nature = comp.nature_juridique || '';
-
-    compInfoDiv.innerHTML = `
-      <div style="font-size: 1.05rem; font-weight: 700; color: #38bdf8; margin-bottom: 0.35rem;">
-        🏛️ ${escapeHtml(nom)}
-      </div>
-      <div style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 0.5rem; line-height: 1.5;">
-        <div><strong>SIREN :</strong> <code>${siren}</code> ${nature ? `(${escapeHtml(nature)})` : ''}</div>
-        <div><strong>Siège :</strong> 📍 ${escapeHtml(siege)}</div>
-        <div><strong>Activité :</strong> ${escapeHtml(activite)}</div>
-      </div>
-      <div style="font-size: 0.78rem;">
-        🔗 <a href="https://annuaire-entreprises.data.gouv.fr/entreprise/${siren}" target="_blank" style="color: var(--accent-primary); text-decoration: underline;">Fiche Officielle Annuaire des Entreprises</a>
-        &nbsp;|&nbsp;
-        <a href="https://www.pappers.fr/entreprise/${siren}" target="_blank" style="color: var(--accent-primary); text-decoration: underline;">Pappers.fr</a>
-      </div>
-    `;
-
-    const dirigeants = comp.dirigeants || [];
-    if (dirigeants.length === 0) {
-      dirigDiv.innerHTML = `
-        <div style="font-weight: 700; font-size: 0.85rem; color: var(--text-primary); margin-bottom: 0.35rem;">👤 Dirigeants & Gérants déclarés :</div>
-        <p style="font-size: 0.8rem; color: var(--text-muted); font-style: italic;">Aucun dirigeant nominatif listé dans l'INSEE / RNE pour cette entité.</p>
-      `;
-    } else {
-      let dHtml = `<div style="font-weight: 700; font-size: 0.85rem; color: var(--text-primary); margin-bottom: 0.35rem;">👤 Dirigeants & Gérants déclarés :</div><ul style="font-size: 0.8rem; line-height: 1.6; margin-left: 1.25rem;">`;
-      for (const d of dirigeants.slice(0, 8)) {
-        if (d.type_dirigeant === 'personne physique') {
-          const naiss = d.annee_de_naissance ? ` (né·e en ${d.annee_de_naissance})` : '';
-          dHtml += `<li><strong>${escapeHtml(d.prenoms || '')} ${escapeHtml(d.nom || '')}</strong>${naiss} — <em style="color: var(--text-secondary);">${escapeHtml(d.qualite || 'Dirigeant')}</em></li>`;
-        } else {
-          dHtml += `<li>🏢 <strong>${escapeHtml(d.denomination || 'Personne morale')}</strong> (<code>${d.siren || ''}</code>) — <em style="color: var(--text-secondary);">${escapeHtml(d.qualite || 'Dirigeant')}</em></li>`;
-        }
-      }
-      dHtml += `</ul>`;
-      dirigDiv.innerHTML = dHtml;
-    }
-
-    // Find all buildings owned by this landlord in active territory
-    const ownedBIds = new Set();
-    for (const o of state.owners) {
-      if ((o.siren && String(o.siren) === String(siren)) || (o.denomination && o.denomination.toLowerCase() === nom.toLowerCase())) {
-        ownedBIds.add(o.batiment_groupe_id);
-      }
-    }
-
-    const ownedBuildings = state.buildings.filter(b => ownedBIds.has(b.batiment_groupe_id));
-    if (ownedBuildings.length === 0) {
-      bldgsTbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--text-muted); padding: 1rem;">Aucun bâtiment lié directement dans le territoire actuellement chargé.</td></tr>`;
-    } else {
-      for (const b of ownedBuildings) {
-        const tr = document.createElement('tr');
-        const dpe = b.dpe || 'NC';
-        const dpeColor = DPE_COLORS[dpe] || DPE_COLORS['Inconnu'];
-        const risk = b.risque_surchauffe_ete || 'Faible';
-        const riskColor = OVERHEATING_COLORS[risk] || '#38bdf8';
-
-        tr.innerHTML = `
-          <td><strong>${escapeHtml(b.adr || 'Adresse inconnue')}</strong></td>
-          <td>${b.cp || ''}</td>
-          <td>${b.nb_log || 1}</td>
-          <td><span class="badge-dpe" style="background: ${dpeColor};">${dpe}</span></td>
-          <td>${b.pct_dpe_fg ? Math.round(Number(b.pct_dpe_fg)) + '%' : '0%'}</td>
-          <td><span class="badge-risk" style="background: ${riskColor}22; color: ${riskColor}; border: 1px solid ${riskColor}55;">${risk}</span></td>
-          <td>
-            <button class="btn btn-secondary btn-sm btn-view-landlord-bldg" data-bid="${b.batiment_groupe_id}" style="font-size: 0.7rem; padding: 0.2rem 0.5rem; white-space: nowrap;">
-              🗺️ Voir
-            </button>
-          </td>
-        `;
-        bldgsTbody.appendChild(tr);
-      }
-
-      bldgsTbody.querySelectorAll('.btn-view-landlord-bldg').forEach(btn => {
-        btn.addEventListener('click', () => {
-          const bId = btn.getAttribute('data-bid');
-          viewBuildingOnMap(bId);
-        });
-      });
-    }
-
+    landlordApiCache.set(cacheKey, data);
+    renderLandlordApiResults(data, query);
   } catch (err) {
+    if (querySeq !== currentLandlordQuerySeq) return; // Stale response guard
     compInfoDiv.innerHTML = `<p style="color: #ef4444;">Erreur lors de la requête RNE : ${escapeHtml(err.message)}</p>`;
   }
+}
+
+function renderLandlordApiResults(data, query) {
+  const compInfoDiv = document.getElementById('landlord-company-info');
+  const dirigDiv = document.getElementById('landlord-dirigeants-info');
+
+  if (!data.results || data.results.length === 0) {
+    compInfoDiv.innerHTML = `<p style="color: #f59e0b;">Aucune entreprise trouvée au RNE pour « <strong>${escapeHtml(query)}</strong> ».</p>`;
+    dirigDiv.innerHTML = '';
+    currentLandlordOwnedBuildings = [];
+    renderLandlordBuildingsSubTable();
+    return;
+  }
+
+  const comp = data.results[0];
+  const siren = comp.siren || query;
+  const nom = comp.nom_complet || query;
+  const siege = comp.siege?.adresse || 'Non renseignée';
+  const activite = comp.libelle_activite_principale || comp.activite_principale || 'Non renseignée';
+  const nature = comp.nature_juridique || '';
+
+  compInfoDiv.innerHTML = `
+    <div style="font-size: 0.95rem; font-weight: 700; color: #38bdf8; margin-bottom: 0.2rem;">
+      🏛️ ${escapeHtml(nom)} <span style="font-size: 0.78rem; font-weight: 400; color: var(--text-secondary);">(<code>SIREN ${escapeHtml(siren)}</code>${nature ? ` · ${escapeHtml(nature)}` : ''})</span>
+    </div>
+    <div style="font-size: 0.77rem; color: var(--text-secondary); margin-bottom: 0.25rem; line-height: 1.4;">
+      📍 Siège : ${escapeHtml(siege)} &bull; Activité : ${escapeHtml(activite)}
+    </div>
+    <div style="font-size: 0.76rem;">
+      🔗 <a href="https://annuaire-entreprises.data.gouv.fr/entreprise/${escapeHtml(siren)}" target="_blank" style="color: var(--accent-primary); text-decoration: underline;">Annuaire des Entreprises (data.gouv.fr)</a>
+      &nbsp;|&nbsp;
+      <a href="https://www.pappers.fr/entreprise/${escapeHtml(siren)}" target="_blank" style="color: var(--accent-primary); text-decoration: underline;">Pappers</a>
+    </div>
+  `;
+
+  const dirigeants = comp.dirigeants || [];
+  if (dirigeants.length === 0) {
+    dirigDiv.innerHTML = `
+      <div style="font-weight: 700; font-size: 0.85rem; color: var(--text-primary); margin-bottom: 0.35rem;">👤 Dirigeants / Gérants déclarés (RNE / INSEE) :</div>
+      <p style="font-size: 0.8rem; color: var(--text-muted); font-style: italic;">Aucun dirigeant listé en open data pour cette entité.</p>
+    `;
+  } else {
+    let dHtml = `<div style="font-weight: 700; font-size: 0.85rem; color: var(--text-primary); margin-bottom: 0.35rem;">👤 Dirigeants / Gérants déclarés (RNE / INSEE) :</div><ul style="font-size: 0.8rem; line-height: 1.6; margin-left: 1.25rem;">`;
+    for (const d of dirigeants.slice(0, 6)) {
+      if (d.type_dirigeant === 'personne physique') {
+        const prenom = d.prenoms || '';
+        const nomDir = d.nom || '';
+        const qualite = d.qualite || 'Dirigeant';
+        const naiss = d.annee_de_naissance ? ` (né·e en ${d.annee_de_naissance})` : '';
+        dHtml += `<li><strong>${escapeHtml(prenom)} ${escapeHtml(nomDir)}</strong>${naiss} — <em style="color: var(--text-secondary);">${escapeHtml(qualite)}</em></li>`;
+      } else {
+        const denomPm = d.denomination || 'Personne morale';
+        const sirenPm = d.siren || '';
+        const qualite = d.qualite || 'Personne morale dirigeante';
+        dHtml += `<li>🏢 <strong>${escapeHtml(denomPm)}</strong> (<code>SIREN ${escapeHtml(sirenPm)}</code>) — <em style="color: var(--text-secondary);">${escapeHtml(qualite)}</em></li>`;
+      }
+    }
+    dHtml += `</ul>`;
+    dirigDiv.innerHTML = dHtml;
+  }
+
+  // Find all buildings owned by this landlord in the whole loaded territory (state.buildings)
+  const ownedBIds = new Set();
+  for (const o of state.owners) {
+    if (siren && o.siren && String(o.siren).trim() === String(siren).trim()) {
+      ownedBIds.add(o.batiment_groupe_id);
+    } else if (nom && o.denomination && o.denomination.toLowerCase() === nom.toLowerCase()) {
+      ownedBIds.add(o.batiment_groupe_id);
+    }
+  }
+
+  currentLandlordOwnedBuildings = state.buildings.filter(b => ownedBIds.has(b.batiment_groupe_id));
+  renderLandlordBuildingsSubTable();
 }
 
 /* ==========================================================================
@@ -1687,6 +2357,16 @@ function initEventListeners() {
     });
   });
 
+  // Legal Mode toggle (Inclusif <-> Exclusif)
+  const legalModeLabel = document.getElementById('label-legal-mode');
+  if (legalModeLabel) {
+    legalModeLabel.addEventListener('click', () => {
+      state.legalMode = state.legalMode === 'inclusif' ? 'exclusif' : 'inclusif';
+      legalModeLabel.textContent = state.legalMode === 'inclusif' ? 'Mode Inclusif ⇄' : 'Mode Exclusif ⇄';
+      applyFilters();
+    });
+  }
+
   // Legal Pills
   document.querySelectorAll('#filter-legal .pill-btn').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -1860,8 +2540,10 @@ function initEventListeners() {
   // Reset Filters Button
   document.getElementById('btn-reset-filters').addEventListener('click', () => {
     state.selectedDpes = new Set(['F', 'G']);
-    state.selectedOverheating = new Set(['Élevé', 'Modéré', 'Faible']);
+    state.selectedOverheating = new Set(['Critique', 'Élevé', 'Modéré', 'Faible', 'Non renseigné']);
     state.selectedLegal = new Set(['SCI', 'Bailleur social', 'Société commerciale', 'Personne physique']);
+    state.legalMode = 'inclusif';
+    if (legalModeLabel) legalModeLabel.textContent = 'Mode Inclusif ⇄';
     state.minPctFg = 0;
     state.minConcentration = 0;
     state.minLog = 1;
