@@ -26,6 +26,7 @@ import duckdb
 import geopandas as gpd
 import numpy as np
 import pandas as pd
+import shapely
 from shapely import Point, wkt
 
 ROOT_DIR = Path(__file__).resolve().parent.parent
@@ -35,43 +36,18 @@ OUT_DIR = ROOT_DIR / "data" / "processed"
 
 DEPT_CONFIGS = {
     "69": {
-        "label": "69 — Rhône (Lyon & Villeurbanne)",
+        "label": "69 — Rhône",
         "zip_path": ROOT_DIR / "data" / "bdnb_2025_07_a_dep69" / "open_data_millesime_2025-07-a_dep69_csv.zip",
         "extract_dir": ROOT_DIR / "data" / "bdnb_2025_07_a_dep69" / "extracted_csv",
-        "communes": (
-            "69381", "69382", "69383", "69384", "69385",
-            "69386", "69387", "69388", "69389", "69266",
-        ),
-        "postal_codes": (
-            "69001", "69002", "69003", "69004", "69005",
-            "69006", "69007", "69008", "69009", "69100",
-        ),
+        "communes": None,
+        "postal_codes": None,
     },
     "38": {
-        "label": "38 — Isère (Grenoble & Métropole)",
+        "label": "38 — Isère",
         "zip_path": ROOT_DIR / "data" / "bdnb_2025_07_a_dep38" / "open_data_millesime_2025-07-a_dep38_csv.zip",
         "extract_dir": ROOT_DIR / "data" / "bdnb_2025_07_a_dep38" / "extracted_csv",
-        # Grenoble (38185) + key rent-controlled communes of Grenoble-Alpes Métropole
-        "communes": (
-            "38185",  # Grenoble (38000 / 38100)
-            "38421",  # Saint-Martin-d'Hères (38400)
-            "38151",  # Échirolles (38130)
-            "38169",  # Fontaine (38600)
-            "38229",  # Meylan (38240)
-            "38382",  # Saint-Égrève (38120)
-            "38485",  # Seyssinet-Pariset (38170)
-            "38474",  # Sassenage (38360)
-            "38317",  # Le Pont-de-Claix (38800)
-            "38158",  # Eybens (38320)
-            "38179",  # Gières (38610)
-            "38516",  # La Tronche (38700)
-            "38486",  # Seyssins (38180)
-        ),
-        "postal_codes": (
-            "38000", "38100", "38400", "38130", "38600",
-            "38240", "38120", "38170", "38360", "38800",
-            "38320", "38610", "38700", "38180",
-        ),
+        "communes": None,
+        "postal_codes": None,
     },
 }
 
@@ -92,6 +68,10 @@ NEEDED_CSVS = [
     "csv/batiment_groupe_bdtopo_bat.csv",
     "csv/batiment_groupe_urbanisme.csv",
     "csv/batiment_groupe_risques.csv",
+    "csv/batiment_groupe_dvf_open_statistique.csv",
+    "csv/batiment_groupe_dle_elec_multimillesime.csv",
+    "csv/batiment_groupe_dle_gaz_multimillesime.csv",
+    "csv/batiment_groupe_indicateur_reseau_chaud_froid.csv",
 ]
 
 CEREMA_LCZ_LABELS = {
@@ -134,7 +114,7 @@ def enrich_with_grandlyon_spatial_layers(gdf_4326: gpd.GeoDataFrame) -> gpd.GeoD
     """
     pts = gpd.GeoDataFrame(
         {"batiment_groupe_id": gdf_4326["batiment_groupe_id"].values},
-        geometry=[Point(xy) for xy in zip(gdf_4326["lon"], gdf_4326["lat"])],
+        geometry=gpd.points_from_xy(gdf_4326["lon"], gdf_4326["lat"]),
         crs="EPSG:4326",
     )
 
@@ -226,7 +206,7 @@ def enrich_with_grenoble_spatial_layers(gdf_4326: gpd.GeoDataFrame) -> gpd.GeoDa
     """
     pts_4326 = gpd.GeoDataFrame(
         {"batiment_groupe_id": gdf_4326["batiment_groupe_id"].values},
-        geometry=[Point(xy) for xy in zip(gdf_4326["lon"], gdf_4326["lat"])],
+        geometry=gpd.points_from_xy(gdf_4326["lon"], gdf_4326["lat"]),
         crs="EPSG:4326",
     )
 
@@ -535,8 +515,16 @@ def process_department(dept_code: str, cfg: dict) -> tuple[gpd.GeoDataFrame, pd.
 
     con = duckdb.connect(database=":memory:")
     csv_dir = str(cfg["extract_dir"])
-    communes_sql = ", ".join(f"'{c}'" for c in cfg["communes"])
-    cp_sql = ", ".join(f"'{c}'" for c in cfg["postal_codes"])
+
+    communes_clause = ""
+    if cfg.get("communes"):
+        communes_sql = ", ".join(f"'{c}'" for c in cfg["communes"])
+        communes_clause = f"WHERE code_commune_insee IN ({communes_sql})"
+
+    cp_clause = "WHERE a.code_postal IS NOT NULL AND a.code_postal != ''"
+    if cfg.get("postal_codes"):
+        cp_sql = ", ".join(f"'{c}'" for c in cfg["postal_codes"])
+        cp_clause += f" AND a.code_postal IN ({cp_sql})"
 
     con.execute(f"""
         CREATE TABLE bg_base AS
@@ -548,7 +536,7 @@ def process_department(dept_code: str, cfg: dict) -> tuple[gpd.GeoDataFrame, pd.
             code_iris,
             TRY_CAST(s_geom_groupe AS DOUBLE) AS surface_emprise_sol_m2
         FROM read_csv_auto('{csv_dir}/batiment_groupe.csv', delim=';', header=true, all_varchar=true)
-        WHERE code_commune_insee IN ({communes_sql})
+        {communes_clause}
     """)
 
     con.execute(f"""
@@ -572,7 +560,7 @@ def process_department(dept_code: str, cfg: dict) -> tuple[gpd.GeoDataFrame, pd.
         INNER JOIN bg_base b ON r.batiment_groupe_id = b.batiment_groupe_id
         LEFT JOIN read_csv_auto('{csv_dir}/adresse.csv', delim=';', header=true, all_varchar=true) a
             ON r.cle_interop_adr = a.cle_interop_adr
-        WHERE a.code_postal IN ({cp_sql})
+        {cp_clause}
     """)
 
     con.execute("""
@@ -599,7 +587,8 @@ def process_department(dept_code: str, cfg: dict) -> tuple[gpd.GeoDataFrame, pd.
             TRIM(p.code_postal) AS code_postal_proprietaire,
             TRIM(p.libelle_commune) AS libelle_commune_proprietaire,
             TRY_CAST(r.nb_locaux_open AS INTEGER) AS nb_locaux_open_dans_batiment,
-            TRY_CAST(p.nb_locaux_open AS INTEGER) AS nb_locaux_open_dans_MAJIC
+            TRY_CAST(p.nb_locaux_open AS INTEGER) AS nb_locaux_open_dans_MAJIC,
+            TRY_CAST(ba.cp AS INTEGER) AS cp
         FROM read_csv_auto('{csv_dir}/rel_batiment_groupe_proprietaire.csv', delim=';', header=true, all_varchar=true) r
         INNER JOIN bg_adr ba ON r.batiment_groupe_id = ba.batiment_groupe_id
         LEFT JOIN read_csv_auto('{csv_dir}/proprietaire.csv', delim=';', header=true, all_varchar=true) p
@@ -651,6 +640,39 @@ def process_department(dept_code: str, cfg: dict) -> tuple[gpd.GeoDataFrame, pd.
     """)
 
     con.execute(f"""
+        CREATE TABLE dle_elec_latest AS
+        SELECT
+            e.batiment_groupe_id,
+            ROUND(FIRST(TRY_CAST(e.conso_res_par_pdl AS DOUBLE) ORDER BY e.millesime DESC NULLS LAST), 0) AS conso_elec_res_par_pdl_kwh
+        FROM read_csv_auto('{csv_dir}/batiment_groupe_dle_elec_multimillesime.csv', delim=';', header=true, all_varchar=true) e
+        INNER JOIN bg_adr ba ON e.batiment_groupe_id = ba.batiment_groupe_id
+        WHERE e.conso_res_par_pdl IS NOT NULL AND e.conso_res_par_pdl != ''
+        GROUP BY e.batiment_groupe_id
+    """)
+
+    con.execute(f"""
+        CREATE TABLE dle_gaz_latest AS
+        SELECT
+            g.batiment_groupe_id,
+            ROUND(FIRST(TRY_CAST(g.conso_res_par_pdl AS DOUBLE) ORDER BY g.millesime DESC NULLS LAST), 0) AS conso_gaz_res_par_pdl_kwh
+        FROM read_csv_auto('{csv_dir}/batiment_groupe_dle_gaz_multimillesime.csv', delim=';', header=true, all_varchar=true) g
+        INNER JOIN bg_adr ba ON g.batiment_groupe_id = ba.batiment_groupe_id
+        WHERE g.conso_res_par_pdl IS NOT NULL AND g.conso_res_par_pdl != ''
+        GROUP BY g.batiment_groupe_id
+    """)
+
+    con.execute(f"""
+        CREATE TABLE rcu_dedup AS
+        SELECT
+            rc.batiment_groupe_id,
+            FIRST(rc.indicateur_distance_au_reseau ORDER BY rc.indicateur_distance_au_reseau NULLS LAST) AS distance_reseau_chaleur,
+            MAX(TRY_CAST(rc.perimetre_developpement_prioritaire AS INTEGER)) AS rcu_perimetre_prioritaire
+        FROM read_csv_auto('{csv_dir}/batiment_groupe_indicateur_reseau_chaud_froid.csv', delim=';', header=true, all_varchar=true) rc
+        INNER JOIN bg_adr ba ON rc.batiment_groupe_id = ba.batiment_groupe_id
+        GROUP BY rc.batiment_groupe_id
+    """)
+
+    con.execute(f"""
         CREATE TABLE buildings_joined AS
         SELECT
             '{dept_code}' AS departement,
@@ -673,12 +695,18 @@ def process_department(dept_code: str, cfg: dict) -> tuple[gpd.GeoDataFrame, pd.
             UPPER(NULLIF(TRIM(dpe.classe_bilan_dpe), '')) AS dpe,
             UPPER(NULLIF(TRIM(dpe.classe_emission_ges), '')) AS classe_ges,
             TRY_CAST(dpe.conso_5_usages_ep_m2 AS DOUBLE) AS conso_ep_m2,
+            TRY_CAST(dpe.emission_ges_5_usages_m2 AS DOUBLE) AS emission_ges_m2,
+            TRY_CAST(dpe.surface_habitable_logement AS DOUBLE) AS surface_habitable_logement,
+            TRY_CAST(dpe.arrete_2021 AS INTEGER) AS dpe_arrete_2021,
+            dpe.date_etablissement_dpe,
             dpe.type_dpe,
             dpe.type_batiment_dpe,
             dpe.periode_construction_dpe,
             dpe.type_installation_chauffage,
             dpe.type_energie_chauffage,
             dpe.type_generateur_chauffage,
+            dpe.type_installation_ecs,
+            dpe.type_energie_ecs,
             dpe.type_energie_climatisation,
             dpe.type_generateur_climatisation,
             dpe.type_ventilation,
@@ -721,16 +749,26 @@ def process_department(dept_code: str, cfg: dict) -> tuple[gpd.GeoDataFrame, pd.
             rnc.l_nom_copro AS nom_copro,
             rnc.l_siret AS siret_copro,
             TRY_CAST(rnc.nb_lot_tot AS INTEGER) AS nb_lots_copro,
+            TRY_CAST(rnc.nb_lot_garpark AS INTEGER) AS nb_lots_stationnement_copro,
+            TRY_CAST(rnc.nb_lot_tertiaire AS INTEGER) AS nb_lots_tertiaire_copro,
             CASE WHEN rpls.batiment_groupe_id IS NOT NULL THEN TRUE ELSE FALSE END AS est_logement_social_rpls,
             TRY_CAST(rpls.nb_log AS INTEGER) AS nb_log_sociaux_rpls,
             rpls.classe_ener_principale AS dpe_principal_rpls,
+            TRY_CAST(rpls.accessible_pmr AS INTEGER) AS nb_log_pmr_rpls,
             qpv.nom_quartier AS quartier_qpv,
             TRY_CAST(topo.hauteur_mean AS DOUBLE) AS hauteur_moyenne_m,
             urb.zone_plu_bati_patrimonial,
             urb.contrainte_urbanisme_ac1,
             urb.monument_historique,
             risq.alea_argile,
-            risq.alea_radon
+            risq.alea_radon,
+            TRY_CAST(dvf.nb_mutation AS INTEGER) AS dvf_nb_mutations,
+            TRY_CAST(dvf.prix_m2_local_median AS DOUBLE) AS dvf_prix_m2_median,
+            TRY_CAST(dvf.valeur_fonciere_median AS DOUBLE) AS dvf_valeur_mediane,
+            elec.conso_elec_res_par_pdl_kwh,
+            gaz.conso_gaz_res_par_pdl_kwh,
+            rcu.distance_reseau_chaleur,
+            rcu.rcu_perimetre_prioritaire
         FROM bg_base b
         INNER JOIN bg_adr ba ON b.batiment_groupe_id = ba.batiment_groupe_id
         LEFT JOIN read_csv_auto('{csv_dir}/batiment_groupe_ffo_bat.csv', delim=';', header=true, all_varchar=true) ffo
@@ -755,6 +793,14 @@ def process_department(dept_code: str, cfg: dict) -> tuple[gpd.GeoDataFrame, pd.
             ON b.batiment_groupe_id = urb.batiment_groupe_id
         LEFT JOIN read_csv_auto('{csv_dir}/batiment_groupe_risques.csv', delim=';', header=true, all_varchar=true) risq
             ON b.batiment_groupe_id = risq.batiment_groupe_id
+        LEFT JOIN read_csv_auto('{csv_dir}/batiment_groupe_dvf_open_statistique.csv', delim=';', header=true, all_varchar=true) dvf
+            ON b.batiment_groupe_id = dvf.batiment_groupe_id
+        LEFT JOIN dle_elec_latest elec
+            ON b.batiment_groupe_id = elec.batiment_groupe_id
+        LEFT JOIN dle_gaz_latest gaz
+            ON b.batiment_groupe_id = gaz.batiment_groupe_id
+        LEFT JOIN rcu_dedup rcu
+            ON b.batiment_groupe_id = rcu.batiment_groupe_id
     """)
 
     df_buildings = con.execute("SELECT * FROM buildings_joined").df()
@@ -820,12 +866,14 @@ def process_department(dept_code: str, cfg: dict) -> tuple[gpd.GeoDataFrame, pd.
         str(v) if pd.notna(v) else "NC" for v in conc_num
     ]
 
-    geoms_2154 = [wkt.loads(g) if isinstance(g, str) and g else None for g in df_buildings["geom_groupe"]]
+    print(f"  -> [{dept_code}] Parsing geometries with Shapely...")
+    geoms_2154 = shapely.from_wkt(df_buildings["geom_groupe"].fillna("").values, on_invalid="ignore")
     gdf = gpd.GeoDataFrame(
         df_buildings.drop(columns=["geom_groupe", "formes_juridiques_list", "denominations_list"]),
         geometry=geoms_2154,
         crs="EPSG:2154",
     )
+    print(f"  -> [{dept_code}] Reprojecting geometries to WGS84 (EPSG:4326)...")
     gdf_4326 = gdf.to_crs(epsg=4326)
 
     centroids_4326 = gdf.geometry.centroid.to_crs(epsg=4326)
@@ -882,6 +930,16 @@ def main() -> None:
         build_chunks(buildings_parquet_path, owners_parquet_path, chunks_dir)
     except Exception as e:
         print(f"Notice: Chunk generation skipped or failed: {e}")
+
+    try:
+        try:
+            from app.build_postal_zones import main as build_zones_main
+        except ImportError:
+            from build_postal_zones import main as build_zones_main
+        print("\nRegenerating postal_zones.geojson for static app...")
+        build_zones_main()
+    except Exception as e:
+        print(f"Notice: Postal zones generation skipped or failed: {e}")
 
 
 if __name__ == "__main__":

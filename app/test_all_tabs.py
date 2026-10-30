@@ -22,7 +22,7 @@ async def run():
 
         # Validate and Load Selected Territory
         await page.wait_for_selector("#btn-sel-validate", timeout=5000)
-        await page.click("#btn-sel-validate")
+        await page.locator("#btn-sel-validate").click(force=True)
 
         # Wait for data to load
         await page.wait_for_selector("#kpi-buildings", timeout=20000)

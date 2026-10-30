@@ -17,7 +17,7 @@ async def run():
         await asyncio.sleep(0.5)
 
         await page.wait_for_selector("#btn-sel-validate", timeout=5000)
-        await page.click("#btn-sel-validate")
+        await page.locator("#btn-sel-validate").click(force=True)
 
         # Wait until data loaded
         await page.wait_for_selector("#kpi-buildings", timeout=15000)

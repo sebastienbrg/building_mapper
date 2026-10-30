@@ -77,23 +77,98 @@
     <aside class="app-sidebar">
       
       <div class="sidebar-header-bar">
-        <span class="sidebar-header-title">Filtres & Contrôles</span>
-        <button class="btn btn-secondary btn-sm" id="btn-reset-filters" style="font-size: 0.7rem; padding: 0.2rem 0.5rem;">
-          ↺ Réinitialiser
+        <div style="display: flex; align-items: center; gap: 0.45rem;">
+          <span class="sidebar-header-title">Filtres & Profils</span>
+          <span class="status-badge status-online" id="active-filters-count-badge" title="Nombre de critères filtrant activement les bâtiments">1 actif</span>
+        </div>
+        <div style="display: flex; gap: 0.35rem;">
+          <button class="btn btn-secondary btn-sm" id="btn-reset-filters" title="Réinitialiser toutes les valeurs de filtres" style="font-size: 0.7rem; padding: 0.2rem 0.5rem;">
+            ↺ Réinitialiser
+          </button>
+        </div>
+      </div>
+
+      <!-- Profile Shortcuts & Filter Browser Bar -->
+      <div class="profiles-bar-section" id="sidebar-profiles-bar">
+        <div class="profiles-bar-header">
+          <span class="profiles-bar-title">🎭 Profils d'enquête (Raccourcis)</span>
+          <button class="btn-link-sm" id="btn-open-save-profile" title="Enregistrer la sélection actuelle de filtres comme un nouveau profil">
+            💾 + Sauvegarder profil
+          </button>
+        </div>
+
+        <div class="profile-pills-wrap" id="profile-buttons-container">
+          <!-- Populated dynamically via app.js (built-in + custom profiles) -->
+        </div>
+
+        <button class="btn btn-primary btn-block btn-select-filters" id="btn-open-filter-catalog">
+          <span>🎛️</span>
+          <span>Choisir les filtres (<strong id="selected-controls-count">8</strong>/<span id="total-controls-count">55</span> affichés)</span>
         </button>
       </div>
 
       <div class="accordion-group">
 
-        <!-- Expander: Affichage Carte & Fond -->
-        <details class="accordion-item" open id="acc-display">
+        <!-- Expander: Affichage Carte & Territoire -->
+        <details class="accordion-item" id="acc-display">
           <summary class="accordion-header">
             <span class="accordion-title-wrap">
-              <span>🎨</span> Affichage Carte & Fond
+              <span>🎨</span> Carte, Fond & Territoire
             </span>
             <span class="accordion-chevron">▶</span>
           </summary>
           <div class="accordion-body">
+            <button class="btn btn-secondary btn-block" id="btn-sidebar-open-territory" style="margin-bottom: 0.5rem; justify-content: center; gap: 0.5rem; background: rgba(56, 189, 248, 0.1); border-color: rgba(56, 189, 248, 0.4); color: var(--accent-primary);">
+              <span>🗺️</span> <strong>Choisir sur la carte (polygones)</strong>
+            </button>
+
+            <div class="territory-selector" style="margin-bottom: 0.6rem; padding-bottom: 0.6rem; border-bottom: 1px solid var(--border-color);">
+              <div class="selector-tabs">
+                <button class="tab-btn active" data-mode="dep">Département</button>
+                <button class="tab-btn" data-mode="cp">Code Postal</button>
+                <button class="tab-btn" data-mode="range">Plage de CP</button>
+              </div>
+
+              <!-- Mode: Department -->
+              <div class="tab-content" id="tab-dep">
+                <div class="form-group" style="margin-bottom: 0.35rem;">
+                  <select id="select-dept">
+                    <option value="69">69 — Rhône (Lyon & Villeurbanne)</option>
+                    <option value="38">38 — Isère (Grenoble & Métropole)</option>
+                  </select>
+                </div>
+              </div>
+
+              <!-- Mode: Single Postal Code -->
+              <div class="tab-content" id="tab-cp" style="display: none;">
+                <div class="form-group" style="margin-bottom: 0.35rem;">
+                  <select id="select-cp">
+                    <option value="">Sélectionner un code postal...</option>
+                  </select>
+                </div>
+              </div>
+
+              <!-- Mode: Postal Code Range -->
+              <div class="tab-content" id="tab-range" style="display: none;">
+                <div class="form-group" style="margin-bottom: 0.35rem;">
+                  <div class="range-inputs">
+                    <input type="number" id="input-range-start" placeholder="Ex: 69001" min="10000" max="99999">
+                    <span>à</span>
+                    <input type="number" id="input-range-end" placeholder="Ex: 69009" min="10000" max="99999">
+                  </div>
+                </div>
+              </div>
+
+              <button class="btn btn-primary btn-block btn-sm" id="btn-load-territory">
+                <span>⚡</span> Charger ce territoire
+              </button>
+
+              <div class="territory-status">
+                <span id="territory-status-text">Territoire actif : 69</span>
+                <span id="territory-size-text" style="color: var(--text-muted);">~10.3 Mo</span>
+              </div>
+            </div>
+
             <div class="form-group">
               <label>Coloration des bâtiments</label>
               <select id="select-color-mode">
@@ -112,7 +187,7 @@
               <input type="range" id="slider-bg-dim" min="0" max="100" step="5" value="20">
             </div>
 
-            <div class="form-group">
+            <div class="form-group" style="margin-bottom: 0;">
               <label>Limite de polygones affichés</label>
               <select id="select-max-polygons">
                 <option value="1500">1 500 bâtiments (très rapide)</option>
@@ -124,204 +199,14 @@
           </div>
         </details>
 
-        <!-- Expander 1: Localisation & DPE -->
-        <details class="accordion-item" open id="acc-location">
-          <summary class="accordion-header">
-            <span class="accordion-title-wrap">
-              <span>🎯</span> 1. Localisation & DPE
-            </span>
-            <span class="accordion-chevron">▶</span>
-          </summary>
-          <div class="accordion-body">
-            <button class="btn btn-secondary btn-block" id="btn-sidebar-open-territory" style="margin-bottom: 0.75rem; justify-content: center; gap: 0.5rem; background: rgba(56, 189, 248, 0.1); border-color: rgba(56, 189, 248, 0.4); color: var(--accent-primary);">
-              <span>🗺️</span> <strong>Choisir sur la carte (polygones)</strong>
-            </button>
-            <div class="territory-selector">
-              <div class="selector-tabs">
-                <button class="tab-btn active" data-mode="dep">Département</button>
-                <button class="tab-btn" data-mode="cp">Code Postal</button>
-                <button class="tab-btn" data-mode="range">Plage de CP</button>
-              </div>
+        <!-- Dynamic Sociological Filter Categories Container (populated & toggled via app.js) -->
+        <div id="sociological-filters-container" class="sociological-filters-stack"></div>
 
-              <!-- Mode: Department -->
-              <div class="tab-content" id="tab-dep">
-                <div class="form-group">
-                  <select id="select-dept">
-                    <option value="69">69 — Rhône (Lyon & Villeurbanne)</option>
-                    <option value="38">38 — Isère (Grenoble & Métropole)</option>
-                  </select>
-                </div>
-              </div>
-
-              <!-- Mode: Single Postal Code -->
-              <div class="tab-content" id="tab-cp" style="display: none;">
-                <div class="form-group">
-                  <select id="select-cp">
-                    <option value="">Sélectionner un code postal...</option>
-                  </select>
-                </div>
-              </div>
-
-              <!-- Mode: Postal Code Range -->
-              <div class="tab-content" id="tab-range" style="display: none;">
-                <div class="form-group">
-                  <div class="range-inputs">
-                    <input type="number" id="input-range-start" placeholder="Ex: 69001" min="10000" max="99999">
-                    <span>à</span>
-                    <input type="number" id="input-range-end" placeholder="Ex: 69009" min="10000" max="99999">
-                  </div>
-                </div>
-              </div>
-
-              <button class="btn btn-primary btn-block" id="btn-load-territory">
-                <span>⚡</span> Charger ce territoire
-              </button>
-
-              <div class="territory-status">
-                <span id="territory-status-text">Territoire actif : 69</span>
-                <span id="territory-size-text" style="color: var(--text-muted);">~10.3 Mo</span>
-              </div>
-            </div>
-
-            <!-- DPE Filter Pills -->
-            <div class="form-group" style="margin-top: 0.5rem;">
-              <label>DPE représentatif (OU)</label>
-              <div class="filter-pill-group" id="filter-dpe">
-                <button class="pill-btn dpe-a" data-dpe="A">A</button>
-                <button class="pill-btn dpe-b" data-dpe="B">B</button>
-                <button class="pill-btn dpe-c" data-dpe="C">C</button>
-                <button class="pill-btn dpe-d" data-dpe="D">D</button>
-                <button class="pill-btn dpe-e" data-dpe="E">E</button>
-                <button class="pill-btn dpe-f active" data-dpe="F">F</button>
-                <button class="pill-btn dpe-g active" data-dpe="G">G</button>
-                <button class="pill-btn" data-dpe="Inconnu">NC</button>
-              </div>
-            </div>
-
-            <!-- 2-col inputs -->
-            <div class="grid-2">
-              <div class="form-group">
-                <label>Logements min.</label>
-                <input type="number" id="filter-min-log" min="1" max="500" value="1">
-              </div>
-              <div class="form-group">
-                <label>% DPE F+G min.</label>
-                <input type="number" id="filter-pct-fg" min="0" max="100" step="10" value="0">
-              </div>
-            </div>
-          </div>
-        </details>
-
-        <!-- Expander 2: Surchauffe Été & ICU -->
-        <details class="accordion-item" id="acc-overheating">
-          <summary class="accordion-header">
-            <span class="accordion-title-wrap">
-              <span>☀️</span> 2. Surchauffe Été & ICU
-            </span>
-            <span class="accordion-chevron">▶</span>
-          </summary>
-          <div class="accordion-body">
-            <div class="form-group">
-              <label>Risque été</label>
-              <div class="filter-pill-group" id="filter-overheating">
-                <button class="pill-btn active" data-val="Critique" style="border-color: #dc2626;">Critique 🔥🔥</button>
-                <button class="pill-btn active" data-val="Élevé" style="border-color: #ef4444;">Élevé 🔥</button>
-                <button class="pill-btn active" data-val="Modéré" style="border-color: #f59e0b;">Modéré</button>
-                <button class="pill-btn active" data-val="Faible">Faible</button>
-                <button class="pill-btn active" data-val="Non renseigné">NC</button>
-              </div>
-            </div>
-
-            <div class="grid-2">
-              <label class="checkbox-label">
-                <input type="checkbox" id="filter-roof-uninsulated"> Toit non isolé
-              </label>
-              <label class="checkbox-label">
-                <input type="checkbox" id="filter-no-shutters"> Sans volets
-              </label>
-            </div>
-
-            <div class="form-group" style="margin-top: 0.4rem;">
-              <label>
-                <span>Score surchauffe min. (0–100)</span>
-                <strong id="label-min-score-overheat">≥ 0</strong>
-              </label>
-              <input type="range" id="filter-score-overheat" min="0" max="100" step="5" value="0">
-            </div>
-          </div>
-        </details>
-
-        <!-- Expander 3: Propriétaires & Bailleurs -->
-        <details class="accordion-item" id="acc-owners">
-          <summary class="accordion-header">
-            <span class="accordion-title-wrap">
-              <span>🏢</span> 3. Propriétaires & Bailleurs
-            </span>
-            <span class="accordion-chevron">▶</span>
-          </summary>
-          <div class="accordion-body">
-            <div class="form-group">
-              <label>Nom bailleur / SCI / SIREN</label>
-              <input type="text" id="filter-owner-search" placeholder="Ex: FONCIERE, SCI, 908120595...">
-            </div>
-
-            <div class="form-group">
-              <label>
-                <span>Forme juridique</span>
-                <span id="label-legal-mode" style="cursor: pointer; color: var(--accent-primary); font-size: 0.72rem;">Mode Inclusif ⇄</span>
-              </label>
-              <div class="filter-pill-group" id="filter-legal">
-                <button class="pill-btn active" data-val="SCI">SCI</button>
-                <button class="pill-btn active" data-val="Bailleur social">Bailleur Social</button>
-                <button class="pill-btn active" data-val="Société commerciale">Société Commerciale</button>
-                <button class="pill-btn active" data-val="Personne physique">Pers. Physique</button>
-              </div>
-            </div>
-
-            <div class="grid-2">
-              <div class="form-group">
-                <label>Conc. bailleur %</label>
-                <input type="number" id="filter-concentration" min="0" max="100" step="10" value="0">
-              </div>
-              <div class="form-group">
-                <label>Patrimoine min.</label>
-                <input type="number" id="filter-min-patrimoine" min="0" max="10000" step="10" value="0">
-              </div>
-            </div>
-          </div>
-        </details>
-
-        <!-- Expander 4: Urbanisme & Social -->
-        <details class="accordion-item" id="acc-urban">
-          <summary class="accordion-header">
-            <span class="accordion-title-wrap">
-              <span>⚖️</span> 4. Urbanisme & Social
-            </span>
-            <span class="accordion-chevron">▶</span>
-          </summary>
-          <div class="accordion-body">
-            <div style="display: flex; flex-direction: column; gap: 0.5rem;">
-              <label class="checkbox-label">
-                <input type="checkbox" id="filter-qpv"> En Quartier Prioritaire (QPV)
-              </label>
-              <label class="checkbox-label">
-                <input type="checkbox" id="filter-social-only"> Uniquement parc social (RPLS)
-              </label>
-              <label class="checkbox-label">
-                <input type="checkbox" id="filter-exclude-social"> Exclure parc social (cibler privé)
-              </label>
-              <label class="checkbox-label">
-                <input type="checkbox" id="filter-rent-control"> Soumis à encadrement des loyers
-              </label>
-            </div>
-          </div>
-        </details>
-
-        <!-- Expander 5: Terrain (.xlsx) -->
+        <!-- Expander: Terrain (.xlsx) -->
         <details class="accordion-item" id="acc-fieldwork">
           <summary class="accordion-header">
             <span class="accordion-title-wrap">
-              <span>📋</span> 5. Terrain (.xlsx)
+              <span>📋</span> Enquête de Terrain (.xlsx)
             </span>
             <span class="status-badge" id="fieldwork-badge" style="display: none;">0 liés</span>
             <span class="accordion-chevron">▶</span>
@@ -342,6 +227,7 @@
                 <button class="btn btn-secondary btn-sm" id="btn-clear-fieldwork" style="font-size: 0.68rem; padding: 0.15rem 0.35rem;">Retirer</button>
               </div>
               <p id="fieldwork-stats" style="color: var(--text-secondary);"></p>
+              <div id="fieldwork-dynamic-filters" style="margin-top: 0.5rem; display: flex; flex-direction: column; gap: 0.45rem;"></div>
             </div>
           </div>
         </details>
@@ -940,14 +826,133 @@
 
         <!-- Rent Control & Urban Planning Card -->
         <div class="card">
-          <div class="card-title"><span>⚖️</span> Encadrement des Loyers & Règles</div>
+          <div class="card-title"><span>⚖️</span> Loyers, Marché, Copro & Social</div>
           <div class="dpe-stat" id="drawer-rent-control">Non soumis ou zone standard.</div>
           <div class="dpe-stat" id="drawer-urban-rules" style="margin-top: 0.35rem;">—</div>
+          <div class="dpe-stat" id="drawer-tech-details" style="margin-top: 0.35rem;">—</div>
         </div>
 
       </div>
     </aside>
 
+  </div>
+
+  <!-- Filter Catalog Modal (Sociologist & Social Worker Categorization) -->
+  <div class="modal-overlay" id="modal-filter-catalog">
+    <div class="modal-content filter-catalog-modal-content">
+      <div class="modal-header">
+        <div>
+          <h3 class="modal-title">🎛️ Catalogue des Filtres — Approche Sociologique & Travail Social</h3>
+          <p style="font-size: 0.78rem; color: var(--text-secondary); margin-top: 0.2rem;">
+            Parcourez les <strong id="catalog-total-available">55</strong> indicateurs disponibles (classés en 7 thématiques métiers) et cochez ceux que vous souhaitez afficher dans votre panneau de filtrage.
+          </p>
+        </div>
+        <button class="drawer-close" id="btn-close-filter-catalog">&times;</button>
+      </div>
+
+      <!-- Toolbar inside Filter Catalog: Profile shortcuts + Search + Category Tabs -->
+      <div class="catalog-toolbar">
+        <div class="catalog-profiles-row">
+          <span style="font-size: 0.75rem; color: var(--text-muted); font-weight: 600; white-space: nowrap;">🎭 Charger un profil :</span>
+          <div class="profile-pills-wrap" id="catalog-profile-buttons"></div>
+        </div>
+
+        <div class="catalog-search-row">
+          <div class="catalog-search-input-wrap">
+            <span>🔍</span>
+            <input type="text" id="input-catalog-search" placeholder="Rechercher un indicateur (ex: chauffage, vitrage, loyer, QPV, PMR, balcon, DVF, toiture, radon...)" autocomplete="off">
+          </div>
+          <div style="display: flex; gap: 0.4rem;">
+            <button class="btn btn-secondary btn-sm" id="btn-catalog-select-all" title="Afficher tous les filtres de la vue actuelle">☑️ Tout cocher</button>
+            <button class="btn btn-secondary btn-sm" id="btn-catalog-select-none" title="Masquer les filtres non actifs">☐ Minimum</button>
+          </div>
+        </div>
+
+        <div class="catalog-category-tabs" id="catalog-category-tabs">
+          <!-- Populated dynamically via app.js -->
+        </div>
+      </div>
+
+      <div class="modal-body catalog-modal-body" id="catalog-categories-list">
+        <!-- Populated dynamically via app.js -->
+      </div>
+
+      <div class="modal-footer" style="justify-content: space-between;">
+        <div style="display: flex; align-items: center; gap: 0.75rem;">
+          <span style="font-size: 0.82rem; color: var(--text-secondary);">
+            <strong id="catalog-selected-count" style="color: var(--accent-primary);">8</strong> indicateurs sélectionnés pour le panneau
+          </span>
+          <button class="btn btn-secondary btn-sm" id="btn-catalog-save-profile">
+            <span>💾</span> Sauvegarder cette sélection en nouveau profil...
+          </button>
+        </div>
+        <div style="display: flex; gap: 0.5rem;">
+          <button class="btn btn-primary" id="btn-apply-filter-catalog">
+            <span>✅</span> Valider et revenir à l'enquête
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Save New Profile Modal -->
+  <div class="modal-overlay" id="modal-save-profile">
+    <div class="modal-content" style="max-width: 480px;">
+      <div class="modal-header">
+        <h3 class="modal-title">💾 Enregistrer un Nouveau Profil Métier</h3>
+        <button class="drawer-close" id="btn-close-save-profile">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p style="font-size: 0.82rem; color: var(--text-secondary); margin-bottom: 1rem; line-height: 1.45;">
+          Créez un bouton de raccourci personnalisé qui affichera votre sélection actuelle de <strong id="save-profile-controls-count" style="color: var(--accent-primary);">8</strong> filtres en un seul clic.
+        </p>
+
+        <div class="grid-2" style="grid-template-columns: 95px 1fr; gap: 0.65rem;">
+          <div class="form-group">
+            <label for="select-profile-icon">Icône</label>
+            <select id="select-profile-icon" style="font-size: 1rem; text-align: center;">
+              <option value="🎯">🎯 Cible</option>
+              <option value="🔥">🔥 Urgence</option>
+              <option value="❄️">❄️ Hiver</option>
+              <option value="☀️">☀️ Été</option>
+              <option value="🦈">🦈 Bailleur</option>
+              <option value="⚖️">⚖️ Droit</option>
+              <option value="🏚️">🏚️ Habitat</option>
+              <option value="🏥">🏥 Santé</option>
+              <option value="📋">📋 Terrain</option>
+              <option value="🏘️">🏘️ Quartier</option>
+              <option value="⭐">⭐ Favori</option>
+              <option value="🔬">🔬 Étude</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="input-profile-name">Nom du profil *</label>
+            <input type="text" id="input-profile-name" placeholder="Ex: Permanence ADIL / Passoires G Élec..." maxlength="40">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="input-profile-desc">Description / Objectif sociologique (optionnel)</label>
+          <input type="text" id="input-profile-desc" placeholder="Ex: Cibler les petits studios G chauffés à l'électricité sans volets">
+        </div>
+
+        <div class="card" style="padding: 0.75rem; background: rgba(56, 189, 248, 0.07); border-color: rgba(56, 189, 248, 0.25);">
+          <label class="checkbox-label" style="color: var(--text-primary); font-weight: 500; align-items: flex-start;">
+            <input type="checkbox" id="chk-profile-save-values" checked style="margin-top: 0.15rem;">
+            <span>
+              <strong>Mémoriser aussi les seuils et valeurs actuellement réglés</strong><br>
+              <small style="color: var(--text-secondary); font-weight: 400;">Si coché, cliquer sur ce profil appliquera à la fois la liste des contrôles ET vos réglages actuels (ex: DPE = G, Chauffage = Électricité...).</small>
+            </span>
+          </label>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" id="btn-cancel-save-profile">Annuler</button>
+        <button class="btn btn-primary" id="btn-confirm-save-profile">
+          <span>💾</span> Enregistrer le profil
+        </button>
+      </div>
+    </div>
   </div>
 
   <!-- Territory & Chunk Manager Modal -->

@@ -37,8 +37,8 @@ DEFAULT_OWNERS = ROOT_DIR / "data" / "processed" / "building_owners.parquet"
 DEFAULT_OUT_DIR = ROOT_DIR / "data" / "chunks"
 
 DEP_LABELS = {
-    "69": "69 — Rhône (Lyon & Villeurbanne)",
-    "38": "38 — Isère (Grenoble & Métropole)",
+    "69": "69 — Rhône",
+    "38": "38 — Isère",
 }
 
 
@@ -59,19 +59,15 @@ def build_chunks(
     df_owners = pd.read_parquet(owners_path)
     print(f"  Loaded {len(df_owners):,} corporate owner records.")
 
-    # Map building postal code onto owners via batiment_groupe_id
-    print("Mapping postal codes to corporate owners...")
-    bg_to_cp = gdf_buildings.set_index("batiment_groupe_id")["cp"].to_dict()
-    df_owners["cp"] = df_owners["batiment_groupe_id"].map(bg_to_cp)
-
-    missing_cp = df_owners["cp"].isna().sum()
-    if missing_cp > 0:
-        print(f"  WARNING: {missing_cp} owners could not be mapped to a building postal code.")
-    else:
-        print("  100% of owners successfully mapped to building postal codes.")
-
     # Cast CP to standard int for clean sorting and serialization
     gdf_buildings["cp"] = gdf_buildings["cp"].astype(int)
+
+    # Map building postal code onto owners via batiment_groupe_id if not present
+    if "cp" not in df_owners.columns or df_owners["cp"].isna().all():
+        print("Mapping postal codes to corporate owners...")
+        bg_to_cp = gdf_buildings.set_index("batiment_groupe_id")["cp"].to_dict()
+        df_owners["cp"] = df_owners["batiment_groupe_id"].map(bg_to_cp)
+    
     df_owners["cp"] = df_owners["cp"].fillna(-1).astype(int)
 
     unique_cps = sorted(gdf_buildings["cp"].unique())
@@ -82,9 +78,13 @@ def build_chunks(
     total_buildings_size = 0
     total_owners_size = 0
 
+    grouped_b = {cp: grp for cp, grp in gdf_buildings.groupby("cp")}
+    grouped_o = {cp: grp for cp, grp in df_owners.groupby("cp")}
+    empty_owners = pd.DataFrame(columns=df_owners.columns)
+
     for cp_val in unique_cps:
-        b_sub = gdf_buildings[gdf_buildings["cp"] == cp_val].copy()
-        o_sub = df_owners[df_owners["cp"] == cp_val].copy()
+        b_sub = grouped_b[cp_val]
+        o_sub = grouped_o.get(cp_val, empty_owners)
 
         dep_val = str(b_sub["departement"].iloc[0])
         communes = sorted(b_sub["libelle_commune_insee"].dropna().unique().tolist())

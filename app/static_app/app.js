@@ -44,6 +44,17 @@ const state = {
   filterSocialOnly: false,
   filterExcludeSocial: false,
   filterRentControl: false,
+  // Sociological Filter Catalog & Profiles State
+  activeProfileId: 'essential',
+  activeFilterIds: new Set([
+    'dpe', 'pct_dpe_fg', 'nb_log', 'risque_surchauffe_ete',
+    'owner_search', 'legal_category', 'concentration_pct', 'min_patrimoine_majic'
+  ]),
+  customProfiles: [],
+  catalogCategoryFilter: 'all',
+  catalogSearchQuery: '',
+  dynFilters: {},       // filterId -> value state for extended catalog filters
+  fieldworkFilters: {}, // customCol -> text/value filter
   map: null,
   selectedBuildingId: null,
   activeTab: 'map',
@@ -73,6 +84,2472 @@ const OVERHEATING_COLORS = {
 };
 
 /* ==========================================================================
+   Sociological & Social-Work Filter Categorization & Catalog (55 Indicators)
+   ========================================================================== */
+const SOCIOLOGICAL_CATEGORIES = [
+  {
+    id: 'winter',
+    icon: '🌡️',
+    shortLabel: '1. Précarité Hiver & Factures',
+    title: '1. Précarité Énergétique d\'Hiver & Poids des Factures',
+    desc: 'Identifier les ménages exposés au froid, aux impayés d\'énergie (« chauffer à l\'électricité ou au fioul dans une passoire ») et aux interdictions légales de louer (DPE G en 2025, F en 2028, E en 2034).',
+  },
+  {
+    id: 'summer',
+    icon: '☀️',
+    shortLabel: '2. Canicule & Surchauffe Été',
+    title: '2. Vulnérabilité Climatique & Surchauffe d\'Été (« Bouilloires »)',
+    desc: 'Protéger les publics fragiles face aux canicules en croisant les défauts de l\'enveloppe (combles non isolés, absence de volets, non-traversant, sans balcon) et l\'îlot de chaleur nocturne (ICU).',
+  },
+  {
+    id: 'landlords',
+    icon: '🏛️',
+    shortLabel: '3. Propriétaires & Rapports de Force',
+    title: '3. Structure de Propriété, Multipropriété & Rapports de Force',
+    desc: 'Adapter la stratégie d\'accompagnement ou syndicale selon le bailleur : SCI opaque, société foncière, bailleur social, multipropriétaire détenant tout l\'immeuble ou bailleur hors territoire.',
+  },
+  {
+    id: 'social',
+    icon: '⚖️',
+    shortLabel: '4. Justice Sociale, Loyers & Marché',
+    title: '4. Justice Sociale, Loyers, Parc Social & Spéculation',
+    desc: 'Croiser les vulnérabilités avec la géographie prioritaire (QPV), le parc social (RPLS, accessibilité PMR), le plafonnement légal des loyers et la pression spéculative du marché (DVF).',
+  },
+  {
+    id: 'copro',
+    icon: '🏢',
+    shortLabel: '5. Copros, Salubrité & Habitat Indigne',
+    title: '5. Copropriétés, Salubrité & Qualité de l\'Habitat',
+    desc: 'Repérer les signes techniques d\'habitat dégradé (simple vitrage, absence de VMC causant moisissures, micro-logements/studios) et comprendre la gouvernance de copropriété (RNIC).',
+  },
+  {
+    id: 'morphology',
+    icon: '🏗️',
+    shortLabel: '6. Morphologie, Époque & Risques',
+    title: '6. Morphologie Urbaine, Époque & Risques Sanitaires / ABF',
+    desc: 'Cibler par taille de collectif (porte-à-porte), hauteur, époque constructive (avant 1948, Trente Glorieuses 1948-1974), contraintes Monument Historique (ABF), Radon et réseaux de chaleur.',
+  },
+  {
+    id: 'geography',
+    icon: '📍',
+    shortLabel: '7. Géographie Fine & Terrain (.xlsx)',
+    title: '7. Géographie Fine, Quartiers IRIS & Enquête de Terrain (.xlsx)',
+    desc: 'Filtrer par commune/arrondissement, îlot statistique INSEE (IRIS), nom de rue, ou statut de visite dans votre tableur militant (.xlsx).',
+  },
+];
+
+const BUILTIN_PROFILES = [
+  {
+    id: 'essential',
+    icon: '🔥',
+    name: 'Essentiel Militant',
+    desc: 'Sélection rapide quotidienne : passoires DPE F/G, taille d\'immeuble, risque surchauffe été et concentration bailleur.',
+    mapStyleMode: 'dpe',
+    filterIds: [
+      'dpe', 'pct_dpe_fg', 'nb_log', 'risque_surchauffe_ete',
+      'owner_search', 'legal_category', 'concentration_pct', 'min_patrimoine_majic'
+    ],
+  },
+  {
+    id: 'winter_poverty',
+    icon: '❄️',
+    name: 'Précarité Hiver & Factures',
+    desc: 'Focus travail social & impayés d\'énergie : passoires G (interdites 2025) et F, chauffage électrique/fioul, consommations réelles Enedis/GRDF, simple vitrage et opposabilité DPE 2021.',
+    mapStyleMode: 'dpe',
+    filterIds: [
+      'dpe', 'pct_dpe_g', 'pct_dpe_fg', 'type_energie_chauffage', 'type_installation_chauffage',
+      'conso_elec_res_par_pdl_kwh', 'conso_ep_m2', 'type_vitrage', 'surface_habitable_logement', 'dpe_arrete_2021'
+    ],
+  },
+  {
+    id: 'summer_heat',
+    icon: '☀️',
+    name: 'Canicule & Bouilloires Été',
+    desc: 'Focus santé publique & canicule : score et risque de surchauffe, îlot de chaleur nocturne (ICU), combles non isolés, absence de volets, non-traversant, inertie et absence de balcon.',
+    mapStyleMode: 'overheating',
+    filterIds: [
+      'risque_surchauffe_ete', 'score_surchauffe_ete', 'icu_expo_nuit', 'icu_vulnerabilite_nuit',
+      'type_isolation_plancher_haut', 'type_fermeture', 'traversant', 'classe_inertie', 'presence_balcon', 'has_clim'
+    ],
+  },
+  {
+    id: 'landlords_sci',
+    icon: '🦈',
+    name: 'Multipropriétaires & SCI',
+    desc: 'Focus sociologie urbaine & action syndicale : recherche bailleur/SIREN, SCI & sociétés commerciales, concentration foncière, patrimoine MAJIC, bailleurs distants et ventes DVF.',
+    mapStyleMode: 'concentration',
+    filterIds: [
+      'owner_search', 'legal_category', 'forme_juridique_principale', 'concentration_pct',
+      'max_locaux_un_prop', 'min_patrimoine_majic', 'nb_proprietaires_open', 'bailleur_distant', 'dvf_nb_mutations'
+    ],
+  },
+  {
+    id: 'social_worker',
+    icon: '⚖️',
+    name: 'Travail Social, Loyers & QPV',
+    desc: 'Focus accès aux droits & accompagnement social : Quartiers Prioritaires (QPV), parc social (RPLS) vs privé, accessibilité PMR/handicap, encadrement des loyers (plafonds T2) et prix DVF.',
+    mapStyleMode: 'dpe',
+    filterIds: [
+      'qpv_mode', 'quartier_qpv_select', 'social_rpls_mode', 'nb_log_sociaux_rpls',
+      'pmr_rpls_mode', 'rent_control_mode', 'zone_encadrement_loyers', 'loyer_max_t2_nm', 'dvf_prix_m2_median', 'dpe'
+    ],
+  },
+  {
+    id: 'degraded_copro',
+    icon: '🏚️',
+    name: 'Copros Fragiles & Insalubrité',
+    desc: 'Focus habitat dégradé & santé respiratoire : copropriétés RNIC, simple vitrage, absence de VMC (humidité/moisissures), murs/caves non isolés, époque constructive, radon et ABF.',
+    mapStyleMode: 'dpe',
+    filterIds: [
+      'copro_status', 'copro_search', 'nb_lots_copro', 'type_vitrage', 'type_ventilation',
+      'type_isolation_mur_exterieur', 'type_isolation_plancher_bas', 'periode_construction_dpe', 'patrimoine_abf', 'alea_radon'
+    ],
+  },
+  {
+    id: 'complete',
+    icon: '🔬',
+    name: 'Tous les filtres (69)',
+    desc: 'Affiche l\'intégralité des 69 indicateurs sociologiques, climatiques, fonciers et techniques.',
+    mapStyleMode: 'dpe',
+    filterIds: [], // populated dynamically with all FILTER_DEFINITIONS ids
+  },
+];
+
+const CUSTOM_PROFILES_STORAGE_KEY = 'tezeloma_custom_profiles_v1';
+
+const FILTER_DEFINITIONS = [
+  /* ========================================================================
+     1. PRÉCARITÉ ÉNERGÉTIQUE D'HIVER & POIDS DES FACTURES (15 indicateurs)
+     ======================================================================== */
+  {
+    id: 'dpe',
+    category: 'winter',
+    label: 'Étiquette DPE globale de l\'immeuble',
+    column: 'dpe',
+    source: 'ADEME / BDNB',
+    desc: 'Classe de performance énergétique représentative (A à G). Loi Climat & Résilience : interdiction de louer les G en 2025, F en 2028, E en 2034.',
+    controlType: 'dpe_pills',
+    options: ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'Inconnu'],
+    isActive: (s) => s.selectedDpes.size < 8,
+    reset: (s) => { s.selectedDpes = new Set(['A', 'B', 'C', 'D', 'E', 'F', 'G', 'Inconnu']); },
+    getValue: (s) => Array.from(s.selectedDpes),
+    setValue: (s, v) => { if (Array.isArray(v)) s.selectedDpes = new Set(v); },
+    matches: (s, b) => s.selectedDpes.has(b.dpe || 'Inconnu'),
+  },
+  {
+    id: 'pct_dpe_fg',
+    category: 'winter',
+    label: '% de passoires thermiques (DPE F ou G)',
+    column: 'pct_dpe_fg',
+    source: 'ADEME DPE par lot',
+    desc: 'Proportion de logements diagnostiqués F ou G au sein du bâtiment.',
+    controlType: 'slider',
+    min: 0, max: 100, step: 5, unit: '%',
+    isActive: (s) => Number(s.minPctFg || 0) > 0,
+    reset: (s) => { s.minPctFg = 0; },
+    getValue: (s) => s.minPctFg || 0,
+    setValue: (s, v) => { s.minPctFg = Number(v || 0); },
+    matches: (s, b) => Number(b.pct_dpe_fg || 0) >= Number(s.minPctFg || 0),
+  },
+  {
+    id: 'nb_dpe_fg',
+    category: 'winter',
+    label: 'Nombre min. de logements F ou G dans l\'immeuble',
+    column: 'nb_dpe_fg',
+    source: 'ADEME DPE par lot',
+    desc: 'Cibler les grands gisements de passoires thermiques pour des actions collectives ou du porte-à-porte.',
+    controlType: 'number_min',
+    min: 0, max: 500, step: 1, placeholder: 'Ex: 5 logements F/G',
+    isActive: (s) => Number(s.dynFilters.nb_dpe_fg || 0) > 0,
+    reset: (s) => { delete s.dynFilters.nb_dpe_fg; },
+    getValue: (s) => s.dynFilters.nb_dpe_fg || 0,
+    setValue: (s, v) => { s.dynFilters.nb_dpe_fg = Number(v || 0); },
+    matches: (s, b) => Number(b.nb_dpe_fg || 0) >= Number(s.dynFilters.nb_dpe_fg || 0),
+  },
+  {
+    id: 'pct_dpe_g',
+    category: 'winter',
+    label: '% de logements classés G (Interdits à la location 2025)',
+    column: 'pct_dpe_g',
+    source: 'ADEME DPE par lot',
+    desc: 'Part des logements qualifiés d\'indécents énergétiques depuis le 1er janvier 2025 (recours locataire en baisse de loyer / travaux).',
+    controlType: 'slider',
+    min: 0, max: 100, step: 5, unit: '%',
+    isActive: (s) => Number(s.dynFilters.pct_dpe_g || 0) > 0,
+    reset: (s) => { delete s.dynFilters.pct_dpe_g; },
+    getValue: (s) => s.dynFilters.pct_dpe_g || 0,
+    setValue: (s, v) => { s.dynFilters.pct_dpe_g = Number(v || 0); },
+    matches: (s, b) => Number(b.pct_dpe_g || 0) >= Number(s.dynFilters.pct_dpe_g || 0),
+  },
+  {
+    id: 'pct_dpe_f',
+    category: 'winter',
+    label: '% de logements classés F (Interdits à la location 2028)',
+    column: 'pct_dpe_f',
+    source: 'ADEME DPE par lot',
+    desc: 'Part des logements F dont le loyer est gelé (interdiction d\'indexation IRL) et qui seront interdits à la location en 2028.',
+    controlType: 'slider',
+    min: 0, max: 100, step: 5, unit: '%',
+    isActive: (s) => Number(s.dynFilters.pct_dpe_f || 0) > 0,
+    reset: (s) => { delete s.dynFilters.pct_dpe_f; },
+    getValue: (s) => s.dynFilters.pct_dpe_f || 0,
+    setValue: (s, v) => { s.dynFilters.pct_dpe_f = Number(v || 0); },
+    matches: (s, b) => Number(b.pct_dpe_f || 0) >= Number(s.dynFilters.pct_dpe_f || 0),
+  },
+  {
+    id: 'pct_dpe_e',
+    category: 'winter',
+    label: '% de logements classés E (Échéance 2034)',
+    column: 'pct_dpe_e',
+    source: 'ADEME DPE par lot',
+    desc: 'Part des logements E vulnérables à la hausse des prix de l\'énergie et visés par l\'échéance de décence 2034.',
+    controlType: 'slider',
+    min: 0, max: 100, step: 5, unit: '%',
+    isActive: (s) => Number(s.dynFilters.pct_dpe_e || 0) > 0,
+    reset: (s) => { delete s.dynFilters.pct_dpe_e; },
+    getValue: (s) => s.dynFilters.pct_dpe_e || 0,
+    setValue: (s, v) => { s.dynFilters.pct_dpe_e = Number(v || 0); },
+    matches: (s, b) => Number(b.pct_dpe_e || 0) >= Number(s.dynFilters.pct_dpe_e || 0),
+  },
+  {
+    id: 'pct_dpe_inconnu',
+    category: 'winter',
+    label: '% de logements sans DPE connu (Angle mort)',
+    column: 'pct_dpe_inconnu',
+    source: 'BDNB / ADEME',
+    desc: 'Repérer les immeubles où aucun diagnostic officiel n\'a été déposé à l\'ADEME (souvent loués sans DPE ou occupés de longue date).',
+    controlType: 'slider',
+    min: 0, max: 100, step: 10, unit: '%',
+    isActive: (s) => Number(s.dynFilters.pct_dpe_inconnu || 0) > 0,
+    reset: (s) => { delete s.dynFilters.pct_dpe_inconnu; },
+    getValue: (s) => s.dynFilters.pct_dpe_inconnu || 0,
+    setValue: (s, v) => { s.dynFilters.pct_dpe_inconnu = Number(v || 0); },
+    matches: (s, b) => Number(b.pct_dpe_inconnu || 0) >= Number(s.dynFilters.pct_dpe_inconnu || 0),
+  },
+  {
+    id: 'classe_ges',
+    category: 'winter',
+    label: 'Classe d\'émissions de Gaz à Effet de Serre (GES)',
+    column: 'classe_ges',
+    source: 'ADEME DPE',
+    desc: 'Étiquette climat (A à G) reflétant l\'usage d\'énergies fossiles (fioul, gaz) à fort impact carbone.',
+    controlType: 'select',
+    options: [
+      { value: '', label: 'Toutes les classes GES' },
+      { value: 'FG', label: 'Passoires climatiques (GES F ou G)' },
+      { value: 'G', label: 'Classe GES G uniquement' },
+      { value: 'F', label: 'Classe GES F uniquement' },
+      { value: 'E', label: 'Classe GES E ou pire (E, F, G)' },
+      { value: 'ABC', label: 'Bas carbone (GES A, B ou C)' },
+    ],
+    isActive: (s) => Boolean(s.dynFilters.classe_ges),
+    reset: (s) => { delete s.dynFilters.classe_ges; },
+    getValue: (s) => s.dynFilters.classe_ges || '',
+    setValue: (s, v) => { s.dynFilters.classe_ges = v || ''; },
+    matches: (s, b) => {
+      const val = s.dynFilters.classe_ges;
+      if (!val) return true;
+      const g = String(b.classe_ges || '').toUpperCase();
+      if (val === 'FG') return g === 'F' || g === 'G';
+      if (val === 'E') return g === 'E' || g === 'F' || g === 'G';
+      if (val === 'ABC') return g === 'A' || g === 'B' || g === 'C';
+      return g === val;
+    },
+  },
+  {
+    id: 'conso_ep_m2',
+    category: 'winter',
+    label: 'Consommation conventionnelle min. (kWhEP/m²/an)',
+    column: 'conso_ep_m2',
+    source: 'ADEME DPE',
+    desc: 'Identifier les passoires extrêmes (> 420 kWh/m²/an = seuil G, voire > 500 kWh/m²/an).',
+    controlType: 'slider',
+    min: 0, max: 600, step: 25, unit: ' kWh/m²',
+    isActive: (s) => Number(s.dynFilters.conso_ep_m2 || 0) > 0,
+    reset: (s) => { delete s.dynFilters.conso_ep_m2; },
+    getValue: (s) => s.dynFilters.conso_ep_m2 || 0,
+    setValue: (s, v) => { s.dynFilters.conso_ep_m2 = Number(v || 0); },
+    matches: (s, b) => Number(b.conso_ep_m2 || 0) >= Number(s.dynFilters.conso_ep_m2 || 0),
+  },
+  {
+    id: 'type_energie_chauffage',
+    category: 'winter',
+    label: 'Énergie principale de chauffage',
+    column: 'type_energie_chauffage',
+    source: 'ADEME DPE',
+    desc: 'Crucial pour les travailleurs sociaux : le chauffage électrique direct (« grille-pain ») ou au fioul en passoire provoque les impayés les plus lourds.',
+    controlType: 'select',
+    options: [
+      { value: '', label: 'Toutes énergies de chauffage' },
+      { value: 'electricite', label: '⚡ Électricité (convecteurs / radiateurs élec.)' },
+      { value: 'gaz', label: '🔥 Gaz naturel / GPL' },
+      { value: 'fioul', label: '🛢️ Fioul domestique' },
+      { value: 'reseau de chaleur', label: '🏭 Réseau de chaleur urbain' },
+      { value: 'bois', label: '🪵 Bois / Biomasse' },
+    ],
+    isActive: (s) => Boolean(s.dynFilters.type_energie_chauffage),
+    reset: (s) => { delete s.dynFilters.type_energie_chauffage; },
+    getValue: (s) => s.dynFilters.type_energie_chauffage || '',
+    setValue: (s, v) => { s.dynFilters.type_energie_chauffage = v || ''; },
+    matches: (s, b) => {
+      const val = s.dynFilters.type_energie_chauffage;
+      if (!val) return true;
+      return String(b.type_energie_chauffage || '').toLowerCase().includes(val);
+    },
+  },
+  {
+    id: 'type_installation_chauffage',
+    category: 'winter',
+    label: 'Mode de chauffage (Individuel vs Collectif)',
+    column: 'type_installation_chauffage',
+    source: 'ADEME DPE',
+    desc: 'En chauffage individuel, le ménage subit directement la facture ou se prive de chauffage ; en collectif, le coût passe dans les charges locatives.',
+    controlType: 'select',
+    options: [
+      { value: '', label: 'Tous types d\'installation' },
+      { value: 'individuel', label: 'Individuel (risque d\'auto-restriction / coupure)' },
+      { value: 'collectif', label: 'Collectif (inclus dans les charges)' },
+      { value: 'mixte', label: 'Mixte (collectif + appoint individuel)' },
+    ],
+    isActive: (s) => Boolean(s.dynFilters.type_installation_chauffage),
+    reset: (s) => { delete s.dynFilters.type_installation_chauffage; },
+    getValue: (s) => s.dynFilters.type_installation_chauffage || '',
+    setValue: (s, v) => { s.dynFilters.type_installation_chauffage = v || ''; },
+    matches: (s, b) => {
+      const val = s.dynFilters.type_installation_chauffage;
+      if (!val) return true;
+      return String(b.type_installation_chauffage || '').toLowerCase().includes(val);
+    },
+  },
+  {
+    id: 'type_energie_ecs',
+    category: 'winter',
+    label: 'Énergie de l\'Eau Chaude Sanitaire (ECS)',
+    column: 'type_energie_ecs',
+    source: 'ADEME DPE',
+    desc: 'Un ballon électrique individuel mal isolé représente un poste majeur de facture pour les familles nombreuses.',
+    controlType: 'select',
+    options: [
+      { value: '', label: 'Toutes énergies ECS' },
+      { value: 'electricite', label: '⚡ Électricité (ballon / cumul électrique)' },
+      { value: 'gaz', label: '🔥 Gaz (chaudière / chauffe-eau gaz)' },
+      { value: 'fioul', label: '🛢️ Fioul' },
+      { value: 'reseau de chaleur', label: '🏭 Réseau de chaleur' },
+    ],
+    isActive: (s) => Boolean(s.dynFilters.type_energie_ecs),
+    reset: (s) => { delete s.dynFilters.type_energie_ecs; },
+    getValue: (s) => s.dynFilters.type_energie_ecs || '',
+    setValue: (s, v) => { s.dynFilters.type_energie_ecs = v || ''; },
+    matches: (s, b) => {
+      const val = s.dynFilters.type_energie_ecs;
+      if (!val) return true;
+      return String(b.type_energie_ecs || '').toLowerCase().includes(val);
+    },
+  },
+  {
+    id: 'conso_elec_res_par_pdl_kwh',
+    category: 'winter',
+    label: 'Conso. électrique réelle min. par logement (kWh/an Enedis)',
+    column: 'conso_elec_res_par_pdl_kwh',
+    source: 'Enedis DLE / SDES',
+    desc: 'Consommation réelle moyenne mesurée par compteur résidentiel (PDL). Permet de confronter le DPE théorique aux factures réelles.',
+    controlType: 'slider',
+    min: 0, max: 12000, step: 500, unit: ' kWh/an',
+    isActive: (s) => Number(s.dynFilters.conso_elec_res_par_pdl_kwh || 0) > 0,
+    reset: (s) => { delete s.dynFilters.conso_elec_res_par_pdl_kwh; },
+    getValue: (s) => s.dynFilters.conso_elec_res_par_pdl_kwh || 0,
+    setValue: (s, v) => { s.dynFilters.conso_elec_res_par_pdl_kwh = Number(v || 0); },
+    matches: (s, b) => Number(b.conso_elec_res_par_pdl_kwh || 0) >= Number(s.dynFilters.conso_elec_res_par_pdl_kwh || 0),
+  },
+  {
+    id: 'conso_gaz_res_par_pdl_kwh',
+    category: 'winter',
+    label: 'Conso. gaz réelle min. par logement (kWh/an GRDF)',
+    column: 'conso_gaz_res_par_pdl_kwh',
+    source: 'GRDF DLE / SDES',
+    desc: 'Consommation réelle moyenne de gaz par point de livraison résidentiel.',
+    controlType: 'slider',
+    min: 0, max: 20000, step: 1000, unit: ' kWh/an',
+    isActive: (s) => Number(s.dynFilters.conso_gaz_res_par_pdl_kwh || 0) > 0,
+    reset: (s) => { delete s.dynFilters.conso_gaz_res_par_pdl_kwh; },
+    getValue: (s) => s.dynFilters.conso_gaz_res_par_pdl_kwh || 0,
+    setValue: (s, v) => { s.dynFilters.conso_gaz_res_par_pdl_kwh = Number(v || 0); },
+    matches: (s, b) => Number(b.conso_gaz_res_par_pdl_kwh || 0) >= Number(s.dynFilters.conso_gaz_res_par_pdl_kwh || 0),
+  },
+  {
+    id: 'dpe_arrete_2021',
+    category: 'winter',
+    label: 'Opposabilité juridique du DPE (Réforme 2021)',
+    column: 'dpe_arrete_2021',
+    source: 'ADEME DPE',
+    desc: 'Seuls les DPE établis selon l\'arrêté de juillet 2021 sont pleinement opposables devant le juge sans nécessiter de nouveau diagnostic.',
+    controlType: 'select',
+    options: [
+      { value: '', label: 'Tous les DPE (pré et post-2021)' },
+      { value: 'true', label: '✅ DPE post-2021 (Juridiquement opposable)' },
+      { value: 'false', label: '⚠️ DPE pré-2021 (Ancienne méthode / à refaire)' },
+    ],
+    isActive: (s) => Boolean(s.dynFilters.dpe_arrete_2021),
+    reset: (s) => { delete s.dynFilters.dpe_arrete_2021; },
+    getValue: (s) => s.dynFilters.dpe_arrete_2021 || '',
+    setValue: (s, v) => { s.dynFilters.dpe_arrete_2021 = v || ''; },
+    matches: (s, b) => {
+      const val = s.dynFilters.dpe_arrete_2021;
+      if (!val) return true;
+      if (val === 'true') return b.dpe_arrete_2021 === true || String(b.dpe_arrete_2021).toLowerCase() === 'true';
+      if (val === 'false') return b.dpe_arrete_2021 === false || String(b.dpe_arrete_2021).toLowerCase() === 'false';
+      return true;
+    },
+  },
+
+  /* ========================================================================
+     2. VULNÉRABILITÉ CLIMATIQUE & SURCHAUFFE D'ÉTÉ (« BOUILLOIRES ») (13)
+     ======================================================================== */
+  {
+    id: 'risque_surchauffe_ete',
+    category: 'summer',
+    label: 'Niveau de risque de surchauffe estivale',
+    column: 'risque_surchauffe_ete',
+    source: 'Score Composite TeZeLoMa',
+    desc: 'Catégorie de vulnérabilité aux canicules (Critique, Élevé, Modéré, Faible, Non renseigné).',
+    controlType: 'overheating_pills',
+    options: ['Critique', 'Élevé', 'Modéré', 'Faible', 'Non renseigné'],
+    isActive: (s) => s.selectedOverheating.size < 5,
+    reset: (s) => { s.selectedOverheating = new Set(['Critique', 'Élevé', 'Modéré', 'Faible', 'Non renseigné']); },
+    getValue: (s) => Array.from(s.selectedOverheating),
+    setValue: (s, v) => { if (Array.isArray(v)) s.selectedOverheating = new Set(v); },
+    matches: (s, b) => {
+      const rawRisk = b.risque_surchauffe_ete;
+      const risk = (!rawRisk || rawRisk === 'NC' || rawRisk === 'Inconnu') ? 'Non renseigné' : rawRisk;
+      return s.selectedOverheating.has(risk);
+    },
+  },
+  {
+    id: 'score_surchauffe_ete',
+    category: 'summer',
+    label: 'Score de vulnérabilité canicule min. (/100)',
+    column: 'score_surchauffe_ete',
+    source: 'Score Composite TeZeLoMa',
+    desc: 'Score sur 100 combinant isolation toiture, volets, inertie, caractère traversant et îlot de chaleur nocturne.',
+    controlType: 'slider',
+    min: 0, max: 90, step: 5, unit: ' / 100',
+    isActive: (s) => Number(s.minOverheatScore || 0) > 0,
+    reset: (s) => { s.minOverheatScore = 0; },
+    getValue: (s) => s.minOverheatScore || 0,
+    setValue: (s, v) => { s.minOverheatScore = Number(v || 0); },
+    matches: (s, b) => Number(b.score_surchauffe_ete || 0) >= Number(s.minOverheatScore || 0),
+  },
+  {
+    id: 'icu_expo_nuit',
+    category: 'summer',
+    label: 'Îlot de Chaleur Urbain Nocturne (ICU Nuit)',
+    column: 'icu_expo_nuit',
+    source: 'Data Grand Lyon WFS',
+    desc: 'L\'absence de rafraîchissement nocturne empêche la récupération physiologique des personnes âgées, nourrissons et malades chroniques.',
+    controlType: 'select',
+    options: [
+      { value: '', label: 'Toutes expositions ICU Nuit' },
+      { value: 'fort', label: '🔥 Aléa Fort ou Très Fort la nuit' },
+      { value: 'mod', label: '☀️ Aléa Modéré, Fort ou Très Fort' },
+      { value: 'faible', label: '🌿 Aléa Faible / Très faible' },
+    ],
+    isActive: (s) => Boolean(s.dynFilters.icu_expo_nuit),
+    reset: (s) => { delete s.dynFilters.icu_expo_nuit; },
+    getValue: (s) => s.dynFilters.icu_expo_nuit || '',
+    setValue: (s, v) => { s.dynFilters.icu_expo_nuit = v || ''; },
+    matches: (s, b) => {
+      const val = s.dynFilters.icu_expo_nuit;
+      if (!val) return true;
+      const icu = String(b.icu_expo_nuit || '').toLowerCase();
+      if (val === 'fort') return icu.includes('fort');
+      if (val === 'mod') return icu.includes('mod') || icu.includes('fort');
+      if (val === 'faible') return icu.includes('faible');
+      return true;
+    },
+  },
+  {
+    id: 'icu_expo_jour',
+    category: 'summer',
+    label: 'Îlot de Chaleur Urbain Diurne (ICU Jour)',
+    column: 'icu_expo_jour',
+    source: 'Data Grand Lyon WFS',
+    desc: 'Stress thermique de jour lié à la minéralisation de la rue et au manque de canopée arborée.',
+    controlType: 'select',
+    options: [
+      { value: '', label: 'Toutes expositions ICU Jour' },
+      { value: 'fort', label: '🔥 Aléa Fort ou Très Fort le jour' },
+      { value: 'mod', label: '☀️ Aléa Modéré, Fort ou Très Fort' },
+    ],
+    isActive: (s) => Boolean(s.dynFilters.icu_expo_jour),
+    reset: (s) => { delete s.dynFilters.icu_expo_jour; },
+    getValue: (s) => s.dynFilters.icu_expo_jour || '',
+    setValue: (s, v) => { s.dynFilters.icu_expo_jour = v || ''; },
+    matches: (s, b) => {
+      const val = s.dynFilters.icu_expo_jour;
+      if (!val) return true;
+      const icu = String(b.icu_expo_jour || '').toLowerCase();
+      if (val === 'fort') return icu.includes('fort');
+      if (val === 'mod') return icu.includes('mod') || icu.includes('fort');
+      return true;
+    },
+  },
+  {
+    id: 'icu_vulnerabilite_nuit',
+    category: 'summer',
+    label: 'Vulnérabilité Globale ICU Nuit (Grand Lyon)',
+    column: 'icu_vulnerabilite_nuit',
+    source: 'Data Grand Lyon WFS',
+    desc: 'Indice synthétique de vulnérabilité nocturne de la Métropole de Lyon.',
+    controlType: 'select',
+    options: [
+      { value: '', label: 'Tous niveaux de vulnérabilité ICU' },
+      { value: 'forte', label: 'Forte ou Très forte vulnérabilité' },
+      { value: 'moyenne', label: 'Moyenne, Forte ou Très forte' },
+    ],
+    isActive: (s) => Boolean(s.dynFilters.icu_vulnerabilite_nuit),
+    reset: (s) => { delete s.dynFilters.icu_vulnerabilite_nuit; },
+    getValue: (s) => s.dynFilters.icu_vulnerabilite_nuit || '',
+    setValue: (s, v) => { s.dynFilters.icu_vulnerabilite_nuit = v || ''; },
+    matches: (s, b) => {
+      const val = s.dynFilters.icu_vulnerabilite_nuit;
+      if (!val) return true;
+      const vStr = String(b.icu_vulnerabilite_nuit || '').toLowerCase();
+      if (val === 'forte') return vStr.includes('forte');
+      if (val === 'moyenne') return vStr.includes('moyenne') || vStr.includes('forte');
+      return true;
+    },
+  },
+  {
+    id: 'type_isolation_plancher_haut',
+    category: 'summer',
+    label: 'Isolation de la toiture / combles',
+    column: 'type_isolation_plancher_haut',
+    source: 'ADEME DPE',
+    desc: 'Un toit non isolé transforme les logements sous combles en fournaises l\'été et en gouffres thermiques l\'hiver.',
+    controlType: 'select',
+    options: [
+      { value: '', label: 'Tous états d\'isolation toiture' },
+      { value: 'non isol', label: '🚨 Toiture / combles NON isolés uniquement' },
+      { value: 'isol', label: '✅ Toiture isolée (ITI / ITE / combles)' },
+      { value: 'inconnu', label: '❓ Isolation toiture inconnue' },
+    ],
+    isActive: (s) => Boolean(s.onlyUninsulatedRoof || s.dynFilters.type_isolation_plancher_haut),
+    reset: (s) => { s.onlyUninsulatedRoof = false; delete s.dynFilters.type_isolation_plancher_haut; },
+    getValue: (s) => s.onlyUninsulatedRoof ? 'non isol' : (s.dynFilters.type_isolation_plancher_haut || ''),
+    setValue: (s, v) => {
+      s.onlyUninsulatedRoof = (v === 'non isol');
+      s.dynFilters.type_isolation_plancher_haut = v || '';
+    },
+    matches: (s, b) => {
+      const val = s.onlyUninsulatedRoof ? 'non isol' : (s.dynFilters.type_isolation_plancher_haut || '');
+      if (!val) return true;
+      const roof = String(b.type_isolation_plancher_haut || '').toLowerCase();
+      if (val === 'non isol') return roof.includes('non isol');
+      if (val === 'isol') return roof.includes('isol') && !roof.includes('non isol');
+      if (val === 'inconnu') return !roof || roof.includes('inconnu') || roof === 'nc';
+      return true;
+    },
+  },
+  {
+    id: 'u_plancher_haut_deperditif',
+    category: 'summer',
+    label: 'Coefficient de déperdition toiture min. U (W/m²K)',
+    column: 'u_plancher_haut_deperditif',
+    source: 'ADEME DPE',
+    desc: 'Plus le coefficient U du plafond est élevé (> 1.5 W/m²K), plus la chaleur traverse directement la toiture.',
+    controlType: 'slider',
+    min: 0, max: 2.5, step: 0.25, unit: ' W/m²K',
+    isActive: (s) => Number(s.dynFilters.u_plancher_haut_deperditif || 0) > 0,
+    reset: (s) => { delete s.dynFilters.u_plancher_haut_deperditif; },
+    getValue: (s) => s.dynFilters.u_plancher_haut_deperditif || 0,
+    setValue: (s, v) => { s.dynFilters.u_plancher_haut_deperditif = Number(v || 0); },
+    matches: (s, b) => Number(b.u_plancher_haut_deperditif || 0) >= Number(s.dynFilters.u_plancher_haut_deperditif || 0),
+  },
+  {
+    id: 'type_fermeture',
+    category: 'summer',
+    label: 'Présence de volets / protections solaires extérieures',
+    column: 'type_fermeture',
+    source: 'ADEME DPE',
+    desc: 'Sans volets extérieurs, le rayonnement solaire entre directement par les vitrages (effet de serre intérieur irréversible).',
+    controlType: 'select',
+    options: [
+      { value: '', label: 'Tous types de fermetures / volets' },
+      { value: 'sans', label: '🚨 Sans volets / Sans fermeture extérieure' },
+      { value: 'avec', label: '✅ Avec volets roulants, battants ou persiennes' },
+    ],
+    isActive: (s) => Boolean(s.onlyNoShutters || s.dynFilters.type_fermeture),
+    reset: (s) => { s.onlyNoShutters = false; delete s.dynFilters.type_fermeture; },
+    getValue: (s) => s.onlyNoShutters ? 'sans' : (s.dynFilters.type_fermeture || ''),
+    setValue: (s, v) => {
+      s.onlyNoShutters = (v === 'sans');
+      s.dynFilters.type_fermeture = v || '';
+    },
+    matches: (s, b) => {
+      const val = s.onlyNoShutters ? 'sans' : (s.dynFilters.type_fermeture || '');
+      if (!val) return true;
+      const sh = String(b.type_fermeture || '').toLowerCase();
+      if (val === 'sans') return sh.includes('sans fermeture') || sh.includes('absence');
+      if (val === 'avec') return sh.includes('volet') || sh.includes('persienne') || sh.includes('jalousie');
+      return true;
+    },
+  },
+  {
+    id: 'traversant',
+    category: 'summer',
+    label: 'Caractère traversant des logements (Ventilation nocturne)',
+    column: 'traversant',
+    source: 'ADEME DPE',
+    desc: 'Un logement mono-orienté (non traversant) ne permet pas de créer un courant d\'air salvateur la nuit.',
+    controlType: 'select',
+    options: [
+      { value: '', label: 'Tous (traversants et non-traversants)' },
+      { value: 'non_traversant', label: '🚨 Non traversants / Mono-orientés' },
+      { value: 'traversant', label: '🌬️ Logements traversants' },
+    ],
+    isActive: (s) => Boolean(s.dynFilters.traversant),
+    reset: (s) => { delete s.dynFilters.traversant; },
+    getValue: (s) => s.dynFilters.traversant || '',
+    setValue: (s, v) => { s.dynFilters.traversant = v || ''; },
+    matches: (s, b) => {
+      const val = s.dynFilters.traversant;
+      if (!val) return true;
+      const t = String(b.traversant || '').toLowerCase();
+      if (val === 'non_traversant') return t.includes('non') || t.includes('mono') || t.includes('seule') || t === 'false';
+      if (val === 'traversant') return (t.includes('traversant') && !t.includes('non')) || t === 'true' || t.includes('plusieurs');
+      return true;
+    },
+  },
+  {
+    id: 'classe_inertie',
+    category: 'summer',
+    label: 'Inertie thermique du bâti',
+    column: 'classe_inertie',
+    source: 'ADEME DPE',
+    desc: 'Une inertie légère signifie que les parois montent très rapidement en température dès les premiers jours de vague de chaleur.',
+    controlType: 'select',
+    options: [
+      { value: '', label: 'Toutes classes d\'inertie' },
+      { value: 'legere', label: '🚨 Inertie Légère uniquement' },
+      { value: 'legere_moyenne', label: '⚠️ Inertie Légère ou Moyenne' },
+      { value: 'lourde', label: '🪨 Inertie Lourde ou Très lourde' },
+    ],
+    isActive: (s) => Boolean(s.dynFilters.classe_inertie),
+    reset: (s) => { delete s.dynFilters.classe_inertie; },
+    getValue: (s) => s.dynFilters.classe_inertie || '',
+    setValue: (s, v) => { s.dynFilters.classe_inertie = v || ''; },
+    matches: (s, b) => {
+      const val = s.dynFilters.classe_inertie;
+      if (!val) return true;
+      const iner = String(b.classe_inertie || '').toLowerCase();
+      if (val === 'legere') return iner.includes('légère') || iner.includes('legere');
+      if (val === 'legere_moyenne') return iner.includes('légère') || iner.includes('legere') || iner.includes('moyenne');
+      if (val === 'lourde') return iner.includes('lourde');
+      return true;
+    },
+  },
+  {
+    id: 'presence_balcon',
+    category: 'summer',
+    label: 'Présence d\'un balcon ou loggia (Refuge extérieur)',
+    column: 'presence_balcon',
+    source: 'BDNB / DPE',
+    desc: 'En cas de canicule dans un petit logement, l\'absence de balcon prive le ménage de tout espace extérieur pour respirer le soir.',
+    controlType: 'select',
+    options: [
+      { value: '', label: 'Tous (avec ou sans balcon)' },
+      { value: 'sans', label: '🚨 Sans balcon recensé' },
+      { value: 'avec', label: '🌿 Avec balcon / loggia' },
+    ],
+    isActive: (s) => Boolean(s.dynFilters.presence_balcon),
+    reset: (s) => { delete s.dynFilters.presence_balcon; },
+    getValue: (s) => s.dynFilters.presence_balcon || '',
+    setValue: (s, v) => { s.dynFilters.presence_balcon = v || ''; },
+    matches: (s, b) => {
+      const val = s.dynFilters.presence_balcon;
+      if (!val) return true;
+      const hasB = b.presence_balcon === true || b.presence_balcon === 1 || String(b.presence_balcon).toLowerCase() === 'true' || String(b.presence_balcon).toLowerCase() === 'oui';
+      return val === 'avec' ? hasB : !hasB;
+    },
+  },
+  {
+    id: 'has_clim',
+    category: 'summer',
+    label: 'Équipement de climatisation',
+    column: 'has_clim',
+    source: 'ADEME DPE',
+    desc: 'Filtrer les bâtiments dépourvus de système de refroidissement.',
+    controlType: 'select',
+    options: [
+      { value: '', label: 'Tous (climatisés ou non)' },
+      { value: 'sans', label: 'Sans climatisation' },
+      { value: 'avec', label: 'Avec climatisation déclarée' },
+    ],
+    isActive: (s) => Boolean(s.dynFilters.has_clim),
+    reset: (s) => { delete s.dynFilters.has_clim; },
+    getValue: (s) => s.dynFilters.has_clim || '',
+    setValue: (s, v) => { s.dynFilters.has_clim = v || ''; },
+    matches: (s, b) => {
+      const val = s.dynFilters.has_clim;
+      if (!val) return true;
+      const hc = Boolean(b.has_clim);
+      return val === 'avec' ? hc : !hc;
+    },
+  },
+  {
+    id: 'facteur_solaire_baie_vitree',
+    category: 'summer',
+    label: 'Facteur solaire des baies vitrées min. (Sw)',
+    column: 'facteur_solaire_baie_vitree',
+    source: 'ADEME DPE',
+    desc: 'Proportion du flux énergétique solaire transmis à l\'intérieur (0 à 1).',
+    controlType: 'slider',
+    min: 0, max: 0.8, step: 0.1, unit: ' Sw',
+    isActive: (s) => Number(s.dynFilters.facteur_solaire_baie_vitree || 0) > 0,
+    reset: (s) => { delete s.dynFilters.facteur_solaire_baie_vitree; },
+    getValue: (s) => s.dynFilters.facteur_solaire_baie_vitree || 0,
+    setValue: (s, v) => { s.dynFilters.facteur_solaire_baie_vitree = Number(v || 0); },
+    matches: (s, b) => Number(b.facteur_solaire_baie_vitree || 0) >= Number(s.dynFilters.facteur_solaire_baie_vitree || 0),
+  },
+
+  /* ========================================================================
+     3. STRUCTURE DE PROPRIÉTÉ, MULTIPROPRIÉTÉ & RAPPORTS DE FORCE (8)
+     ======================================================================== */
+  {
+    id: 'owner_search',
+    category: 'landlords',
+    label: 'Recherche par Nom de Bailleur ou N° SIREN',
+    column: 'concentration_prop_max_denomination',
+    source: 'DGFiP MAJIC / RNE',
+    desc: 'Rechercher tous les immeubles où une SCI, foncière ou bailleur donné possède au moins un lot.',
+    controlType: 'text',
+    placeholder: 'Ex: SCI, Alliade, Foncière, 908120595...',
+    isActive: (s) => Boolean((s.ownerSearchText || '').trim()),
+    reset: (s) => { s.ownerSearchText = ''; },
+    getValue: (s) => s.ownerSearchText || '',
+    setValue: (s, v) => { s.ownerSearchText = v || ''; },
+    matches: (s, b) => {
+      const searchLower = (s.ownerSearchText || '').toLowerCase().trim();
+      if (!searchLower) return true;
+      const denom = String(b.concentration_prop_max_denomination || '').toLowerCase();
+      const siren = String(b.siren_principal || '').toLowerCase();
+      if (denom.includes(searchLower) || siren.includes(searchLower)) return true;
+      const bOwners = s.ownersByBuilding.get(b.batiment_groupe_id) || [];
+      for (let i = 0; i < bOwners.length; i++) {
+        const o = bOwners[i];
+        if (String(o.denomination || '').toLowerCase().includes(searchLower) ||
+            String(o.siren || '').toLowerCase().includes(searchLower)) {
+          return true;
+        }
+      }
+      return false;
+    },
+  },
+  {
+    id: 'legal_category',
+    category: 'landlords',
+    label: 'Catégorie juridique de propriétaire (SCI, Société, Social, Physique)',
+    column: 'formes_juridiques',
+    source: 'DGFiP MAJIC',
+    desc: 'Filtrer selon le statut des propriétaires de l\'immeuble (avec bascule Mode Inclusif / Mode Exclusif).',
+    controlType: 'legal_pills',
+    options: ['SCI', 'Bailleur social', 'Société commerciale', 'Personne physique'],
+    isActive: (s) => s.selectedLegal.size < 4,
+    reset: (s) => {
+      s.selectedLegal = new Set(['SCI', 'Bailleur social', 'Société commerciale', 'Personne physique']);
+      s.legalMode = 'inclusif';
+    },
+    getValue: (s) => ({ selected: Array.from(s.selectedLegal), mode: s.legalMode }),
+    setValue: (s, v) => {
+      if (v && Array.isArray(v.selected)) s.selectedLegal = new Set(v.selected);
+      if (v && v.mode) s.legalMode = v.mode;
+    },
+    matches: (s, b) => {
+      if (s.selectedLegal.size >= 4) return true;
+      const bLegals = String(b.formes_juridiques || '');
+      if (s.legalMode === 'exclusif') {
+        const parts = bLegals.split(',').map(x => x.trim()).filter(Boolean);
+        return parts.length > 0 && parts.every(p => s.selectedLegal.has(p));
+      }
+      for (const leg of s.selectedLegal) {
+        if (bLegals.includes(leg)) return true;
+      }
+      return false;
+    },
+  },
+  {
+    id: 'forme_juridique_principale',
+    category: 'landlords',
+    label: 'Forme juridique détaillée INSEE du bailleur principal',
+    column: 'forme_juridique_principale',
+    source: 'DGFiP MAJIC / INSEE',
+    desc: 'Rechercher une forme juridique précise (ex: SCI, SAS, SARL, SA d\'HLM, OPH, Commune, Association, Assurance...).',
+    controlType: 'text',
+    placeholder: 'Ex: SCI, SAS, SARL, HLM, Commune...',
+    isActive: (s) => Boolean((s.dynFilters.forme_juridique_principale || '').trim()),
+    reset: (s) => { delete s.dynFilters.forme_juridique_principale; },
+    getValue: (s) => s.dynFilters.forme_juridique_principale || '',
+    setValue: (s, v) => { s.dynFilters.forme_juridique_principale = v || ''; },
+    matches: (s, b) => {
+      const q = (s.dynFilters.forme_juridique_principale || '').toLowerCase().trim();
+      if (!q) return true;
+      return String(b.forme_juridique_principale || '').toLowerCase().includes(q) ||
+             String(b.formes_juridiques || '').toLowerCase().includes(q);
+    },
+  },
+  {
+    id: 'concentration_pct',
+    category: 'landlords',
+    label: 'Concentration foncière min. d\'un seul propriétaire (%)',
+    column: 'concentration_prop_max_num',
+    source: 'DGFiP MAJIC',
+    desc: 'Part des logements de l\'immeuble détenus par le plus gros propriétaire personne morale (100% = monopropriété morale).',
+    controlType: 'slider',
+    min: 0, max: 100, step: 5, unit: '%',
+    isActive: (s) => Number(s.minConcentration || 0) > 0,
+    reset: (s) => { s.minConcentration = 0; },
+    getValue: (s) => s.minConcentration || 0,
+    setValue: (s, v) => { s.minConcentration = Number(v || 0); },
+    matches: (s, b) => Number(b.concentration_prop_max_num || 0) >= Number(s.minConcentration || 0),
+  },
+  {
+    id: 'max_locaux_un_prop',
+    category: 'landlords',
+    label: 'Nombre min. de lots détenus par un même bailleur dans l\'immeuble',
+    column: 'max_locaux_un_prop',
+    source: 'DGFiP MAJIC',
+    desc: 'Permet de repérer où plusieurs locataires ont le même propriétaire au sein d\'un même immeuble pour s\'organiser collectivement.',
+    controlType: 'number_min',
+    min: 0, max: 500, step: 1, placeholder: 'Ex: 3 lots dans l\'immeuble',
+    isActive: (s) => Number(s.dynFilters.max_locaux_un_prop || 0) > 0,
+    reset: (s) => { delete s.dynFilters.max_locaux_un_prop; },
+    getValue: (s) => s.dynFilters.max_locaux_un_prop || 0,
+    setValue: (s, v) => { s.dynFilters.max_locaux_un_prop = Number(v || 0); },
+    matches: (s, b) => Number(b.max_locaux_un_prop || 0) >= Number(s.dynFilters.max_locaux_un_prop || 0),
+  },
+  {
+    id: 'min_patrimoine_majic',
+    category: 'landlords',
+    label: 'Patrimoine départemental min. du bailleur (total locaux MAJIC)',
+    column: 'max_patrimoine_majic_bailleur',
+    source: 'DGFiP MAJIC',
+    desc: 'Nombre total de locaux possédés par le bailleur sur l\'ensemble du département (distingue la petite SCI familiale du grand multipropriétaire).',
+    controlType: 'number_min',
+    min: 0, max: 50000, step: 5, placeholder: 'Ex: 10, 50, 500 locaux...',
+    isActive: (s) => Number(s.minPatrimoine || 0) > 0,
+    reset: (s) => { s.minPatrimoine = 0; },
+    getValue: (s) => s.minPatrimoine || 0,
+    setValue: (s, v) => { s.minPatrimoine = Number(v || 0); },
+    matches: (s, b) => Number(b.max_patrimoine_majic_bailleur || 0) >= Number(s.minPatrimoine || 0),
+  },
+  {
+    id: 'nb_proprietaires_open',
+    category: 'landlords',
+    label: 'Présence et nombre de propriétaires personnes morales',
+    column: 'nb_proprietaires_open',
+    source: 'DGFiP MAJIC',
+    desc: 'Filtrer selon le nombre d\'entités personnes morales (SCI, sociétés, bailleurs) copropriétaires dans l\'immeuble.',
+    controlType: 'select',
+    options: [
+      { value: '', label: 'Tous les immeubles' },
+      { value: 'has_pm', label: '🏢 Au moins 1 propriétaire personne morale (≥ 1)' },
+      { value: 'mono_pm', label: '🎯 Monopropriété morale (1 seul PM détenant ≥ 80%)' },
+      { value: 'multi_pm', label: '🦈 Plusieurs personnes morales dans l\'immeuble (≥ 2)' },
+      { value: 'no_pm', label: '👤 Aucun propriétaire personne morale (100% personnes physiques)' },
+    ],
+    isActive: (s) => Boolean(s.dynFilters.nb_proprietaires_open),
+    reset: (s) => { delete s.dynFilters.nb_proprietaires_open; },
+    getValue: (s) => s.dynFilters.nb_proprietaires_open || '',
+    setValue: (s, v) => { s.dynFilters.nb_proprietaires_open = v || ''; },
+    matches: (s, b) => {
+      const val = s.dynFilters.nb_proprietaires_open;
+      if (!val) return true;
+      const nb = Number(b.nb_proprietaires_open || 0);
+      const conc = Number(b.concentration_prop_max_num || 0);
+      if (val === 'has_pm') return nb >= 1;
+      if (val === 'mono_pm') return nb === 1 && conc >= 80;
+      if (val === 'multi_pm') return nb >= 2;
+      if (val === 'no_pm') return nb === 0;
+      return true;
+    },
+  },
+  {
+    id: 'bailleur_distant',
+    category: 'landlords',
+    label: 'Éloignement géographique du siège du bailleur',
+    column: 'code_postal_proprietaire_principal',
+    source: 'DGFiP MAJIC',
+    desc: 'Repérer les immeubles détenus par des sociétés dont le siège social est hors de la commune ou hors du département (fonds parisiens, SCI extérieures).',
+    controlType: 'select',
+    options: [
+      { value: '', label: 'Toutes localisations de siège' },
+      { value: 'hors_dep', label: '✈️ Siège social hors du département de l\'immeuble' },
+      { value: 'paris_idf', label: '🗼 Siège social à Paris / Île-de-France (75, 92...)' },
+      { value: 'local', label: '📍 Siège social dans le même département' },
+    ],
+    isActive: (s) => Boolean(s.dynFilters.bailleur_distant),
+    reset: (s) => { delete s.dynFilters.bailleur_distant; },
+    getValue: (s) => s.dynFilters.bailleur_distant || '',
+    setValue: (s, v) => { s.dynFilters.bailleur_distant = v || ''; },
+    matches: (s, b) => {
+      const val = s.dynFilters.bailleur_distant;
+      if (!val) return true;
+      const cpProp = String(b.code_postal_proprietaire_principal || '').trim();
+      if (!cpProp || cpProp === 'None' || cpProp.length < 2) return false;
+      const depProp = cpProp.slice(0, 2);
+      const depBat = String(b.code_departement_insee || String(b.cp || '').slice(0, 2)).trim();
+      if (val === 'hors_dep') return depProp !== depBat;
+      if (val === 'paris_idf') return ['75', '77', '78', '91', '92', '93', '94', '95'].includes(depProp);
+      if (val === 'local') return depProp === depBat;
+      return true;
+    },
+  },
+
+  /* ========================================================================
+     4. JUSTICE SOCIALE, LOYERS, PARC SOCIAL & SPÉCULATION (10 indicateurs)
+     ======================================================================== */
+  {
+    id: 'qpv_mode',
+    category: 'social',
+    label: 'Géographie Prioritaire de la Ville (Quartiers QPV - ANCT)',
+    column: 'quartier_qpv',
+    source: 'ANCT / BDNB',
+    desc: 'Cibler les Quartiers Prioritaires de la Politique de la Ville où se concentrent les ménages à bas revenus.',
+    controlType: 'select',
+    options: [
+      { value: '', label: 'Tous les quartiers (QPV et hors QPV)' },
+      { value: 'only_qpv', label: '🏘️ Uniquement en Quartier Prioritaire (QPV)' },
+      { value: 'exclude_qpv', label: 'Hors Quartier Prioritaire (QPV)' },
+    ],
+    isActive: (s) => Boolean(s.filterQpv || s.dynFilters.qpv_mode),
+    reset: (s) => { s.filterQpv = false; delete s.dynFilters.qpv_mode; },
+    getValue: (s) => s.filterQpv ? 'only_qpv' : (s.dynFilters.qpv_mode || ''),
+    setValue: (s, v) => {
+      s.filterQpv = (v === 'only_qpv');
+      s.dynFilters.qpv_mode = v || '';
+    },
+    matches: (s, b) => {
+      const val = s.filterQpv ? 'only_qpv' : (s.dynFilters.qpv_mode || '');
+      if (!val) return true;
+      const inQpv = Boolean(b.quartier_qpv && b.quartier_qpv !== 'None' && b.quartier_qpv !== '—');
+      return val === 'only_qpv' ? inQpv : !inQpv;
+    },
+  },
+  {
+    id: 'quartier_qpv_select',
+    category: 'social',
+    label: 'Recherche par nom de Quartier Prioritaire (QPV)',
+    column: 'quartier_qpv',
+    source: 'ANCT / BDNB',
+    desc: 'Filtrer sur un quartier QPV précis (ex: Minguettes, Guillotière, États-Unis, Duchère, Villeneuve, Mistral...).',
+    controlType: 'text',
+    placeholder: 'Ex: Duchère, États-Unis, Villeneuve, Mistral...',
+    isActive: (s) => Boolean((s.dynFilters.quartier_qpv_select || '').trim()),
+    reset: (s) => { delete s.dynFilters.quartier_qpv_select; },
+    getValue: (s) => s.dynFilters.quartier_qpv_select || '',
+    setValue: (s, v) => { s.dynFilters.quartier_qpv_select = v || ''; },
+    matches: (s, b) => {
+      const q = (s.dynFilters.quartier_qpv_select || '').toLowerCase().trim();
+      if (!q) return true;
+      return String(b.quartier_qpv || '').toLowerCase().includes(q);
+    },
+  },
+  {
+    id: 'social_rpls_mode',
+    category: 'social',
+    label: 'Statut Parc Social (RPLS) vs Parc Locatif Privé',
+    column: 'est_logement_social_rpls',
+    source: 'Ministère du Logement (RPLS)',
+    desc: 'Isoler le parc social HLM ou au contraire l\'exclure pour cibler uniquement les marchands de sommeil et bailleurs privés.',
+    controlType: 'select',
+    options: [
+      { value: '', label: 'Tout le parc (Privé + Social)' },
+      { value: 'exclude_social', label: '🔑 Parc Privé uniquement (Exclure le logement social RPLS)' },
+      { value: 'only_social', label: '🏛️ Parc Social uniquement (Répertoire RPLS)' },
+    ],
+    isActive: (s) => Boolean(s.filterSocialOnly || s.filterExcludeSocial || s.dynFilters.social_rpls_mode),
+    reset: (s) => { s.filterSocialOnly = false; s.filterExcludeSocial = false; delete s.dynFilters.social_rpls_mode; },
+    getValue: (s) => s.filterSocialOnly ? 'only_social' : (s.filterExcludeSocial ? 'exclude_social' : (s.dynFilters.social_rpls_mode || '')),
+    setValue: (s, v) => {
+      s.filterSocialOnly = (v === 'only_social');
+      s.filterExcludeSocial = (v === 'exclude_social');
+      s.dynFilters.social_rpls_mode = v || '';
+    },
+    matches: (s, b) => {
+      const val = s.filterSocialOnly ? 'only_social' : (s.filterExcludeSocial ? 'exclude_social' : (s.dynFilters.social_rpls_mode || ''));
+      if (!val) return true;
+      const isSoc = Boolean(b.est_logement_social_rpls);
+      return val === 'only_social' ? isSoc : !isSoc;
+    },
+  },
+  {
+    id: 'nb_log_sociaux_rpls',
+    category: 'social',
+    label: 'Nombre min. de logements sociaux RPLS dans l\'immeuble',
+    column: 'nb_log_sociaux_rpls',
+    source: 'RPLS',
+    desc: 'Nombre de logements conventionnés RPLS recensés dans le groupe de bâtiment.',
+    controlType: 'number_min',
+    min: 0, max: 500, step: 1, placeholder: 'Ex: 10 logements sociaux',
+    isActive: (s) => Number(s.dynFilters.nb_log_sociaux_rpls || 0) > 0,
+    reset: (s) => { delete s.dynFilters.nb_log_sociaux_rpls; },
+    getValue: (s) => s.dynFilters.nb_log_sociaux_rpls || 0,
+    setValue: (s, v) => { s.dynFilters.nb_log_sociaux_rpls = Number(v || 0); },
+    matches: (s, b) => Number(b.nb_log_sociaux_rpls || 0) >= Number(s.dynFilters.nb_log_sociaux_rpls || 0),
+  },
+  {
+    id: 'pmr_rpls_mode',
+    category: 'social',
+    label: 'Accessibilité Handicap / Mobilité Réduite (PMR RPLS)',
+    column: 'nb_log_pmr_rpls',
+    source: 'RPLS (accessible_pmr)',
+    desc: 'Identifier les résidences sociales disposant (ou dépourvues) de logements adaptés aux Personnes à Mobilité Réduite.',
+    controlType: 'select',
+    options: [
+      { value: '', label: 'Tous les immeubles' },
+      { value: 'has_pmr', label: '♿ Immeubles avec logements accessibles PMR (> 0)' },
+      { value: 'social_no_pmr', label: '⚠️ Immeubles sociaux sans logement PMR déclaré (= 0)' },
+    ],
+    isActive: (s) => Boolean(s.dynFilters.pmr_rpls_mode),
+    reset: (s) => { delete s.dynFilters.pmr_rpls_mode; },
+    getValue: (s) => s.dynFilters.pmr_rpls_mode || '',
+    setValue: (s, v) => { s.dynFilters.pmr_rpls_mode = v || ''; },
+    matches: (s, b) => {
+      const val = s.dynFilters.pmr_rpls_mode;
+      if (!val) return true;
+      const pmr = Number(b.nb_log_pmr_rpls || 0);
+      if (val === 'has_pmr') return pmr > 0;
+      if (val === 'social_no_pmr') return Boolean(b.est_logement_social_rpls) && pmr === 0;
+      return true;
+    },
+  },
+  {
+    id: 'rent_control_mode',
+    category: 'social',
+    label: 'Périmètre d\'Encadrement des Loyers (Lyon & Villeurbanne)',
+    column: 'zone_encadrement_loyers',
+    source: 'Préfecture / Data Grand Lyon',
+    desc: 'Vérifier si l\'immeuble est couvert par le plafonnement préfectoral des loyers (permet d\'engager une action en diminution de loyer).',
+    controlType: 'select',
+    options: [
+      { value: '', label: 'Tous les immeubles' },
+      { value: 'controlled', label: '💶 Soumis à l\'encadrement des loyers uniquement' },
+      { value: 'uncontrolled', label: 'Hors zone d\'encadrement des loyers' },
+    ],
+    isActive: (s) => Boolean(s.filterRentControl || s.dynFilters.rent_control_mode),
+    reset: (s) => { s.filterRentControl = false; delete s.dynFilters.rent_control_mode; },
+    getValue: (s) => s.filterRentControl ? 'controlled' : (s.dynFilters.rent_control_mode || ''),
+    setValue: (s, v) => {
+      s.filterRentControl = (v === 'controlled');
+      s.dynFilters.rent_control_mode = v || '';
+    },
+    matches: (s, b) => {
+      const val = s.filterRentControl ? 'controlled' : (s.dynFilters.rent_control_mode || '');
+      if (!val) return true;
+      const hasZone = Number(b.zone_encadrement_loyers || 0) > 0;
+      return val === 'controlled' ? hasZone : !hasZone;
+    },
+  },
+  {
+    id: 'zone_encadrement_loyers',
+    category: 'social',
+    label: 'Zone tarifaire d\'encadrement des loyers (Zones 1 à 4)',
+    column: 'zone_encadrement_loyers',
+    source: 'Préfecture / Data Grand Lyon',
+    desc: 'Filtrer par niveau de tension locative (Zone 1 = Presqu\'île/6e/Croix-Rousse ; Zone 4 = quartiers populaires).',
+    controlType: 'select',
+    options: [
+      { value: '', label: 'Toutes les zones (1 à 4)' },
+      { value: '1', label: 'Zone 1 (Loyers plafonds les plus élevés)' },
+      { value: '2', label: 'Zone 2' },
+      { value: '3', label: 'Zone 3' },
+      { value: '4', label: 'Zone 4 (Secteurs populaires)' },
+    ],
+    isActive: (s) => Boolean(s.dynFilters.zone_encadrement_loyers),
+    reset: (s) => { delete s.dynFilters.zone_encadrement_loyers; },
+    getValue: (s) => s.dynFilters.zone_encadrement_loyers || '',
+    setValue: (s, v) => { s.dynFilters.zone_encadrement_loyers = v || ''; },
+    matches: (s, b) => {
+      const val = s.dynFilters.zone_encadrement_loyers;
+      if (!val) return true;
+      return String(b.zone_encadrement_loyers || '') === val;
+    },
+  },
+  {
+    id: 'loyer_max_t2_nm',
+    category: 'social',
+    label: 'Loyer plafond légal max. T2 non-meublé (€/m²)',
+    column: 'loyer_max_t2_non_meuble_m2',
+    source: 'Arrêté Préfectoral 2025-2026',
+    desc: 'Filtrer les immeubles dont le loyer plafond autorisé (hors complément) est inférieur ou égal à un seuil en €/m².',
+    controlType: 'slider',
+    min: 10, max: 22, step: 0.5, unit: ' €/m² max',
+    isActive: (s) => Number(s.dynFilters.loyer_max_t2_nm || 0) > 0,
+    reset: (s) => { delete s.dynFilters.loyer_max_t2_nm; },
+    getValue: (s) => s.dynFilters.loyer_max_t2_nm || 0,
+    setValue: (s, v) => { s.dynFilters.loyer_max_t2_nm = Number(v || 0); },
+    matches: (s, b) => {
+      const maxVal = Number(s.dynFilters.loyer_max_t2_nm || 0);
+      if (maxVal <= 0) return true;
+      const loy = Number(b.loyer_max_t2_non_meuble_m2 || 0);
+      return loy > 0 && loy <= maxVal;
+    },
+  },
+  {
+    id: 'dvf_prix_m2_median',
+    category: 'social',
+    label: 'Prix immobilier médian des ventes (DVF €/m²)',
+    column: 'dvf_prix_m2_median',
+    source: 'DGFiP DVF Open Data',
+    desc: 'Analyser la valeur foncière de l\'immeuble : immeuble décoté de marchand de sommeil vs secteur gentrifié à forte plus-value.',
+    controlType: 'select',
+    options: [
+      { value: '', label: 'Tous niveaux de prix DVF' },
+      { value: 'low', label: '📉 Marché décoté / populaire (< 2 500 €/m²)' },
+      { value: 'mid', label: '⚖️ Marché intermédiaire (2 500 à 4 500 €/m²)' },
+      { value: 'high', label: '📈 Marché cher / gentrifié (> 4 500 €/m²)' },
+      { value: 'any_dvf', label: '💶 Toutes ventes DVF renseignées (> 0 €/m²)' },
+    ],
+    isActive: (s) => Boolean(s.dynFilters.dvf_prix_m2_median),
+    reset: (s) => { delete s.dynFilters.dvf_prix_m2_median; },
+    getValue: (s) => s.dynFilters.dvf_prix_m2_median || '',
+    setValue: (s, v) => { s.dynFilters.dvf_prix_m2_median = v || ''; },
+    matches: (s, b) => {
+      const val = s.dynFilters.dvf_prix_m2_median;
+      if (!val) return true;
+      const p = Number(b.dvf_prix_m2_median || 0);
+      if (p <= 0) return false;
+      if (val === 'low') return p < 2500;
+      if (val === 'mid') return p >= 2500 && p <= 4500;
+      if (val === 'high') return p > 4500;
+      if (val === 'any_dvf') return p > 0;
+      return true;
+    },
+  },
+  {
+    id: 'dvf_nb_mutations',
+    category: 'social',
+    label: 'Rotation spéculative (Nb min. de ventes DVF dans l\'immeuble)',
+    column: 'dvf_nb_mutations',
+    source: 'DGFiP DVF Open Data',
+    desc: 'Un nombre élevé de mutations récentes signale une découpe à la saucisse, une forte rotation spéculative ou une fuite des propriétaires face aux travaux.',
+    controlType: 'number_min',
+    min: 0, max: 200, step: 1, placeholder: 'Ex: 5 ventes récentes',
+    isActive: (s) => Number(s.dynFilters.dvf_nb_mutations || 0) > 0,
+    reset: (s) => { delete s.dynFilters.dvf_nb_mutations; },
+    getValue: (s) => s.dynFilters.dvf_nb_mutations || 0,
+    setValue: (s, v) => { s.dynFilters.dvf_nb_mutations = Number(v || 0); },
+    matches: (s, b) => Number(b.dvf_nb_mutations || 0) >= Number(s.dynFilters.dvf_nb_mutations || 0),
+  },
+
+  /* ========================================================================
+     5. COPROPRIÉTÉS, SALUBRITÉ & QUALITÉ DE L'HABITAT (8 indicateurs)
+     ======================================================================== */
+  {
+    id: 'copro_status',
+    category: 'copro',
+    label: 'Statut Copropriété (RNIC) vs Monopropriété',
+    column: 'est_copro_rnc',
+    source: 'ANAH RNIC',
+    desc: 'En copropriété, les travaux d\'isolation dépendent du vote en AG ; en monopropriété, le bailleur unique décide seul.',
+    controlType: 'select',
+    options: [
+      { value: '', label: 'Tous statuts (Copropriété et Monopropriété)' },
+      { value: 'only_copro', label: '🏢 Copropriétés immatriculées RNIC uniquement' },
+      { value: 'non_copro', label: '🏠 Hors copropriété RNIC (Monopropriété / Individuel)' },
+    ],
+    isActive: (s) => Boolean(s.dynFilters.copro_status),
+    reset: (s) => { delete s.dynFilters.copro_status; },
+    getValue: (s) => s.dynFilters.copro_status || '',
+    setValue: (s, v) => { s.dynFilters.copro_status = v || ''; },
+    matches: (s, b) => {
+      const val = s.dynFilters.copro_status;
+      if (!val) return true;
+      const isCopro = Boolean(b.est_copro_rnc);
+      return val === 'only_copro' ? isCopro : !isCopro;
+    },
+  },
+  {
+    id: 'copro_search',
+    category: 'copro',
+    label: 'Recherche par Nom de Copropriété (RNIC)',
+    column: 'nom_copro',
+    source: 'ANAH RNIC',
+    desc: 'Rechercher une résidence ou un syndicat de copropriétaires par son nom.',
+    controlType: 'text',
+    placeholder: 'Ex: Le Clos, Les Terrasses, SDC...',
+    isActive: (s) => Boolean((s.dynFilters.copro_search || '').trim()),
+    reset: (s) => { delete s.dynFilters.copro_search; },
+    getValue: (s) => s.dynFilters.copro_search || '',
+    setValue: (s, v) => { s.dynFilters.copro_search = v || ''; },
+    matches: (s, b) => {
+      const q = (s.dynFilters.copro_search || '').toLowerCase().trim();
+      if (!q) return true;
+      return String(b.nom_copro || '').toLowerCase().includes(q);
+    },
+  },
+  {
+    id: 'nb_lots_copro',
+    category: 'copro',
+    label: 'Taille de la copropriété (Nb min. de lots d\'habitation RNIC)',
+    column: 'nb_lots_habitation_copro',
+    source: 'ANAH RNIC',
+    desc: 'Cibler les grandes copropriétés dégradées ou les petites copropriétés sans syndic professionnel.',
+    controlType: 'number_min',
+    min: 0, max: 1000, step: 5, placeholder: 'Ex: 20 lots d\'habitation',
+    isActive: (s) => Number(s.dynFilters.nb_lots_copro || 0) > 0,
+    reset: (s) => { delete s.dynFilters.nb_lots_copro; },
+    getValue: (s) => s.dynFilters.nb_lots_copro || 0,
+    setValue: (s, v) => { s.dynFilters.nb_lots_copro = Number(v || 0); },
+    matches: (s, b) => Number(b.nb_lots_habitation_copro || 0) >= Number(s.dynFilters.nb_lots_copro || 0),
+  },
+  {
+    id: 'type_vitrage',
+    category: 'copro',
+    label: 'Qualité des fenêtres / Type de vitrage',
+    column: 'type_vitrage',
+    source: 'ADEME DPE',
+    desc: 'Le maintien de simple vitrage est un marqueur classique de sous-investissement chronique du bailleur (parois froides, condensation, bruit).',
+    controlType: 'select',
+    options: [
+      { value: '', label: 'Tous types de vitrages' },
+      { value: 'simple', label: '🚨 Simple vitrage (Habitat dégradé / parois froides)' },
+      { value: 'double', label: '🪟 Double vitrage' },
+      { value: 'triple', label: '✨ Triple vitrage ou survitrage' },
+    ],
+    isActive: (s) => Boolean(s.dynFilters.type_vitrage),
+    reset: (s) => { delete s.dynFilters.type_vitrage; },
+    getValue: (s) => s.dynFilters.type_vitrage || '',
+    setValue: (s, v) => { s.dynFilters.type_vitrage = v || ''; },
+    matches: (s, b) => {
+      const val = s.dynFilters.type_vitrage;
+      if (!val) return true;
+      const vit = String(b.type_vitrage || '').toLowerCase();
+      if (val === 'simple') return vit.includes('simple');
+      if (val === 'double') return vit.includes('double');
+      if (val === 'triple') return vit.includes('triple') || vit.includes('survitrage');
+      return true;
+    },
+  },
+  {
+    id: 'type_ventilation',
+    category: 'copro',
+    label: 'Système de ventilation (Risque d\'humidité & moisissures)',
+    column: 'type_ventilation',
+    source: 'ADEME DPE',
+    desc: 'L\'absence de VMC mécanique (ventilation uniquement par ouverture des fenêtres ou grilles naturelles) favorise les moisissures et pathologies respiratoires (asthme).',
+    controlType: 'select',
+    options: [
+      { value: '', label: 'Tous systèmes de ventilation' },
+      { value: 'naturelle', label: '🚨 Sans VMC / Ventilation par ouverture des fenêtres ou naturelle' },
+      { value: 'vmc', label: '🌀 VMC mécanique (Simple ou Double flux)' },
+    ],
+    isActive: (s) => Boolean(s.dynFilters.type_ventilation),
+    reset: (s) => { delete s.dynFilters.type_ventilation; },
+    getValue: (s) => s.dynFilters.type_ventilation || '',
+    setValue: (s, v) => { s.dynFilters.type_ventilation = v || ''; },
+    matches: (s, b) => {
+      const val = s.dynFilters.type_ventilation;
+      if (!val) return true;
+      const vent = String(b.type_ventilation || '').toLowerCase();
+      if (val === 'naturelle') return vent.includes('ouverture') || vent.includes('naturelle') || vent.includes('entrée d\'air');
+      if (val === 'vmc') return vent.includes('vmc') || vent.includes('mécanique') || vent.includes('mecanique');
+      return true;
+    },
+  },
+  {
+    id: 'type_isolation_mur_exterieur',
+    category: 'copro',
+    label: 'Isolation des murs extérieurs',
+    column: 'type_isolation_mur_exterieur',
+    source: 'ADEME DPE',
+    desc: 'Identifier les façades non isolées (ponts thermiques et humidité de condensation sur les murs froids).',
+    controlType: 'select',
+    options: [
+      { value: '', label: 'Tous états d\'isolation des murs' },
+      { value: 'non isol', label: '🚨 Murs extérieurs NON isolés' },
+      { value: 'iti', label: 'Isolation par l\'intérieur (ITI)' },
+      { value: 'ite', label: 'Isolation par l\'extérieur (ITE)' },
+    ],
+    isActive: (s) => Boolean(s.dynFilters.type_isolation_mur_exterieur),
+    reset: (s) => { delete s.dynFilters.type_isolation_mur_exterieur; },
+    getValue: (s) => s.dynFilters.type_isolation_mur_exterieur || '',
+    setValue: (s, v) => { s.dynFilters.type_isolation_mur_exterieur = v || ''; },
+    matches: (s, b) => {
+      const val = s.dynFilters.type_isolation_mur_exterieur;
+      if (!val) return true;
+      const mur = String(b.type_isolation_mur_exterieur || '').toLowerCase();
+      return mur.includes(val);
+    },
+  },
+  {
+    id: 'type_isolation_plancher_bas',
+    category: 'copro',
+    label: 'Isolation du plancher bas (Rez-de-chaussée / caves)',
+    column: 'type_isolation_plancher_bas',
+    source: 'ADEME DPE',
+    desc: 'Un plancher bas non isolé rend les logements de rez-de-chaussée glacials en hiver.',
+    controlType: 'select',
+    options: [
+      { value: '', label: 'Tous états du plancher bas' },
+      { value: 'non isol', label: '🚨 Plancher bas NON isolé' },
+      { value: 'isol', label: '✅ Plancher bas isolé' },
+    ],
+    isActive: (s) => Boolean(s.dynFilters.type_isolation_plancher_bas),
+    reset: (s) => { delete s.dynFilters.type_isolation_plancher_bas; },
+    getValue: (s) => s.dynFilters.type_isolation_plancher_bas || '',
+    setValue: (s, v) => { s.dynFilters.type_isolation_plancher_bas = v || ''; },
+    matches: (s, b) => {
+      const val = s.dynFilters.type_isolation_plancher_bas;
+      if (!val) return true;
+      const pb = String(b.type_isolation_plancher_bas || '').toLowerCase();
+      if (val === 'non isol') return pb.includes('non isol');
+      if (val === 'isol') return pb.includes('isol') && !pb.includes('non isol');
+      return true;
+    },
+  },
+  {
+    id: 'surface_habitable_logement',
+    category: 'copro',
+    label: 'Surface habitable représentative (Ciblage studios & micro-logements)',
+    column: 'surface_habitable_logement',
+    source: 'ADEME DPE',
+    desc: 'Les très petites surfaces (< 30 m²) concentrent les étudiants, jeunes précaires et travailleurs pauvres et sont structurellement défavorisées au DPE.',
+    controlType: 'select',
+    options: [
+      { value: '', label: 'Toutes surfaces de logement' },
+      { value: 'micro', label: '📦 Studios & Micro-logements (< 30 m²)' },
+      { value: 'small', label: '🚪 Petits logements T1/T2 (< 45 m²)' },
+      { value: 'family', label: '👨‍👩‍👧‍👦 Logements familiaux (≥ 70 m²)' },
+    ],
+    isActive: (s) => Boolean(s.dynFilters.surface_habitable_logement),
+    reset: (s) => { delete s.dynFilters.surface_habitable_logement; },
+    getValue: (s) => s.dynFilters.surface_habitable_logement || '',
+    setValue: (s, v) => { s.dynFilters.surface_habitable_logement = v || ''; },
+    matches: (s, b) => {
+      const val = s.dynFilters.surface_habitable_logement;
+      if (!val) return true;
+      const surf = Number(b.surface_habitable_logement || 0);
+      if (surf <= 0) return false;
+      if (val === 'micro') return surf < 30;
+      if (val === 'small') return surf < 45;
+      if (val === 'family') return surf >= 70;
+      return true;
+    },
+  },
+
+  /* ========================================================================
+     6. MORPHOLOGIE URBAINE, ÉPOQUE & RISQUES SANITAIRES / ABF (11)
+     ======================================================================== */
+  {
+    id: 'nb_log',
+    category: 'morphology',
+    label: 'Taille de l\'immeuble (Nombre min. de logements)',
+    column: 'nb_log',
+    source: 'DGFiP FFO / BDNB',
+    desc: 'Cibler l\'habitat collectif (ex: ≥ 10 logements) pour rentabiliser les campagnes de porte-à-porte.',
+    controlType: 'slider',
+    min: 1, max: 50, step: 1, unit: ' log.',
+    isActive: (s) => Number(s.minLog || 1) > 1,
+    reset: (s) => { s.minLog = 1; },
+    getValue: (s) => s.minLog || 1,
+    setValue: (s, v) => { s.minLog = Number(v || 1); },
+    matches: (s, b) => Number(b.nb_log || 0) >= Number(s.minLog || 1),
+  },
+  {
+    id: 'nb_niveau',
+    category: 'morphology',
+    label: 'Hauteur en étages (Nombre min. de niveaux)',
+    column: 'nb_niveau',
+    source: 'DGFiP FFO',
+    desc: 'Filtrer selon le nombre d\'étages (important pour la pénibilité sans ascenseur ou les grands ensembles).',
+    controlType: 'slider',
+    min: 1, max: 15, step: 1, unit: ' niv.',
+    isActive: (s) => Number(s.dynFilters.nb_niveau || 1) > 1,
+    reset: (s) => { delete s.dynFilters.nb_niveau; },
+    getValue: (s) => s.dynFilters.nb_niveau || 1,
+    setValue: (s, v) => { s.dynFilters.nb_niveau = Number(v || 1); },
+    matches: (s, b) => Number(b.nb_niveau || 0) >= Number(s.dynFilters.nb_niveau || 1),
+  },
+  {
+    id: 'hauteur_moyenne_m',
+    category: 'morphology',
+    label: 'Hauteur géométrique IGN min. (mètres)',
+    column: 'hauteur_moyenne_m',
+    source: 'IGN BD TOPO',
+    desc: 'Hauteur mesurée par modélisation 3D IGN.',
+    controlType: 'slider',
+    min: 0, max: 45, step: 3, unit: ' m',
+    isActive: (s) => Number(s.dynFilters.hauteur_moyenne_m || 0) > 0,
+    reset: (s) => { delete s.dynFilters.hauteur_moyenne_m; },
+    getValue: (s) => s.dynFilters.hauteur_moyenne_m || 0,
+    setValue: (s, v) => { s.dynFilters.hauteur_moyenne_m = Number(v || 0); },
+    matches: (s, b) => Number(b.hauteur_moyenne_m || 0) >= Number(s.dynFilters.hauteur_moyenne_m || 0),
+  },
+  {
+    id: 'annee_construction',
+    category: 'morphology',
+    label: 'Année de construction (Plage min / max)',
+    column: 'annee_construction',
+    source: 'DGFiP FFO',
+    desc: 'Filtrer par période historique précise (ex: 1945 à 1974 pour les barres d\'après-guerre non isolées).',
+    controlType: 'range_min_max',
+    minPlaceholder: 'Année min (ex: 1945)',
+    maxPlaceholder: 'Année max (ex: 1974)',
+    isActive: (s) => Boolean(s.dynFilters.annee_min || s.dynFilters.annee_max),
+    reset: (s) => { delete s.dynFilters.annee_min; delete s.dynFilters.annee_max; },
+    getValue: (s) => ({ min: s.dynFilters.annee_min || '', max: s.dynFilters.annee_max || '' }),
+    setValue: (s, v) => {
+      if (v) {
+        s.dynFilters.annee_min = v.min || '';
+        s.dynFilters.annee_max = v.max || '';
+      }
+    },
+    matches: (s, b) => {
+      const minY = Number(s.dynFilters.annee_min || 0);
+      const maxY = Number(s.dynFilters.annee_max || 0);
+      if (!minY && !maxY) return true;
+      const y = Number(b.annee_construction || 0);
+      if (!y) return false;
+      if (minY && y < minY) return false;
+      if (maxY && y > maxY) return false;
+      return true;
+    },
+  },
+  {
+    id: 'periode_construction_dpe',
+    category: 'morphology',
+    label: 'Grande époque constructive (Histoire urbaine)',
+    column: 'periode_construction_dpe',
+    source: 'ADEME DPE / FFO',
+    desc: 'Cibler les grandes vagues constructives : bâti ancien (< 1948), Trente Glorieuses sans réglementation thermique (1948-1974), etc.',
+    controlType: 'select',
+    options: [
+      { value: '', label: 'Toutes époques constructives' },
+      { value: 'avant_1948', label: '🏛️ Avant 1948 (Bâti ancien / centre historique)' },
+      { value: '1948_1974', label: '🏗️ 1948 – 1974 (Trente Glorieuses / avant 1re RT)' },
+      { value: '1975_1989', label: '🧱 1975 – 1989 (Premières réglementations thermiques)' },
+      { value: '1990_2005', label: '🏘️ 1990 – 2005' },
+      { value: 'apres_2006', label: '✨ Après 2006 (Bâti récent RT2005 / RT2012)' },
+    ],
+    isActive: (s) => Boolean(s.dynFilters.periode_construction_dpe),
+    reset: (s) => { delete s.dynFilters.periode_construction_dpe; },
+    getValue: (s) => s.dynFilters.periode_construction_dpe || '',
+    setValue: (s, v) => { s.dynFilters.periode_construction_dpe = v || ''; },
+    matches: (s, b) => {
+      const val = s.dynFilters.periode_construction_dpe;
+      if (!val) return true;
+      const y = Number(b.annee_construction || 0);
+      const p = String(b.periode_construction_dpe || '').toLowerCase();
+      if (val === 'avant_1948') return (y > 0 && y < 1948) || p.includes('avant 1948');
+      if (val === '1948_1974') return (y >= 1948 && y <= 1974) || p.includes('1948-1974');
+      if (val === '1975_1989') return (y >= 1975 && y <= 1989) || p.includes('1975-1977') || p.includes('1978-1982') || p.includes('1983-1988');
+      if (val === '1990_2005') return (y >= 1990 && y <= 2005) || p.includes('1989-2000') || p.includes('2001-2005');
+      if (val === 'apres_2006') return y >= 2006 || p.includes('2006-2012') || p.includes('2013');
+      return true;
+    },
+  },
+  {
+    id: 'usage_niveau_1_txt',
+    category: 'morphology',
+    label: 'Typologie d\'usage (Collectif vs Individuel)',
+    column: 'usage_niveau_1_txt',
+    source: 'BDNB Synthèse',
+    desc: 'Distinguer l\'habitat collectif, l\'habitat individuel pavillonnaire et les immeubles mixtes (commerces en RDC).',
+    controlType: 'select',
+    options: [
+      { value: '', label: 'Toutes typologies d\'usage' },
+      { value: 'collectif', label: '🏢 Résidentiel collectif' },
+      { value: 'individuel', label: '🏠 Résidentiel individuel' },
+      { value: 'tertiaire', label: '🏪 Mixte / Tertiaire' },
+    ],
+    isActive: (s) => Boolean(s.dynFilters.usage_niveau_1_txt),
+    reset: (s) => { delete s.dynFilters.usage_niveau_1_txt; },
+    getValue: (s) => s.dynFilters.usage_niveau_1_txt || '',
+    setValue: (s, v) => { s.dynFilters.usage_niveau_1_txt = v || ''; },
+    matches: (s, b) => {
+      const val = s.dynFilters.usage_niveau_1_txt;
+      if (!val) return true;
+      return String(b.usage_niveau_1_txt || '').toLowerCase().includes(val);
+    },
+  },
+  {
+    id: 'mat_mur_txt',
+    category: 'morphology',
+    label: 'Matériau principal des murs extérieurs',
+    column: 'mat_mur_txt',
+    source: 'DGFiP FFO',
+    desc: 'Pierre, pisé/terre (spécifique région lyonnaise/dauphinoise), béton banché, brique ou bois.',
+    controlType: 'select',
+    options: [
+      { value: '', label: 'Tous matériaux de murs' },
+      { value: 'béton', label: '🧱 Béton / Aggloméré' },
+      { value: 'pierre', label: '🪨 Pierre / Moellons' },
+      { value: 'brique', label: '🧱 Brique' },
+      { value: 'bois', label: '🪵 Bois' },
+    ],
+    isActive: (s) => Boolean(s.dynFilters.mat_mur_txt),
+    reset: (s) => { delete s.dynFilters.mat_mur_txt; },
+    getValue: (s) => s.dynFilters.mat_mur_txt || '',
+    setValue: (s, v) => { s.dynFilters.mat_mur_txt = v || ''; },
+    matches: (s, b) => {
+      const val = s.dynFilters.mat_mur_txt;
+      if (!val) return true;
+      return String(b.mat_mur_txt || '').toLowerCase().includes(val);
+    },
+  },
+  {
+    id: 'patrimoine_abf',
+    category: 'morphology',
+    label: 'Périmètre Monument Historique / Architecte des Bâtiments de France (ABF)',
+    column: 'dans_perimetre_abf',
+    source: 'GPU Urbanisme / BDNB',
+    desc: 'Les bailleurs invoquent parfois la contrainte ABF pour justifier l\'absence d\'isolation par l\'extérieur (ITE) ou de volets.',
+    controlType: 'select',
+    options: [
+      { value: '', label: 'Tous secteurs (ABF et hors ABF)' },
+      { value: 'in_abf', label: '🏛️ En périmètre protégé ABF / Monument Historique' },
+      { value: 'out_abf', label: 'Hors périmètre ABF (aucune contrainte patrimoniale)' },
+    ],
+    isActive: (s) => Boolean(s.dynFilters.patrimoine_abf),
+    reset: (s) => { delete s.dynFilters.patrimoine_abf; },
+    getValue: (s) => s.dynFilters.patrimoine_abf || '',
+    setValue: (s, v) => { s.dynFilters.patrimoine_abf = v || ''; },
+    matches: (s, b) => {
+      const val = s.dynFilters.patrimoine_abf;
+      if (!val) return true;
+      const inAbf = Boolean(b.dans_perimetre_abf);
+      return val === 'in_abf' ? inAbf : !inAbf;
+    },
+  },
+  {
+    id: 'alea_radon',
+    category: 'morphology',
+    label: 'Risque sanitaire : Exposition au gaz Radon (IRSN)',
+    column: 'alea_radon',
+    source: 'IRSN / BDNB',
+    desc: 'Gaz radioactif naturel cancérigène qui s\'accumule dans les rez-de-chaussée mal ventilés.',
+    controlType: 'select',
+    options: [
+      { value: '', label: 'Toutes zones Radon' },
+      { value: 'moyen_fort', label: '☢️ Potentiel Radon Moyen ou Élevé' },
+      { value: 'fort', label: '☢️ Potentiel Radon Élevé (Catégorie 3)' },
+    ],
+    isActive: (s) => Boolean(s.dynFilters.alea_radon),
+    reset: (s) => { delete s.dynFilters.alea_radon; },
+    getValue: (s) => s.dynFilters.alea_radon || '',
+    setValue: (s, v) => { s.dynFilters.alea_radon = v || ''; },
+    matches: (s, b) => {
+      const val = s.dynFilters.alea_radon;
+      if (!val) return true;
+      const r = String(b.alea_radon || '').toLowerCase();
+      if (val === 'fort') return r.includes('élevé') || r.includes('eleve') || r.includes('3') || r.includes('fort');
+      if (val === 'moyen_fort') return r.includes('moyen') || r.includes('élevé') || r.includes('eleve') || r.includes('2') || r.includes('3');
+      return true;
+    },
+  },
+  {
+    id: 'alea_argile',
+    category: 'morphology',
+    label: 'Risque structurel : Retrait-Gonflement des Argiles (Fissures)',
+    column: 'alea_argile',
+    source: 'BRGM / Géorisques',
+    desc: 'Exposition des fondations aux sécheresses provoquant des fissurations structurelles du bâti.',
+    controlType: 'select',
+    options: [
+      { value: '', label: 'Tous niveaux d\'aléa argiles' },
+      { value: 'moyen_fort', label: '⚠️ Aléa Argiles Moyen ou Fort' },
+      { value: 'fort', label: '🚨 Aléa Argiles Fort' },
+    ],
+    isActive: (s) => Boolean(s.dynFilters.alea_argile),
+    reset: (s) => { delete s.dynFilters.alea_argile; },
+    getValue: (s) => s.dynFilters.alea_argile || '',
+    setValue: (s, v) => { s.dynFilters.alea_argile = v || ''; },
+    matches: (s, b) => {
+      const val = s.dynFilters.alea_argile;
+      if (!val) return true;
+      const a = String(b.alea_argile || '').toLowerCase();
+      if (val === 'fort') return a.includes('fort');
+      if (val === 'moyen_fort') return a.includes('moyen') || a.includes('fort');
+      return true;
+    },
+  },
+  {
+    id: 'distance_reseau_chaleur',
+    category: 'morphology',
+    label: 'Proximité d\'un Réseau de Chaleur Urbain (Décarbonation)',
+    column: 'distance_reseau_chaleur',
+    source: 'CEREMA / France Chaleur Urbaine',
+    desc: 'Identifier les passoires chauffées au gaz ou au fioul situées à moins de 150 m d\'un réseau de chaleur urbain (raccordement subventionnable).',
+    controlType: 'select',
+    options: [
+      { value: '', label: 'Toutes distances aux réseaux de chaleur' },
+      { value: 'very_close', label: '🏭 Très proche d\'un réseau de chaleur (≤ 50 m)' },
+      { value: 'close', label: '🔥 Raccordable (≤ 150 m ou en périmètre prioritaire)' },
+      { value: 'far', label: 'Éloigné des réseaux de chaleur (> 150 m)' },
+    ],
+    isActive: (s) => Boolean(s.dynFilters.distance_reseau_chaleur),
+    reset: (s) => { delete s.dynFilters.distance_reseau_chaleur; },
+    getValue: (s) => s.dynFilters.distance_reseau_chaleur || '',
+    setValue: (s, v) => { s.dynFilters.distance_reseau_chaleur = v || ''; },
+    matches: (s, b) => {
+      const val = s.dynFilters.distance_reseau_chaleur;
+      if (!val) return true;
+      const d = b.distance_reseau_chaleur != null ? Number(b.distance_reseau_chaleur) : 99999;
+      const prio = b.rcu_perimetre_prioritaire === true || String(b.rcu_perimetre_prioritaire).toLowerCase() === 'true';
+      if (val === 'very_close') return d <= 50;
+      if (val === 'close') return d <= 150 || prio;
+      if (val === 'far') return d > 150 && !prio;
+      return true;
+    },
+  },
+
+  /* ========================================================================
+     7. GÉOGRAPHIE FINE, QUARTIERS IRIS & ENQUÊTE DE TERRAIN (.XLSX) (4)
+     ======================================================================== */
+  {
+    id: 'commune_filter',
+    category: 'geography',
+    label: 'Commune, Arrondissement ou Code Postal',
+    column: 'libelle_commune_insee',
+    source: 'INSEE / BAN',
+    desc: 'Filtrer sur une commune ou un arrondissement précis au sein du territoire chargé (ex: Lyon 3e, Villeurbanne, Grenoble, 69007...).',
+    controlType: 'text',
+    placeholder: 'Ex: Lyon 7, Villeurbanne, 69003, Grenoble...',
+    isActive: (s) => Boolean((s.dynFilters.commune_filter || '').trim()),
+    reset: (s) => { delete s.dynFilters.commune_filter; },
+    getValue: (s) => s.dynFilters.commune_filter || '',
+    setValue: (s, v) => { s.dynFilters.commune_filter = v || ''; },
+    matches: (s, b) => {
+      const q = (s.dynFilters.commune_filter || '').toLowerCase().trim();
+      if (!q) return true;
+      return String(b.libelle_commune_insee || '').toLowerCase().includes(q) ||
+             String(b.cp || '').toLowerCase().includes(q) ||
+             String(b.code_commune_insee || '').toLowerCase().includes(q);
+    },
+  },
+  {
+    id: 'iris_search',
+    category: 'geography',
+    label: 'Îlot statistique INSEE (Code IRIS)',
+    column: 'code_iris',
+    source: 'INSEE IRIS',
+    desc: 'Cibler un îlot IRIS précis pour croiser avec les statistiques socio-économiques INSEE (taux de pauvreté, familles monoparentales).',
+    controlType: 'text',
+    placeholder: 'Ex: 693870101, 38185...',
+    isActive: (s) => Boolean((s.dynFilters.iris_search || '').trim()),
+    reset: (s) => { delete s.dynFilters.iris_search; },
+    getValue: (s) => s.dynFilters.iris_search || '',
+    setValue: (s, v) => { s.dynFilters.iris_search = v || ''; },
+    matches: (s, b) => {
+      const q = (s.dynFilters.iris_search || '').toLowerCase().trim();
+      if (!q) return true;
+      return String(b.code_iris || '').toLowerCase().includes(q);
+    },
+  },
+  {
+    id: 'adr_search',
+    category: 'geography',
+    label: 'Recherche par nom de rue ou adresse',
+    column: 'adr',
+    source: 'BAN Adresses',
+    desc: 'Filtrer tous les bâtiments d\'une rue, avenue ou place donnée.',
+    controlType: 'text',
+    placeholder: 'Ex: Rue Paul Bert, Cours Berriat, Avenue Jean Jaurès...',
+    isActive: (s) => Boolean((s.dynFilters.adr_search || '').trim()),
+    reset: (s) => { delete s.dynFilters.adr_search; },
+    getValue: (s) => s.dynFilters.adr_search || '',
+    setValue: (s, v) => { s.dynFilters.adr_search = v || ''; },
+    matches: (s, b) => {
+      const q = (s.dynFilters.adr_search || '').toLowerCase().trim();
+      if (!q) return true;
+      return String(b.adr || '').toLowerCase().includes(q);
+    },
+  },
+  {
+    id: 'fieldwork_status',
+    category: 'geography',
+    label: 'Statut dans l\'enquête de terrain (.xlsx importé)',
+    column: 'batiment_groupe_id',
+    source: 'Tableur militant (.xlsx)',
+    desc: 'Afficher uniquement les immeubles déjà visités (présents dans votre fichier .xlsx) ou ceux restant à enquêter.',
+    controlType: 'select',
+    options: [
+      { value: '', label: 'Tous les immeubles (visités ou non)' },
+      { value: 'visited', label: '📋 Déjà enquêtés / présents dans le tableur .xlsx' },
+      { value: 'unvisited', label: '🧭 Restant à visiter (absents du tableur .xlsx)' },
+    ],
+    isActive: (s) => Boolean(s.dynFilters.fieldwork_status),
+    reset: (s) => { delete s.dynFilters.fieldwork_status; },
+    getValue: (s) => s.dynFilters.fieldwork_status || '',
+    setValue: (s, v) => { s.dynFilters.fieldwork_status = v || ''; },
+    matches: (s, b) => {
+      const val = s.dynFilters.fieldwork_status;
+      if (!val) return true;
+      const inFw = s.fieldwork && s.fieldwork.has(b.batiment_groupe_id);
+      return val === 'visited' ? inFw : !inFw;
+    },
+  },
+];
+
+// Populate 'complete' profile with all filter IDs
+const completeProfile = BUILTIN_PROFILES.find(p => p.id === 'complete');
+if (completeProfile) {
+  completeProfile.filterIds = FILTER_DEFINITIONS.map(f => f.id);
+}
+
+/* ==========================================================================
+   Sociological Filter System UI & Profile Management
+   ========================================================================== */
+function initSociologicalFilterSystem() {
+  loadCustomProfilesFromStorage();
+
+  const totalCountEl = document.getElementById('total-controls-count');
+  const catalogTotalEl = document.getElementById('catalog-total-available');
+  if (totalCountEl) totalCountEl.textContent = String(FILTER_DEFINITIONS.length);
+  if (catalogTotalEl) catalogTotalEl.textContent = String(FILTER_DEFINITIONS.length);
+
+  renderProfileButtons();
+  renderSidebarFilterControls();
+  renderCatalogModalContent();
+  updateFilterCountsUI();
+
+  // Wire "Choisir les filtres" button
+  document.getElementById('btn-open-filter-catalog')?.addEventListener('click', () => {
+    renderCatalogModalContent();
+    document.getElementById('modal-filter-catalog')?.classList.add('open');
+    document.getElementById('input-catalog-search')?.focus();
+  });
+
+  document.getElementById('btn-close-filter-catalog')?.addEventListener('click', () => {
+    document.getElementById('modal-filter-catalog')?.classList.remove('open');
+  });
+
+  document.getElementById('btn-apply-filter-catalog')?.addEventListener('click', () => {
+    document.getElementById('modal-filter-catalog')?.classList.remove('open');
+    renderSidebarFilterControls();
+    applyFilters();
+  });
+
+  // Catalog Search input
+  document.getElementById('input-catalog-search')?.addEventListener('input', (e) => {
+    state.catalogSearchQuery = e.target.value.trim();
+    renderCatalogCategoriesGrid();
+  });
+
+  // Catalog Select All / Select Minimum
+  document.getElementById('btn-catalog-select-all')?.addEventListener('click', () => {
+    const visibleFilters = getCatalogVisibleFilters();
+    for (const f of visibleFilters) {
+      state.activeFilterIds.add(f.id);
+    }
+    state.activeProfileId = 'custom_selection';
+    renderProfileButtons();
+    renderCatalogCategoriesGrid();
+    renderSidebarFilterControls();
+    updateFilterCountsUI();
+  });
+
+  document.getElementById('btn-catalog-select-none')?.addEventListener('click', () => {
+    const visibleFilters = getCatalogVisibleFilters();
+    for (const f of visibleFilters) {
+      if (!f.isActive(state)) {
+        state.activeFilterIds.delete(f.id);
+      }
+    }
+    if (state.activeFilterIds.size === 0) {
+      state.activeFilterIds.add('dpe');
+    }
+    state.activeProfileId = 'custom_selection';
+    renderProfileButtons();
+    renderCatalogCategoriesGrid();
+    renderSidebarFilterControls();
+    updateFilterCountsUI();
+  });
+
+  // Save Profile Modal wiring
+  const openSaveProfileModal = () => {
+    const countEl = document.getElementById('save-profile-controls-count');
+    if (countEl) countEl.textContent = String(state.activeFilterIds.size);
+    const nameInput = document.getElementById('input-profile-name');
+    const descInput = document.getElementById('input-profile-desc');
+    if (nameInput) nameInput.value = '';
+    if (descInput) descInput.value = '';
+    document.getElementById('modal-save-profile')?.classList.add('open');
+    setTimeout(() => nameInput?.focus(), 100);
+  };
+
+  document.getElementById('btn-open-save-profile')?.addEventListener('click', openSaveProfileModal);
+  document.getElementById('btn-catalog-save-profile')?.addEventListener('click', openSaveProfileModal);
+  document.getElementById('btn-close-save-profile')?.addEventListener('click', () => {
+    document.getElementById('modal-save-profile')?.classList.remove('open');
+  });
+  document.getElementById('btn-cancel-save-profile')?.addEventListener('click', () => {
+    document.getElementById('modal-save-profile')?.classList.remove('open');
+  });
+  document.getElementById('btn-confirm-save-profile')?.addEventListener('click', handleConfirmSaveProfile);
+}
+
+function loadCustomProfilesFromStorage() {
+  try {
+    const raw = localStorage.getItem(CUSTOM_PROFILES_STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        state.customProfiles = parsed;
+      }
+    }
+  } catch (e) {
+    console.warn('Could not load custom profiles from localStorage:', e);
+  }
+}
+
+function saveCustomProfilesToStorage() {
+  try {
+    localStorage.setItem(CUSTOM_PROFILES_STORAGE_KEY, JSON.stringify(state.customProfiles));
+  } catch (e) {
+    console.warn('Could not save custom profiles to localStorage:', e);
+  }
+}
+
+function getAllProfiles() {
+  return [...BUILTIN_PROFILES, ...state.customProfiles];
+}
+
+function applyProfile(profileId) {
+  const allProfiles = getAllProfiles();
+  const prof = allProfiles.find(p => p.id === profileId);
+  if (!prof) return;
+
+  state.activeProfileId = prof.id;
+  state.activeFilterIds = new Set(prof.filterIds);
+
+  // If custom profile has saved filter values, restore them
+  if (prof.savedValues && typeof prof.savedValues === 'object') {
+    for (const f of FILTER_DEFINITIONS) {
+      f.reset(state);
+    }
+    // Keep default F/G unless savedValues overrides dpe
+    for (const [fId, val] of Object.entries(prof.savedValues)) {
+      const fDef = FILTER_DEFINITIONS.find(f => f.id === fId);
+      if (fDef && fDef.setValue) {
+        fDef.setValue(state, val);
+      }
+    }
+  }
+
+  // Switch map coloration if profile recommends one
+  if (prof.mapStyleMode) {
+    state.mapStyleMode = prof.mapStyleMode;
+    const colorSelect = document.getElementById('select-color-mode');
+    if (colorSelect) colorSelect.value = state.mapStyleMode;
+    document.querySelectorAll('.map-style-btn').forEach(b => {
+      b.classList.toggle('active', b.getAttribute('data-style') === state.mapStyleMode);
+    });
+    updateLegend();
+  }
+
+  renderProfileButtons();
+  renderSidebarFilterControls();
+  renderCatalogModalContent();
+  applyFilters();
+  showToast(`Profil activé : ${prof.icon} ${prof.name} (${prof.filterIds.length} filtres)`);
+}
+
+function deleteCustomProfile(profileId) {
+  state.customProfiles = state.customProfiles.filter(p => p.id !== profileId);
+  saveCustomProfilesToStorage();
+  if (state.activeProfileId === profileId) {
+    state.activeProfileId = 'essential';
+  }
+  renderProfileButtons();
+  showToast('Profil personnalisé supprimé.');
+}
+
+function handleConfirmSaveProfile() {
+  const nameInput = document.getElementById('input-profile-name');
+  const descInput = document.getElementById('input-profile-desc');
+  const iconSelect = document.getElementById('select-profile-icon');
+  const saveValuesChk = document.getElementById('chk-profile-save-values');
+
+  const name = (nameInput?.value || '').trim();
+  if (!name) {
+    alert('Veuillez donner un nom à votre profil (ex: Permanence ADIL, Passoires G Élec...).');
+    nameInput?.focus();
+    return;
+  }
+
+  const icon = iconSelect?.value || '🎯';
+  const desc = (descInput?.value || '').trim() || `Profil personnalisé (${state.activeFilterIds.size} indicateurs)`;
+  const shouldSaveValues = Boolean(saveValuesChk?.checked);
+
+  let savedValues = null;
+  if (shouldSaveValues) {
+    savedValues = {};
+    for (const f of FILTER_DEFINITIONS) {
+      if (state.activeFilterIds.has(f.id) || f.isActive(state)) {
+        savedValues[f.id] = f.getValue(state);
+      }
+    }
+  }
+
+  const newProfile = {
+    id: `custom_${Date.now()}`,
+    icon,
+    name,
+    desc,
+    isCustom: true,
+    mapStyleMode: state.mapStyleMode,
+    filterIds: Array.from(state.activeFilterIds),
+    savedValues,
+  };
+
+  state.customProfiles.push(newProfile);
+  saveCustomProfilesToStorage();
+  state.activeProfileId = newProfile.id;
+
+  document.getElementById('modal-save-profile')?.classList.remove('open');
+  renderProfileButtons();
+  renderCatalogModalContent();
+  showToast(`Nouveau profil « ${icon} ${name} » enregistré !`);
+}
+
+function renderProfileButtons() {
+  const containers = [
+    document.getElementById('profile-buttons-container'),
+    document.getElementById('catalog-profile-buttons'),
+  ].filter(Boolean);
+
+  const allProfiles = getAllProfiles();
+
+  for (const container of containers) {
+    container.innerHTML = '';
+    for (const prof of allProfiles) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = `profile-pill-btn${prof.isCustom ? ' custom-profile' : ''}${state.activeProfileId === prof.id ? ' active' : ''}`;
+      btn.title = `${prof.name} — ${prof.desc}`;
+      btn.setAttribute('data-profile-id', prof.id);
+
+      let inner = `<span>${prof.icon}</span><span>${escapeHtml(prof.name)}</span>`;
+      if (prof.isCustom) {
+        inner += `<span class="profile-delete-x" data-del-id="${escapeHtml(prof.id)}" title="Supprimer ce profil personnalisé">&times;</span>`;
+      }
+      btn.innerHTML = inner;
+
+      btn.addEventListener('click', (e) => {
+        const delTarget = e.target.closest('.profile-delete-x');
+        if (delTarget) {
+          e.stopPropagation();
+          deleteCustomProfile(prof.id);
+          return;
+        }
+        applyProfile(prof.id);
+      });
+
+      container.appendChild(btn);
+    }
+  }
+}
+
+function renderSidebarFilterControls() {
+  const stack = document.getElementById('sociological-filters-container');
+  if (!stack) return;
+
+  // Remember which category accordions were open/closed
+  const openStateByCat = new Map();
+  stack.querySelectorAll('details.accordion-item[data-cat-id]').forEach(det => {
+    openStateByCat.set(det.getAttribute('data-cat-id'), det.open);
+  });
+
+  stack.innerHTML = '';
+
+  for (const cat of SOCIOLOGICAL_CATEGORIES) {
+    const catFilters = FILTER_DEFINITIONS.filter(f => f.category === cat.id && state.activeFilterIds.has(f.id));
+    if (catFilters.length === 0) continue;
+
+    const activeInCat = catFilters.filter(f => f.isActive(state)).length;
+    const details = document.createElement('details');
+    details.className = 'accordion-item';
+    details.setAttribute('data-cat-id', cat.id);
+    details.open = openStateByCat.has(cat.id) ? openStateByCat.get(cat.id) : true;
+
+    const summary = document.createElement('summary');
+    summary.className = 'accordion-header';
+    summary.innerHTML = `
+      <span class="accordion-title-wrap">
+        <span>${cat.icon}</span>
+        <span>${escapeHtml(cat.shortLabel)}</span>
+      </span>
+      <span style="display:flex; align-items:center; gap:0.35rem;">
+        <span class="cat-active-badge" style="font-size:0.66rem; padding:0.1rem 0.38rem; border-radius:999px; background:${activeInCat > 0 ? 'rgba(56,189,248,0.22)' : 'rgba(255,255,255,0.06)'}; color:${activeInCat > 0 ? 'var(--accent-primary)' : 'var(--text-muted)'}; font-weight:700;">
+          ${activeInCat > 0 ? `${activeInCat} actif${activeInCat > 1 ? 's' : ''}` : `${catFilters.length}`}
+        </span>
+        <span class="accordion-chevron">▶</span>
+      </span>
+    `;
+    details.appendChild(summary);
+
+    const body = document.createElement('div');
+    body.className = 'accordion-body';
+
+    for (const f of catFilters) {
+      const card = buildFilterControlCard(f);
+      body.appendChild(card);
+    }
+
+    details.appendChild(body);
+    stack.appendChild(details);
+  }
+
+  updateFilterCountsUI();
+}
+
+function buildFilterControlCard(f) {
+  const card = document.createElement('div');
+  const isAct = f.isActive(state);
+  card.className = `dyn-filter-card${isAct ? ' is-filtering' : ''}`;
+  card.setAttribute('data-filter-id', f.id);
+
+  // Header with label + value readout (for sliders) + remove button
+  const header = document.createElement('div');
+  header.className = 'dyn-filter-header';
+
+  let valueBadgeHtml = '';
+  if (f.controlType === 'slider') {
+    const val = f.getValue(state);
+    valueBadgeHtml = `<strong class="dyn-slider-val" id="lbl-val-${f.id}" style="color:var(--accent-primary); font-size:0.75rem; margin-left:auto; margin-right:0.25rem;">≥ ${val}${f.unit || ''}</strong>`;
+  }
+
+  header.innerHTML = `
+    <span class="dyn-filter-label" title="${escapeHtml(f.desc)} (${escapeHtml(f.source)})">${escapeHtml(f.label)}</span>
+    ${valueBadgeHtml}
+    <button type="button" class="btn-remove-filter" title="Retirer ce filtre du panneau (et le réinitialiser)">&times;</button>
+  `;
+
+  header.querySelector('.btn-remove-filter').addEventListener('click', () => {
+    f.reset(state);
+    state.activeFilterIds.delete(f.id);
+    state.activeProfileId = 'custom_selection';
+    renderProfileButtons();
+    renderSidebarFilterControls();
+    applyFilters();
+  });
+
+  card.appendChild(header);
+
+  // Control Body
+  const ctrlWrap = document.createElement('div');
+
+  if (f.controlType === 'dpe_pills') {
+    ctrlWrap.className = 'pill-group';
+    ctrlWrap.id = 'filter-dpe';
+    for (const dpe of f.options) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      const isSelected = state.selectedDpes.has(dpe);
+      btn.className = `pill-btn dpe-${dpe.toLowerCase()}${isSelected ? ' active' : ''}`;
+      btn.setAttribute('data-dpe', dpe);
+      btn.textContent = dpe === 'Inconnu' ? 'NC' : dpe;
+      btn.title = dpe === 'Inconnu' ? 'DPE Non connu / Non renseigné' : `Classe DPE ${dpe}`;
+      btn.addEventListener('click', () => {
+        if (state.selectedDpes.has(dpe)) {
+          state.selectedDpes.delete(dpe);
+          btn.classList.remove('active');
+        } else {
+          state.selectedDpes.add(dpe);
+          btn.classList.add('active');
+        }
+        refreshFilterCardActiveState(card, f);
+        applyFilters();
+      });
+      ctrlWrap.appendChild(btn);
+    }
+  } else if (f.controlType === 'overheating_pills') {
+    ctrlWrap.className = 'pill-group';
+    ctrlWrap.id = 'filter-overheating';
+    const labels = {
+      'Critique': 'Critique 🔥🔥',
+      'Élevé': 'Élevé 🔥',
+      'Modéré': 'Modéré',
+      'Faible': 'Faible',
+      'Non renseigné': 'NC',
+    };
+    for (const opt of f.options) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      const isSelected = state.selectedOverheating.has(opt);
+      btn.className = `pill-btn${isSelected ? ' active' : ''}`;
+      btn.setAttribute('data-val', opt);
+      btn.textContent = labels[opt] || opt;
+      btn.addEventListener('click', () => {
+        if (state.selectedOverheating.has(opt)) {
+          state.selectedOverheating.delete(opt);
+          btn.classList.remove('active');
+        } else {
+          state.selectedOverheating.add(opt);
+          btn.classList.add('active');
+        }
+        refreshFilterCardActiveState(card, f);
+        applyFilters();
+      });
+      ctrlWrap.appendChild(btn);
+    }
+  } else if (f.controlType === 'legal_pills') {
+    const modeRow = document.createElement('div');
+    modeRow.style.cssText = 'display:flex; justify-content:flex-end; margin-bottom:0.3rem;';
+    const modeBadge = document.createElement('span');
+    modeBadge.id = 'label-legal-mode';
+    modeBadge.style.cssText = 'cursor:pointer; color:var(--accent-primary); font-size:0.7rem; font-weight:600;';
+    modeBadge.textContent = state.legalMode === 'inclusif' ? 'Mode Inclusif ⇄' : 'Mode Exclusif ⇄';
+    modeBadge.title = 'Inclusif : au moins un propriétaire de ce type. Exclusif : uniquement des propriétaires de ce type.';
+    modeBadge.addEventListener('click', () => {
+      state.legalMode = state.legalMode === 'inclusif' ? 'exclusif' : 'inclusif';
+      modeBadge.textContent = state.legalMode === 'inclusif' ? 'Mode Inclusif ⇄' : 'Mode Exclusif ⇄';
+      refreshFilterCardActiveState(card, f);
+      applyFilters();
+    });
+    modeRow.appendChild(modeBadge);
+    ctrlWrap.appendChild(modeRow);
+
+    const pillsDiv = document.createElement('div');
+    pillsDiv.className = 'pill-group';
+    pillsDiv.id = 'filter-legal';
+    const shortLabels = {
+      'SCI': 'SCI',
+      'Bailleur social': 'Bailleur Social',
+      'Société commerciale': 'Société Comm.',
+      'Personne physique': 'Pers. Physique',
+    };
+    for (const opt of f.options) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      const isSelected = state.selectedLegal.has(opt);
+      btn.className = `pill-btn${isSelected ? ' active' : ''}`;
+      btn.setAttribute('data-val', opt);
+      btn.textContent = shortLabels[opt] || opt;
+      btn.addEventListener('click', () => {
+        if (state.selectedLegal.has(opt)) {
+          state.selectedLegal.delete(opt);
+          btn.classList.remove('active');
+        } else {
+          state.selectedLegal.add(opt);
+          btn.classList.add('active');
+        }
+        refreshFilterCardActiveState(card, f);
+        applyFilters();
+      });
+      pillsDiv.appendChild(btn);
+    }
+    ctrlWrap.appendChild(pillsDiv);
+  } else if (f.controlType === 'slider') {
+    const input = document.createElement('input');
+    input.type = 'range';
+    input.min = String(f.min);
+    input.max = String(f.max);
+    input.step = String(f.step);
+    input.value = String(f.getValue(state));
+    input.addEventListener('input', (e) => {
+      const v = Number(e.target.value);
+      f.setValue(state, v);
+      const lbl = card.querySelector(`#lbl-val-${f.id}`);
+      if (lbl) lbl.textContent = `≥ ${v}${f.unit || ''}`;
+      refreshFilterCardActiveState(card, f);
+      applyFilters();
+    });
+    ctrlWrap.appendChild(input);
+  } else if (f.controlType === 'number_min') {
+    const input = document.createElement('input');
+    input.type = 'number';
+    input.min = String(f.min ?? 0);
+    input.max = String(f.max ?? 99999);
+    input.step = String(f.step ?? 1);
+    input.placeholder = f.placeholder || 'Valeur minimale...';
+    const curVal = f.getValue(state);
+    input.value = curVal > 0 ? String(curVal) : '';
+    input.addEventListener('input', (e) => {
+      const v = parseFloat(e.target.value) || 0;
+      f.setValue(state, v);
+      refreshFilterCardActiveState(card, f);
+      applyFilters();
+    });
+    ctrlWrap.appendChild(input);
+  } else if (f.controlType === 'range_min_max') {
+    ctrlWrap.className = 'range-inputs';
+    const cur = f.getValue(state) || { min: '', max: '' };
+    const inMin = document.createElement('input');
+    inMin.type = 'number';
+    inMin.placeholder = f.minPlaceholder || 'Min';
+    inMin.value = cur.min || '';
+
+    const sep = document.createElement('span');
+    sep.textContent = 'à';
+
+    const inMax = document.createElement('input');
+    inMax.type = 'number';
+    inMax.placeholder = f.maxPlaceholder || 'Max';
+    inMax.value = cur.max || '';
+
+    const onRangeChange = () => {
+      f.setValue(state, { min: inMin.value.trim(), max: inMax.value.trim() });
+      refreshFilterCardActiveState(card, f);
+      applyFilters();
+    };
+    inMin.addEventListener('input', onRangeChange);
+    inMax.addEventListener('input', onRangeChange);
+    ctrlWrap.appendChild(inMin);
+    ctrlWrap.appendChild(sep);
+    ctrlWrap.appendChild(inMax);
+  } else if (f.controlType === 'select') {
+    const select = document.createElement('select');
+    const curVal = String(f.getValue(state) || '');
+    for (const opt of f.options) {
+      const o = document.createElement('option');
+      o.value = opt.value;
+      o.textContent = opt.label;
+      if (opt.value === curVal) o.selected = true;
+      select.appendChild(o);
+    }
+    select.addEventListener('change', (e) => {
+      f.setValue(state, e.target.value);
+      refreshFilterCardActiveState(card, f);
+      applyFilters();
+    });
+    ctrlWrap.appendChild(select);
+  } else if (f.controlType === 'text') {
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.placeholder = f.placeholder || 'Rechercher...';
+    input.value = f.getValue(state) || '';
+    if (f.id === 'owner_search') input.id = 'filter-owner-search';
+    let debounceTimer = null;
+    input.addEventListener('input', (e) => {
+      clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => {
+        f.setValue(state, e.target.value);
+        refreshFilterCardActiveState(card, f);
+        applyFilters();
+      }, 200);
+    });
+    ctrlWrap.appendChild(input);
+  }
+
+  card.appendChild(ctrlWrap);
+  return card;
+}
+
+function refreshFilterCardActiveState(card, f) {
+  const isAct = f.isActive(state);
+  card.classList.toggle('is-filtering', isAct);
+  updateFilterCountsUI();
+}
+
+function updateFilterCountsUI() {
+  const activeCount = FILTER_DEFINITIONS.filter(f => f.isActive(state)).length;
+  const activeBadge = document.getElementById('active-filters-count-badge');
+  if (activeBadge) {
+    activeBadge.textContent = `${activeCount} actif${activeCount > 1 ? 's' : ''}`;
+    activeBadge.className = activeCount > 0 ? 'status-badge status-online' : 'status-badge';
+  }
+
+  const selCountEl = document.getElementById('selected-controls-count');
+  if (selCountEl) selCountEl.textContent = String(state.activeFilterIds.size);
+
+  const catSelCountEl = document.getElementById('catalog-selected-count');
+  if (catSelCountEl) catSelCountEl.textContent = String(state.activeFilterIds.size);
+}
+
+function resetAllSociologicalFilters() {
+  for (const f of FILTER_DEFINITIONS) {
+    f.reset(state);
+  }
+  // Default militant preset sets DPE F & G selected
+  state.selectedDpes = new Set(['F', 'G']);
+  state.fieldworkFilters = {};
+  renderSidebarFilterControls();
+  applyFilters();
+  showToast('Tous les filtres ont été réinitialisés (DPE F & G par défaut).');
+}
+
+/* ==========================================================================
+   Filter Catalog Modal Rendering (Browse & Toggle 69 Sociological Indicators)
+   ========================================================================== */
+function renderCatalogModalContent() {
+  renderProfileButtons();
+  renderCatalogCategoryTabs();
+  renderCatalogCategoriesGrid();
+  updateFilterCountsUI();
+}
+
+function renderCatalogCategoryTabs() {
+  const tabsWrap = document.getElementById('catalog-category-tabs');
+  if (!tabsWrap) return;
+  tabsWrap.innerHTML = '';
+
+  const allTab = document.createElement('button');
+  allTab.type = 'button';
+  allTab.className = `catalog-cat-tab${state.catalogCategoryFilter === 'all' ? ' active' : ''}`;
+  allTab.textContent = `Toutes les catégories (${FILTER_DEFINITIONS.length})`;
+  allTab.addEventListener('click', () => {
+    state.catalogCategoryFilter = 'all';
+    renderCatalogCategoryTabs();
+    renderCatalogCategoriesGrid();
+  });
+  tabsWrap.appendChild(allTab);
+
+  for (const cat of SOCIOLOGICAL_CATEGORIES) {
+    const count = FILTER_DEFINITIONS.filter(f => f.category === cat.id).length;
+    const selectedInCat = FILTER_DEFINITIONS.filter(f => f.category === cat.id && state.activeFilterIds.has(f.id)).length;
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = `catalog-cat-tab${state.catalogCategoryFilter === cat.id ? ' active' : ''}`;
+    btn.innerHTML = `${cat.icon} ${escapeHtml(cat.shortLabel)} <span style="opacity:0.75;">(${selectedInCat}/${count})</span>`;
+    btn.addEventListener('click', () => {
+      state.catalogCategoryFilter = cat.id;
+      renderCatalogCategoryTabs();
+      renderCatalogCategoriesGrid();
+    });
+    tabsWrap.appendChild(btn);
+  }
+}
+
+function getCatalogVisibleFilters() {
+  const q = (state.catalogSearchQuery || '').toLowerCase().trim();
+  return FILTER_DEFINITIONS.filter(f => {
+    if (state.catalogCategoryFilter !== 'all' && f.category !== state.catalogCategoryFilter) {
+      return false;
+    }
+    if (!q) return true;
+    return f.label.toLowerCase().includes(q) ||
+           f.desc.toLowerCase().includes(q) ||
+           f.column.toLowerCase().includes(q) ||
+           f.source.toLowerCase().includes(q);
+  });
+}
+
+function renderCatalogCategoriesGrid() {
+  const container = document.getElementById('catalog-categories-list');
+  if (!container) return;
+  container.innerHTML = '';
+
+  const q = (state.catalogSearchQuery || '').toLowerCase().trim();
+  let totalRendered = 0;
+
+  for (const cat of SOCIOLOGICAL_CATEGORIES) {
+    if (state.catalogCategoryFilter !== 'all' && state.catalogCategoryFilter !== cat.id) continue;
+
+    const catFilters = FILTER_DEFINITIONS.filter(f => {
+      if (f.category !== cat.id) return false;
+      if (!q) return true;
+      return f.label.toLowerCase().includes(q) ||
+             f.desc.toLowerCase().includes(q) ||
+             f.column.toLowerCase().includes(q) ||
+             f.source.toLowerCase().includes(q);
+    });
+
+    if (catFilters.length === 0) continue;
+    totalRendered += catFilters.length;
+
+    const block = document.createElement('div');
+    block.className = 'catalog-category-block';
+
+    const selectedInCat = catFilters.filter(f => state.activeFilterIds.has(f.id)).length;
+
+    const header = document.createElement('div');
+    header.className = 'catalog-category-header';
+    header.innerHTML = `
+      <div>
+        <div class="catalog-category-title">
+          <span>${cat.icon}</span>
+          <span>${escapeHtml(cat.title)}</span>
+        </div>
+        <div class="catalog-category-desc">${escapeHtml(cat.desc)}</div>
+      </div>
+      <div style="display:flex; align-items:center; gap:0.4rem;">
+        <span class="status-badge status-cached">${selectedInCat} / ${catFilters.length} cochés</span>
+        <button type="button" class="btn btn-secondary btn-sm btn-toggle-cat" style="font-size:0.68rem; padding:0.18rem 0.45rem;">
+          ${selectedInCat === catFilters.length ? 'Tout décocher' : 'Tout cocher'}
+        </button>
+      </div>
+    `;
+
+    header.querySelector('.btn-toggle-cat').addEventListener('click', () => {
+      const allSelected = catFilters.every(f => state.activeFilterIds.has(f.id));
+      for (const f of catFilters) {
+        if (allSelected) {
+          if (!f.isActive(state)) state.activeFilterIds.delete(f.id);
+        } else {
+          state.activeFilterIds.add(f.id);
+        }
+      }
+      state.activeProfileId = 'custom_selection';
+      renderCatalogModalContent();
+      renderSidebarFilterControls();
+    });
+
+    block.appendChild(header);
+
+    const grid = document.createElement('div');
+    grid.className = 'catalog-filters-grid';
+
+    for (const f of catFilters) {
+      const isSelected = state.activeFilterIds.has(f.id);
+      const isFilteringNow = f.isActive(state);
+      const item = document.createElement('div');
+      item.className = `catalog-filter-card${isSelected ? ' selected' : ''}`;
+      item.innerHTML = `
+        <input type="checkbox" class="catalog-filter-checkbox" ${isSelected ? 'checked' : ''}>
+        <div class="catalog-filter-info">
+          <div class="catalog-filter-name">
+            <span>${escapeHtml(f.label)}</span>
+            <span class="catalog-filter-source">${escapeHtml(f.source)}</span>
+          </div>
+          <div class="catalog-filter-desc">${escapeHtml(f.desc)}</div>
+          <div class="catalog-filter-col">
+            Colonne : <code>${escapeHtml(f.column)}</code>
+            ${isFilteringNow ? `<span style="color:#4ade80; font-weight:700; margin-left:0.35rem;">● Actif</span>` : ''}
+          </div>
+        </div>
+      `;
+
+      item.addEventListener('click', (e) => {
+        if (e.target.tagName !== 'INPUT') {
+          const chk = item.querySelector('.catalog-filter-checkbox');
+          chk.checked = !chk.checked;
+        }
+        const chk = item.querySelector('.catalog-filter-checkbox');
+        if (chk.checked) {
+          state.activeFilterIds.add(f.id);
+          item.classList.add('selected');
+        } else {
+          f.reset(state);
+          state.activeFilterIds.delete(f.id);
+          item.classList.remove('selected');
+        }
+        state.activeProfileId = 'custom_selection';
+        renderProfileButtons();
+        renderCatalogCategoryTabs();
+        renderSidebarFilterControls();
+        updateFilterCountsUI();
+      });
+
+      grid.appendChild(item);
+    }
+
+    block.appendChild(grid);
+    container.appendChild(block);
+  }
+
+  if (totalRendered === 0) {
+    container.innerHTML = `
+      <div style="text-align:center; padding:2.5rem; color:var(--text-muted);">
+        Aucun indicateur ne correspond à votre recherche « <strong>${escapeHtml(state.catalogSearchQuery)}</strong> ».
+      </div>
+    `;
+  }
+}
+
+/* ==========================================================================
    Initialization
    ========================================================================== */
 document.addEventListener('DOMContentLoaded', async () => {
@@ -85,6 +2562,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (inputBaseUrl) inputBaseUrl.value = state.dataBaseUrl;
   }
 
+  initSociologicalFilterSystem();
   initMap();
   initTabs();
   initBuildingsTableControls();
@@ -246,7 +2724,7 @@ async function scanLocalCache() {
   state.locallyCachedChunkIds.clear();
   if ('caches' in window && state.manifest?.chunks) {
     try {
-      const cache = await caches.open('tezeloma-data-v1');
+      const cache = await caches.open('tezeloma-data-v2');
       for (const chunk of state.manifest.chunks) {
         const bUrl = `${state.dataBaseUrl}${chunk.buildings_file}`;
         const match = await cache.match(bUrl);
@@ -549,7 +3027,10 @@ function updateTerritorySelectionBar() {
     }
   }
 
-  const cpList = selectedChunks.map(c => c.cp).sort((a, b) => a - b).join(', ');
+  const cpArr = selectedChunks.map(c => c.cp).sort((a, b) => a - b);
+  const cpList = cpArr.length <= 6
+    ? cpArr.join(', ')
+    : `${cpArr.slice(0, 5).join(', ')}... (+${cpArr.length - 5})`;
   if (summaryText) {
     summaryText.innerHTML = `<strong>${count} code${count > 1 ? 's' : ''} postal${count > 1 ? 's' : ''}</strong> (${cpList})`;
   }
@@ -802,13 +3283,14 @@ function initLocationPromptControls() {
     });
   }
 
-  // Preset Lyon
+  // Preset Lyon (Lyon 1-9 & Villeurbanne - 10 codes postaux)
+  const LYON_PRESET_CPS = new Set([69001, 69002, 69003, 69004, 69005, 69006, 69007, 69008, 69009, 69100]);
   document.getElementById('preset-lyon')?.addEventListener('click', () => {
     closeLocationPromptModal();
     state.pendingSelectedChunks.clear();
     if (state.manifest?.chunks) {
       state.manifest.chunks
-        .filter(c => c.departement === '69')
+        .filter(c => LYON_PRESET_CPS.has(c.cp))
         .forEach(c => state.pendingSelectedChunks.add(c.id));
     }
     enterTerritorySelectionMode({ center: [4.8467, 45.7628], zoom: 12.5 });
@@ -816,13 +3298,14 @@ function initLocationPromptControls() {
     updateTerritorySelectionBar();
   });
 
-  // Preset Grenoble
+  // Preset Grenoble & Métropole (14 codes postaux métropolitains)
+  const GRENOBLE_PRESET_CPS = new Set([38000, 38100, 38400, 38130, 38600, 38240, 38120, 38170, 38360, 38800, 38320, 38610, 38700, 38180]);
   document.getElementById('preset-grenoble')?.addEventListener('click', () => {
     closeLocationPromptModal();
     state.pendingSelectedChunks.clear();
     if (state.manifest?.chunks) {
       state.manifest.chunks
-        .filter(c => c.departement === '38')
+        .filter(c => GRENOBLE_PRESET_CPS.has(c.cp))
         .forEach(c => state.pendingSelectedChunks.add(c.id));
     }
     enterTerritorySelectionMode({ center: [5.7255, 45.1785], zoom: 12.5 });
@@ -1006,7 +3489,7 @@ async function fetchWithCache(filename) {
   // Use Cache API if supported
   if ('caches' in window) {
     try {
-      const cache = await caches.open('tezeloma-data-v1');
+      const cache = await caches.open('tezeloma-data-v2');
       const cachedResponse = await cache.match(url);
       if (cachedResponse) {
         return await cachedResponse.arrayBuffer();
@@ -1166,121 +3649,33 @@ async function loadTerritory() {
 }
 
 /* ==========================================================================
-   Real-Time Client-Side Filtering
+   Real-Time Client-Side Filtering (69 Sociological Indicators)
    ========================================================================== */
 function applyFilters() {
   if (!state.buildings || state.buildings.length === 0) return;
 
-  const {
-    selectedDpes,
-    selectedOverheating,
-    selectedLegal,
-    legalMode,
-    minPctFg,
-    minConcentration,
-    minLog,
-    onlyUninsulatedRoof,
-    onlyNoShutters,
-    minOverheatScore,
-    ownerSearchText,
-    minPatrimoine,
-    filterQpv,
-    filterSocialOnly,
-    filterExcludeSocial,
-    filterRentControl,
-    fieldwork,
-    maxPolygons,
-  } = state;
-
-  const searchLower = (ownerSearchText || '').toLowerCase().trim();
+  const activeFilterDefs = FILTER_DEFINITIONS.filter(f => f.isActive(state));
+  const { fieldwork, maxPolygons } = state;
   const filtered = [];
 
   for (let i = 0; i < state.buildings.length; i++) {
     const b = state.buildings[i];
 
-    // 1. DPE filter
-    const dpe = b.dpe || 'Inconnu';
-    if (!selectedDpes.has(dpe)) continue;
-
-    // 2. Slum % filter (pct_dpe_fg)
-    const pctFg = Number(b.pct_dpe_fg || 0);
-    if (pctFg < minPctFg) continue;
-
-    // 3. Overheating risk filter
-    const rawRisk = b.risque_surchauffe_ete;
-    const risk = (!rawRisk || rawRisk === 'NC' || rawRisk === 'Inconnu') ? 'Non renseigné' : rawRisk;
-    if (!selectedOverheating.has(risk)) continue;
-
-    // 3b. Overheating score min
-    if (minOverheatScore > 0 && Number(b.score_surchauffe_ete || 0) < minOverheatScore) continue;
-
-    // 3c. Uninsulated roof
-    if (onlyUninsulatedRoof) {
-      const roof = String(b.type_isolation_plancher_haut || '').toLowerCase();
-      if (!roof.includes('non isol')) continue;
-    }
-
-    // 3d. No shutters
-    if (onlyNoShutters) {
-      const shutters = String(b.type_fermeture || '').toLowerCase();
-      if (!shutters.includes('sans fermeture') && !shutters.includes('absence')) continue;
-    }
-
-    // 4. Landlord Concentration filter
-    const conc = Number(b.concentration_prop_max_num || 0);
-    if (conc < minConcentration) continue;
-
-    // 4b. Min Patrimoine
-    if (minPatrimoine > 0 && Number(b.max_patrimoine_majic_bailleur || 0) < minPatrimoine) continue;
-
-    // 4c. Owner Name / SIREN text search
-    if (searchLower) {
-      const denom = String(b.concentration_prop_max_denomination || '').toLowerCase();
-      const siren = String(b.siren_principal || '').toLowerCase();
-      let match = denom.includes(searchLower) || siren.includes(searchLower);
-      if (!match) {
-        const bOwners = state.ownersByBuilding.get(b.batiment_groupe_id) || [];
-        for (let oIdx = 0; oIdx < bOwners.length; oIdx++) {
-          const o = bOwners[oIdx];
-          if (String(o.denomination || '').toLowerCase().includes(searchLower) ||
-              String(o.siren || '').includes(searchLower)) {
-            match = true;
-            break;
-          }
-        }
-      }
-      if (!match) continue;
-    }
-
-    // 5. Min Dwellings filter
-    const nbLog = Number(b.nb_log || 0);
-    if (nbLog < minLog) continue;
-
-    // 6. Legal Forms filter
-    if (selectedLegal.size < 4) {
-      const bLegals = String(b.formes_juridiques || '');
-      if (legalMode === 'exclusif') {
-        const parts = bLegals.split(',').map(s => s.trim()).filter(Boolean);
-        if (parts.length === 0 || !parts.every(p => selectedLegal.has(p))) continue;
-      } else {
-        let hasMatch = false;
-        for (const leg of selectedLegal) {
-          if (bLegals.includes(leg)) {
-            hasMatch = true;
-            break;
-          }
-        }
-        if (!hasMatch) continue;
+    let pass = true;
+    for (let j = 0; j < activeFilterDefs.length; j++) {
+      if (!activeFilterDefs[j].matches(state, b)) {
+        pass = false;
+        break;
       }
     }
-
-    // 7. Urbanisme & Social
-    if (filterQpv && (!b.quartier_qpv || b.quartier_qpv === 'None')) continue;
-    if (filterSocialOnly && !b.est_logement_social_rpls) continue;
-    if (filterExcludeSocial && b.est_logement_social_rpls) continue;
-    if (filterRentControl && Number(b.zone_encadrement_loyers || 0) <= 0) continue;
+    if (!pass) continue;
 
     // Color computation based on mapStyleMode
+    const dpe = b.dpe || 'Inconnu';
+    const rawRisk = b.risque_surchauffe_ete;
+    const risk = (!rawRisk || rawRisk === 'NC' || rawRisk === 'Inconnu') ? 'Non renseigné' : rawRisk;
+    const conc = Number(b.concentration_prop_max_num || 0);
+
     let renderColor = DPE_COLORS[dpe] || DPE_COLORS['Inconnu'];
     if (state.mapStyleMode === 'overheating') {
       renderColor = OVERHEATING_COLORS[risk] || OVERHEATING_COLORS['Faible'];
@@ -1291,13 +3686,13 @@ function applyFilters() {
       renderColor = isField ? '#a855f7' : 'rgba(100, 116, 139, 0.4)';
     }
 
-    // Attach computed property for MapLibre GPU shader
     b.render_color = renderColor;
     filtered.push(b);
   }
 
   state.filteredBuildings = filtered;
   updateKPIs(filtered);
+  updateFilterCountsUI();
 
   // Apply max polygons limit to map display
   const mapBuildings = (maxPolygons && maxPolygons < filtered.length)
@@ -1504,6 +3899,34 @@ function inspectBuilding(batimentGroupeId) {
     ownersListEl.querySelectorAll('.btn-lookup-siren').forEach(btn => {
       btn.addEventListener('click', () => lookupSiren(btn.getAttribute('data-siren')));
     });
+  }
+
+  // Fill Sociological, Rent Control, DVF & Technical Details Card
+  const rentEl = document.getElementById('drawer-rent-control');
+  if (rentEl) {
+    const loyNm = b.loyer_max_t2_non_meuble_m2 ? `${Number(b.loyer_max_t2_non_meuble_m2).toFixed(1)} €/m²` : null;
+    const loyM = b.loyer_max_t2_meuble_m2 ? `${Number(b.loyer_max_t2_meuble_m2).toFixed(1)} €/m²` : null;
+    const zoneLoy = b.zone_encadrement_loyers ? `Zone ${b.zone_encadrement_loyers}` : 'Hors encadrement';
+    const dvfPrix = b.dvf_prix_m2_median ? `${Math.round(Number(b.dvf_prix_m2_median)).toLocaleString('fr-FR')} €/m² (${b.dvf_nb_mutations || 0} ventes)` : 'NC';
+    rentEl.innerHTML = `<strong>Encadrement loyers :</strong> ${escapeHtml(zoneLoy)}${loyNm ? ` • Plafond T2 : <strong>${loyNm}</strong> (meublé ${loyM || '—'})` : ''}<br><strong>Marché DVF :</strong> ${escapeHtml(dvfPrix)}`;
+  }
+
+  const urbanEl = document.getElementById('drawer-urban-rules');
+  if (urbanEl) {
+    const qpv = (b.quartier_qpv && b.quartier_qpv !== 'None') ? `🏘️ QPV : <strong>${escapeHtml(b.quartier_qpv)}</strong>` : 'Hors QPV';
+    const social = b.est_logement_social_rpls ? `🏛️ Parc social RPLS (${b.nb_log_sociaux_rpls || 1} log., PMR: ${b.nb_log_pmr_rpls || 0})` : 'Parc privé';
+    const copro = b.est_copro_rnc ? `🏢 Copro RNIC (${escapeHtml(b.nom_copro || 'Immatriculée')}, ${b.nb_lots_habitation_copro || '—'} lots)` : 'Monopropriété / Hors RNIC';
+    urbanEl.innerHTML = `${qpv} • ${social}<br>${copro}`;
+  }
+
+  const techEl = document.getElementById('drawer-tech-details');
+  if (techEl) {
+    const chauf = `${b.type_energie_chauffage || 'NC'} (${b.type_installation_chauffage || 'NC'})`;
+    const vit = b.type_vitrage || 'NC';
+    const vent = b.type_ventilation || 'NC';
+    const elec = b.conso_elec_res_par_pdl_kwh ? `${Math.round(Number(b.conso_elec_res_par_pdl_kwh)).toLocaleString('fr-FR')} kWh/an` : '—';
+    const rcu = b.distance_reseau_chaleur != null ? `${Math.round(Number(b.distance_reseau_chaleur))} m` : '—';
+    techEl.innerHTML = `<strong>Chauffage :</strong> ${escapeHtml(chauf)} • <strong>Conso élec réelle :</strong> ${elec}<br><strong>Vitrage :</strong> ${escapeHtml(vit)} • <strong>Ventilation :</strong> ${escapeHtml(vent)} • <strong>Réseau chaleur :</strong> ${rcu}`;
   }
 
   // Open Drawer
@@ -1966,6 +4389,28 @@ function getFieldworkColumns() {
 }
 
 function getAllBuildingsColumns() {
+  const baseKeys = new Set(BASE_BUILDINGS_TABLE_COLUMNS.map(c => c.key));
+  const extraSocCols = [];
+
+  for (const f of FILTER_DEFINITIONS) {
+    if ((state.activeFilterIds.has(f.id) || f.isActive(state)) && f.column && !baseKeys.has(f.column)) {
+      baseKeys.add(f.column);
+      const isNum = f.controlType === 'slider' || f.controlType === 'number_min';
+      extraSocCols.push({
+        key: f.column,
+        label: f.label.length > 26 ? f.label.slice(0, 24) + '…' : f.label,
+        type: isNum ? 'number' : 'text',
+        render: (b) => {
+          const v = b[f.column];
+          if (v === null || v === undefined || v === '' || v === 'None') return '—';
+          if (typeof v === 'boolean') return v ? 'Oui' : 'Non';
+          if (typeof v === 'number') return Number.isInteger(v) ? v.toLocaleString('fr-FR') : v.toFixed(1);
+          return escapeHtml(String(v));
+        },
+      });
+    }
+  }
+
   const fwCols = getFieldworkColumns();
   const actionCol = {
     key: '_action',
@@ -1977,7 +4422,7 @@ function getAllBuildingsColumns() {
       </button>
     `,
   };
-  return [...BASE_BUILDINGS_TABLE_COLUMNS, ...fwCols, actionCol];
+  return [...BASE_BUILDINGS_TABLE_COLUMNS, ...extraSocCols, ...fwCols, actionCol];
 }
 
 function getBuildingSortValue(b, col) {
@@ -3045,7 +5490,7 @@ function initEventListeners() {
   });
 
   // Territory Load Button
-  document.getElementById('btn-load-territory').addEventListener('click', () => {
+  document.getElementById('btn-load-territory')?.addEventListener('click', () => {
     const mode = state.activeTerritory.mode;
     if (mode === 'dep') {
       state.activeTerritory.dep = document.getElementById('select-dept').value;
@@ -3060,83 +5505,6 @@ function initEventListeners() {
       state.activeTerritory.range = [start, end];
     }
     loadTerritory();
-  });
-
-  // DPE Filter Pills
-  document.querySelectorAll('#filter-dpe .pill-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const dpe = btn.getAttribute('data-dpe');
-      if (state.selectedDpes.has(dpe)) {
-        state.selectedDpes.delete(dpe);
-        btn.classList.remove('active');
-      } else {
-        state.selectedDpes.add(dpe);
-        btn.classList.add('active');
-      }
-      applyFilters();
-    });
-  });
-
-  // Overheating Pills
-  document.querySelectorAll('#filter-overheating .pill-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const val = btn.getAttribute('data-val');
-      if (state.selectedOverheating.has(val)) {
-        state.selectedOverheating.delete(val);
-        btn.classList.remove('active');
-      } else {
-        state.selectedOverheating.add(val);
-        btn.classList.add('active');
-      }
-      applyFilters();
-    });
-  });
-
-  // Legal Mode toggle (Inclusif <-> Exclusif)
-  const legalModeLabel = document.getElementById('label-legal-mode');
-  if (legalModeLabel) {
-    legalModeLabel.addEventListener('click', () => {
-      state.legalMode = state.legalMode === 'inclusif' ? 'exclusif' : 'inclusif';
-      legalModeLabel.textContent = state.legalMode === 'inclusif' ? 'Mode Inclusif ⇄' : 'Mode Exclusif ⇄';
-      applyFilters();
-    });
-  }
-
-  // Legal Pills
-  document.querySelectorAll('#filter-legal .pill-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const val = btn.getAttribute('data-val');
-      if (state.selectedLegal.has(val)) {
-        state.selectedLegal.delete(val);
-        btn.classList.remove('active');
-      } else {
-        state.selectedLegal.add(val);
-        btn.classList.add('active');
-      }
-      applyFilters();
-    });
-  });
-
-  // Sliders
-  const pctFgSlider = document.getElementById('filter-pct-fg');
-  pctFgSlider.addEventListener('input', (e) => {
-    state.minPctFg = parseInt(e.target.value, 10);
-    document.getElementById('label-pct-fg').textContent = `${state.minPctFg}%`;
-    applyFilters();
-  });
-
-  const concSlider = document.getElementById('filter-concentration');
-  concSlider.addEventListener('input', (e) => {
-    state.minConcentration = parseInt(e.target.value, 10);
-    document.getElementById('label-concentration').textContent = `≥ ${state.minConcentration}%`;
-    applyFilters();
-  });
-
-  const minLogSlider = document.getElementById('filter-min-log');
-  minLogSlider.addEventListener('input', (e) => {
-    state.minLog = parseInt(e.target.value, 10);
-    document.getElementById('label-min-log').textContent = `≥ ${state.minLog}`;
-    applyFilters();
   });
 
   // Map Style Mode buttons & Select
@@ -3182,142 +5550,13 @@ function initEventListeners() {
     });
   }
 
-  // Roof & Shutters Checkboxes
-  const roofChk = document.getElementById('filter-roof-uninsulated');
-  if (roofChk) {
-    roofChk.addEventListener('change', (e) => {
-      state.onlyUninsulatedRoof = e.target.checked;
-      applyFilters();
-    });
-  }
-
-  const shuttersChk = document.getElementById('filter-no-shutters');
-  if (shuttersChk) {
-    shuttersChk.addEventListener('change', (e) => {
-      state.onlyNoShutters = e.target.checked;
-      applyFilters();
-    });
-  }
-
-  // Score Overheat Slider
-  const scoreOverheatSlider = document.getElementById('filter-score-overheat');
-  if (scoreOverheatSlider) {
-    scoreOverheatSlider.addEventListener('input', (e) => {
-      state.minOverheatScore = parseInt(e.target.value, 10);
-      document.getElementById('label-min-score-overheat').textContent = `≥ ${state.minOverheatScore}`;
-      applyFilters();
-    });
-  }
-
-  // Owner search text input
-  let searchTimeout = null;
-  const ownerSearchInput = document.getElementById('filter-owner-search');
-  if (ownerSearchInput) {
-    ownerSearchInput.addEventListener('input', (e) => {
-      clearTimeout(searchTimeout);
-      searchTimeout = setTimeout(() => {
-        state.ownerSearchText = e.target.value;
-        applyFilters();
-      }, 250);
-    });
-  }
-
-  // Min Patrimoine Input
-  const patrimoineInput = document.getElementById('filter-min-patrimoine');
-  if (patrimoineInput) {
-    patrimoineInput.addEventListener('input', (e) => {
-      state.minPatrimoine = parseInt(e.target.value, 10) || 0;
-      applyFilters();
-    });
-  }
-
-  // Urbanisme & Social Checkboxes
-  const qpvChk = document.getElementById('filter-qpv');
-  if (qpvChk) {
-    qpvChk.addEventListener('change', (e) => {
-      state.filterQpv = e.target.checked;
-      applyFilters();
-    });
-  }
-
-  const socialOnlyChk = document.getElementById('filter-social-only');
-  if (socialOnlyChk) {
-    socialOnlyChk.addEventListener('change', (e) => {
-      state.filterSocialOnly = e.target.checked;
-      if (state.filterSocialOnly && excludeSocialChk) {
-        excludeSocialChk.checked = false;
-        state.filterExcludeSocial = false;
-      }
-      applyFilters();
-    });
-  }
-
-  const excludeSocialChk = document.getElementById('filter-exclude-social');
-  if (excludeSocialChk) {
-    excludeSocialChk.addEventListener('change', (e) => {
-      state.filterExcludeSocial = e.target.checked;
-      if (state.filterExcludeSocial && socialOnlyChk) {
-        socialOnlyChk.checked = false;
-        state.filterSocialOnly = false;
-      }
-      applyFilters();
-    });
-  }
-
-  const rentControlChk = document.getElementById('filter-rent-control');
-  if (rentControlChk) {
-    rentControlChk.addEventListener('change', (e) => {
-      state.filterRentControl = e.target.checked;
-      applyFilters();
-    });
-  }
-
-  // Reset Filters Button
-  document.getElementById('btn-reset-filters').addEventListener('click', () => {
-    state.selectedDpes = new Set(['F', 'G']);
-    state.selectedOverheating = new Set(['Critique', 'Élevé', 'Modéré', 'Faible', 'Non renseigné']);
-    state.selectedLegal = new Set(['SCI', 'Bailleur social', 'Société commerciale', 'Personne physique']);
-    state.legalMode = 'inclusif';
-    if (legalModeLabel) legalModeLabel.textContent = 'Mode Inclusif ⇄';
-    state.minPctFg = 0;
-    state.minConcentration = 0;
-    state.minLog = 1;
-    state.onlyUninsulatedRoof = false;
-    state.onlyNoShutters = false;
-    state.minOverheatScore = 0;
-    state.ownerSearchText = '';
-    state.minPatrimoine = 0;
-    state.filterQpv = false;
-    state.filterSocialOnly = false;
-    state.filterExcludeSocial = false;
-    state.filterRentControl = false;
-
-    pctFgSlider.value = 0;
-    concSlider.value = 0;
-    minLogSlider.value = 1;
-    if (roofChk) roofChk.checked = false;
-    if (shuttersChk) shuttersChk.checked = false;
-    if (qpvChk) qpvChk.checked = false;
-    if (socialOnlyChk) socialOnlyChk.checked = false;
-    if (excludeSocialChk) excludeSocialChk.checked = false;
-    if (rentControlChk) rentControlChk.checked = false;
-    if (scoreOverheatSlider) scoreOverheatSlider.value = 0;
-    if (ownerSearchInput) ownerSearchInput.value = '';
-    if (patrimoineInput) patrimoineInput.value = 0;
-
-    document.getElementById('label-min-score-overheat').textContent = '≥ 0';
-    document.querySelectorAll('#filter-dpe .pill-btn').forEach(btn => {
-      const d = btn.getAttribute('data-dpe');
-      btn.classList.toggle('active', d === 'F' || d === 'G');
-    });
-    document.querySelectorAll('#filter-overheating .pill-btn').forEach(btn => btn.classList.add('active'));
-    document.querySelectorAll('#filter-legal .pill-btn').forEach(btn => btn.classList.add('active'));
-
-    applyFilters();
+  // Reset Filters Button (delegates to Sociological Filter System)
+  document.getElementById('btn-reset-filters')?.addEventListener('click', () => {
+    resetAllSociologicalFilters();
   });
 
   // Drawer Close Button
-  document.getElementById('btn-close-drawer').addEventListener('click', () => {
+  document.getElementById('btn-close-drawer')?.addEventListener('click', () => {
     document.getElementById('building-drawer').classList.remove('open');
     if (state.map) {
       state.map.setFilter('buildings-selected', ['==', ['get', 'batiment_groupe_id'], '']);
@@ -3325,17 +5564,17 @@ function initEventListeners() {
   });
 
   // Modals & Territory Manager
-  document.getElementById('btn-open-territory-manager').addEventListener('click', () => {
+  document.getElementById('btn-open-territory-manager')?.addEventListener('click', () => {
     if (state.territorySelectionMode) {
       exitTerritorySelectionMode();
     } else {
       enterTerritorySelectionMode();
     }
   });
-  document.getElementById('btn-close-territory-modal').addEventListener('click', () => {
+  document.getElementById('btn-close-territory-modal')?.addEventListener('click', () => {
     document.getElementById('modal-territory').classList.remove('open');
   });
-  document.getElementById('btn-close-territory-footer').addEventListener('click', () => {
+  document.getElementById('btn-close-territory-footer')?.addEventListener('click', () => {
     document.getElementById('modal-territory').classList.remove('open');
   });
 
@@ -3368,7 +5607,7 @@ function initEventListeners() {
 
   // Data Base URL Configuration
   const inputBaseUrl = document.getElementById('input-data-base-url');
-  document.getElementById('btn-save-data-url').addEventListener('click', async () => {
+  document.getElementById('btn-save-data-url')?.addEventListener('click', async () => {
     let url = inputBaseUrl.value.trim();
     if (!url.endsWith('/')) url += '/';
     state.dataBaseUrl = url;
@@ -3377,22 +5616,23 @@ function initEventListeners() {
     alert(`Source de données mise à jour: ${url}`);
   });
 
-  document.getElementById('link-source-local').addEventListener('click', (e) => {
+  document.getElementById('link-source-local')?.addEventListener('click', (e) => {
     e.preventDefault();
     inputBaseUrl.value = '../../data/chunks/';
     document.getElementById('btn-save-data-url').click();
   });
 
-  document.getElementById('link-source-github').addEventListener('click', (e) => {
+  document.getElementById('link-source-github')?.addEventListener('click', (e) => {
     e.preventDefault();
     inputBaseUrl.value = 'https://raw.githubusercontent.com/sebastienbrg/building_mapper/data-release/data/chunks/';
     document.getElementById('btn-save-data-url').click();
   });
 
   // Clear Cache Button
-  document.getElementById('btn-clear-cache').addEventListener('click', async () => {
+  document.getElementById('btn-clear-cache')?.addEventListener('click', async () => {
     if ('caches' in window) {
       await caches.delete('tezeloma-data-v1');
+      await caches.delete('tezeloma-data-v2');
       alert("Le cache local des chunks Parquet a été vidé avec succès.");
     }
   });

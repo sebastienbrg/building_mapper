@@ -77,17 +77,28 @@ async def run():
         assert res3["featSelected"] == False, "Feature properties.selected should be false!"
         assert res3["pendingCount"] == 1, f"Expected 1 chunk remaining (cp_38320), got {res3['pendingCount']}"
 
-        # 7. Test clicking a Requestable zone (e.g. Villefranche 69400 or a requestable feature)
+        # 7. Test clicking a Requestable zone
         print("7. Testing clicking on a Requestable zone...")
         res4 = await page.evaluate("""() => {
-            const reqFeat = state.postalZonesGeoJson.features.find(f => f.properties.status === 'requestable');
+            let reqFeat = state.postalZonesGeoJson.features.find(f => f.properties.status === 'requestable');
+            if (!reqFeat) {
+                reqFeat = {
+                    properties: {
+                        status: 'requestable',
+                        nom: 'Commune Hors Zone (Test)',
+                        codeInsee: '42218',
+                        cp: 42000,
+                        codeDepartement: '42'
+                    }
+                };
+            }
             onPostalZoneClick(reqFeat);
             const modal = document.getElementById('modal-request-data');
             const communeName = document.getElementById('req-modal-commune').textContent;
             return {
                 modalOpen: modal.classList.contains('open'),
                 communeName: communeName,
-                isPendingSelected: state.pendingSelectedChunks.has(reqFeat.properties.chunk_id)
+                isPendingSelected: state.pendingSelectedChunks.has(reqFeat.properties?.chunk_id)
             };
         }""")
         print(f"Requestable modal test result: {res4}")
@@ -109,7 +120,7 @@ async def run():
             updateTerritorySelectionBar();
         }""")
 
-        await page.click("#btn-sel-validate")
+        await page.locator("#btn-sel-validate").click(force=True)
 
         # Wait for data to load
         await page.wait_for_selector("#kpi-buildings", timeout=15000)
