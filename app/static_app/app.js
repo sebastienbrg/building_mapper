@@ -219,6 +219,7 @@ const BUILTIN_PROFILES = [
 ];
 
 const CUSTOM_PROFILES_STORAGE_KEY = 'tezeloma_custom_profiles_v1';
+const SESSION_STORAGE_KEY = 'tezeloma_session_state_v1';
 
 const FILTER_DEFINITIONS = [
   /* ========================================================================
@@ -1846,6 +1847,7 @@ function initSociologicalFilterSystem() {
     document.getElementById('modal-filter-catalog')?.classList.remove('open');
     renderSidebarFilterControls();
     applyFilters();
+    saveSessionToStorage();
   });
 
   // Catalog Search input
@@ -1871,6 +1873,7 @@ function initSociologicalFilterSystem() {
     renderCatalogCategoriesGrid();
     renderSidebarFilterControls();
     updateFilterCountsUI();
+    saveSessionToStorage();
   });
 
   // Catalog Expand All / Collapse All
@@ -1941,6 +1944,191 @@ function saveCustomProfilesToStorage() {
   }
 }
 
+/* ==========================================================================
+   Full Session Persistence (Loaded Data, Profile, Selected Filters & Values)
+   ========================================================================== */
+let saveSessionDebounceTimer = null;
+function scheduleSaveSession(delay = 250) {
+  clearTimeout(saveSessionDebounceTimer);
+  saveSessionDebounceTimer = setTimeout(() => {
+    saveSessionToStorage();
+  }, delay);
+}
+
+function saveSessionToStorage() {
+  clearTimeout(saveSessionDebounceTimer);
+  try {
+    // 1. Territory & Loaded Data
+    const hasLoadedData = Boolean(state.buildings && state.buildings.length > 0);
+    const territoryData = {
+      hasLoadedData,
+      activeTerritory: state.activeTerritory ? {
+        mode: state.activeTerritory.mode,
+        chunkIds: Array.isArray(state.activeTerritory.chunkIds) ? Array.from(state.activeTerritory.chunkIds) : [],
+        dep: state.activeTerritory.dep || '69',
+        cp: state.activeTerritory.cp || null,
+        range: state.activeTerritory.range || [69001, 69009],
+      } : null,
+      territorySelectionMode: Boolean(state.territorySelectionMode),
+      pendingSelectedChunks: Array.from(state.pendingSelectedChunks || []),
+    };
+
+    // 2. Active Profile
+    const activeProfileId = state.activeProfileId || 'essential';
+
+    // 3. Selected Filters (IDs of active indicators in sidebar/catalog)
+    const activeFilterIds = Array.from(state.activeFilterIds || []);
+
+    // 4. Filter Values (values of all indicators)
+    const filterValues = {};
+    for (const f of FILTER_DEFINITIONS) {
+      try {
+        filterValues[f.id] = f.getValue(state);
+      } catch (err) {
+        console.warn(`Error getting value for filter ${f.id}:`, err);
+      }
+    }
+
+    // 5. Screen & View State (Tab, Map style, Dimming, Max polygons, Center/Zoom, Inspector)
+    let mapViewport = null;
+    if (state.map && typeof state.map.getCenter === 'function') {
+      try {
+        const center = state.map.getCenter();
+        const zoom = state.map.getZoom();
+        if (center && typeof center.lng === 'number' && typeof center.lat === 'number') {
+          mapViewport = {
+            center: [Number(center.lng.toFixed(5)), Number(center.lat.toFixed(5))],
+            zoom: Number(zoom.toFixed(2)),
+          };
+        }
+      } catch (e) {
+        // Map may not be initialized yet
+      }
+    }
+
+    const tableSearchQuery = document.getElementById('table-search-query')?.value || '';
+    const tableSearchMode = document.getElementById('table-search-mode')?.value || 'all';
+    const inspectedLandlord = document.getElementById('input-manual-siren')?.value ||
+                              document.getElementById('select-landlord-to-inspect')?.value || '';
+
+    const screenState = {
+      activeTab: state.activeTab || 'map',
+      mapStyleMode: state.mapStyleMode || 'dpe',
+      bgDimPct: state.bgDimPct !== undefined ? state.bgDimPct : 20,
+      maxPolygons: state.maxPolygons || 3000,
+      selectedBuildingId: state.selectedBuildingId || null,
+      mapViewport,
+      tableSearchQuery,
+      tableSearchMode,
+      inspectedLandlord,
+    };
+
+    const payload = {
+      version: 1,
+      savedAt: Date.now(),
+      territoryData,
+      activeProfileId,
+      activeFilterIds,
+      filterValues,
+      screenState,
+      dataBaseUrl: state.dataBaseUrl,
+    };
+
+    localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(payload));
+  } catch (e) {
+    console.warn('Could not save session to localStorage:', e);
+  }
+}
+
+function loadSessionFromStorage() {
+  try {
+    const raw = localStorage.getItem(SESSION_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (parsed && typeof parsed === 'object') {
+      return parsed;
+    }
+  } catch (e) {
+    console.warn('Could not load session from localStorage:', e);
+  }
+  return null;
+}
+
+function restoreFiltersFromSession(session) {
+  if (!session) return;
+
+  // Restore Active Profile ID
+  if (session.activeProfileId) {
+    state.activeProfileId = session.activeProfileId;
+  }
+
+  // Restore Active Filter IDs
+  if (Array.isArray(session.activeFilterIds) && session.activeFilterIds.length > 0) {
+    state.activeFilterIds = new Set(session.activeFilterIds);
+  }
+
+  // Restore Filter Values
+  if (session.filterValues && typeof session.filterValues === 'object') {
+    for (const f of FILTER_DEFINITIONS) {
+      if (session.filterValues[f.id] !== undefined) {
+        try {
+          f.setValue(state, session.filterValues[f.id]);
+        } catch (e) {
+          console.warn(`Error restoring value for filter ${f.id}:`, e);
+        }
+      }
+    }
+  }
+}
+
+function restoreScreenStateFromSession(session) {
+  if (!session || !session.screenState) return;
+  const ss = session.screenState;
+
+  // 1. Map style mode
+  if (ss.mapStyleMode) {
+    state.mapStyleMode = ss.mapStyleMode;
+    document.querySelectorAll('.map-style-btn').forEach(b => {
+      b.classList.toggle('active', b.getAttribute('data-style') === state.mapStyleMode);
+    });
+    const colorSelect = document.getElementById('select-color-mode');
+    if (colorSelect) colorSelect.value = state.mapStyleMode;
+    updateLegend();
+  }
+
+  // 2. Background dimming
+  if (ss.bgDimPct !== undefined) {
+    state.bgDimPct = Number(ss.bgDimPct);
+    const bgDimSlider = document.getElementById('slider-bg-dim');
+    if (bgDimSlider) bgDimSlider.value = String(state.bgDimPct);
+    const bgDimLbl = document.getElementById('label-bg-dim');
+    if (bgDimLbl) bgDimLbl.textContent = `${state.bgDimPct}%`;
+    setMapDim(state.bgDimPct);
+  }
+
+  // 3. Max polygons
+  if (ss.maxPolygons) {
+    state.maxPolygons = Number(ss.maxPolygons);
+    const maxPolySelect = document.getElementById('select-max-polygons');
+    if (maxPolySelect) maxPolySelect.value = String(state.maxPolygons);
+  }
+
+  // 4. Buildings Table Search
+  if (ss.tableSearchQuery) {
+    const qInput = document.getElementById('table-search-query');
+    if (qInput) qInput.value = ss.tableSearchQuery;
+  }
+  if (ss.tableSearchMode) {
+    const mSelect = document.getElementById('table-search-mode');
+    if (mSelect) mSelect.value = ss.tableSearchMode;
+  }
+
+  // 5. Active Tab
+  if (ss.activeTab && ss.activeTab !== 'map') {
+    switchTab(ss.activeTab);
+  }
+}
+
 function getAllProfiles() {
   return [...BUILTIN_PROFILES, ...state.customProfiles];
 }
@@ -1982,6 +2170,7 @@ function applyProfile(profileId) {
   renderSidebarFilterControls();
   renderCatalogModalContent();
   applyFilters();
+  saveSessionToStorage();
   showToast(`Profil activé : ${prof.icon} ${prof.name} (${prof.filterIds.length} filtres)`);
 }
 
@@ -1992,6 +2181,7 @@ function deleteCustomProfile(profileId) {
     state.activeProfileId = 'essential';
   }
   renderProfileButtons();
+  saveSessionToStorage();
   showToast('Profil personnalisé supprimé.');
 }
 
@@ -2040,6 +2230,7 @@ function handleConfirmSaveProfile() {
   document.getElementById('modal-save-profile')?.classList.remove('open');
   renderProfileButtons();
   renderCatalogModalContent();
+  saveSessionToStorage();
   showToast(`Nouveau profil « ${icon} ${name} » enregistré !`);
 }
 
@@ -2163,6 +2354,7 @@ function buildFilterControlCard(f) {
     renderProfileButtons();
     renderSidebarFilterControls();
     applyFilters();
+    saveSessionToStorage();
   });
 
   card.appendChild(header);
@@ -2371,6 +2563,7 @@ function refreshFilterCardActiveState(card, f) {
   const isAct = f.isActive(state);
   card.classList.toggle('is-filtering', isAct);
   updateFilterCountsUI();
+  scheduleSaveSession();
 }
 
 function updateFilterCountsUI() {
@@ -2444,6 +2637,7 @@ function resetAllSociologicalFilters() {
   state.fieldworkFilters = {};
   renderSidebarFilterControls();
   applyFilters();
+  saveSessionToStorage();
   showToast('Tous les filtres ont été réinitialisés (DPE F & G par défaut).');
 }
 
@@ -2608,6 +2802,7 @@ function renderCatalogCategoriesGrid() {
         renderCatalogCategoryTabs();
         renderSidebarFilterControls();
         updateFilterCountsUI();
+        saveSessionToStorage();
 
         // Update summary count and button
         const currentSelectedInCat = catFilters.filter(fi => state.activeFilterIds.has(fi.id)).length;
@@ -2651,24 +2846,94 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (inputBaseUrl) inputBaseUrl.value = state.dataBaseUrl;
   }
 
+  // 1. Read session state from localStorage
+  const savedSession = loadSessionFromStorage();
+  if (savedSession?.dataBaseUrl) {
+    state.dataBaseUrl = savedSession.dataBaseUrl;
+    const inputBaseUrl = document.getElementById('input-data-base-url');
+    if (inputBaseUrl) inputBaseUrl.value = state.dataBaseUrl;
+  }
+
+  // 2. Pre-load custom profiles & restore filter values before controls are generated
+  loadCustomProfilesFromStorage();
+  if (savedSession) {
+    restoreFiltersFromSession(savedSession);
+  }
+
   initSociologicalFilterSystem();
-  initMap();
+  initMap(savedSession?.screenState?.mapViewport);
   initTabs();
   initBuildingsTableControls();
   initLandlordsTabControls();
   initExportTabControls();
   initEventListeners();
   initLocationPromptControls();
+
+  // 3. Restore screen controls (dimming, max polygons, active map style, active tab)
+  if (savedSession) {
+    restoreScreenStateFromSession(savedSession);
+  }
+
   await loadManifest();
   await scanLocalCache();
   await initPostalZonesLayer();
-  showLocationPromptModal();
+
+  // 4. Territory & Data restoration
+  let dataRestored = false;
+  if (savedSession?.territoryData?.hasLoadedData && savedSession.territoryData.activeTerritory) {
+    try {
+      state.activeTerritory = savedSession.territoryData.activeTerritory;
+      if (Array.isArray(savedSession.territoryData.pendingSelectedChunks)) {
+        state.pendingSelectedChunks = new Set(savedSession.territoryData.pendingSelectedChunks);
+      }
+      exitTerritorySelectionMode();
+      await loadTerritory({ restoreViewport: savedSession.screenState?.mapViewport });
+      dataRestored = Boolean(state.buildings && state.buildings.length > 0);
+    } catch (err) {
+      console.warn('Failed to restore saved territory data:', err);
+      dataRestored = false;
+    }
+  }
+
+  if (dataRestored) {
+    closeLocationPromptModal();
+
+    if (savedSession?.screenState?.selectedBuildingId) {
+      try {
+        inspectBuilding(savedSession.screenState.selectedBuildingId);
+      } catch (e) {
+        console.warn('Could not restore inspected building:', e);
+      }
+    }
+
+    if (savedSession?.screenState?.inspectedLandlord) {
+      try {
+        inspectLandlordTarget(savedSession.screenState.inspectedLandlord);
+      } catch (e) {
+        console.warn('Could not restore inspected landlord:', e);
+      }
+    }
+
+    if (savedSession?.territoryData?.territorySelectionMode) {
+      enterTerritorySelectionMode(savedSession.screenState?.mapViewport ? { center: savedSession.screenState.mapViewport.center, zoom: savedSession.screenState.mapViewport.zoom } : null);
+    }
+  } else {
+    if (savedSession?.territoryData?.territorySelectionMode && savedSession.territoryData.pendingSelectedChunks?.length > 0) {
+      state.pendingSelectedChunks = new Set(savedSession.territoryData.pendingSelectedChunks);
+      closeLocationPromptModal();
+      enterTerritorySelectionMode(savedSession.screenState?.mapViewport ? { center: savedSession.screenState.mapViewport.center, zoom: savedSession.screenState.mapViewport.zoom } : null);
+    } else {
+      showLocationPromptModal();
+    }
+  }
 });
 
 /* ==========================================================================
    MapLibre GL Initialization
    ========================================================================== */
-function initMap() {
+function initMap(initialViewport = null) {
+  const center = (initialViewport && Array.isArray(initialViewport.center)) ? initialViewport.center : [4.8357, 45.7640];
+  const zoom = (initialViewport && typeof initialViewport.zoom === 'number') ? initialViewport.zoom : 13;
   state.map = new maplibregl.Map({
     container: 'map',
     style: {
@@ -2706,8 +2971,8 @@ function initMap() {
         },
       ],
     },
-    center: [4.8357, 45.7640], // Lyon default
-    zoom: 13,
+    center: center,
+    zoom: zoom,
     maxZoom: 19,
   });
 
@@ -2800,6 +3065,10 @@ function initMap() {
     updateLegend();
     setMapDim(state.bgDimPct);
     tryAttachPostalZones();
+  });
+
+  state.map.on('moveend', () => {
+    scheduleSaveSession(500);
   });
 }
 
@@ -3045,6 +3314,7 @@ function toggleChunkSelection(chunkId) {
   }
   refreshPostalZonesVisualState();
   updateTerritorySelectionBar();
+  scheduleSaveSession();
 }
 
 function refreshPostalZonesVisualState() {
@@ -3166,6 +3436,7 @@ function updateTerritorySelectionBar() {
         state.pendingSelectedChunks.delete(item.id);
         refreshPostalZonesVisualState();
         updateTerritorySelectionBar();
+        scheduleSaveSession();
       });
       chipsContainer.appendChild(pill);
     }
@@ -3211,6 +3482,7 @@ function enterTerritorySelectionMode(centerLocation = null) {
   refreshPostalZonesVisualState();
   updateTerritorySelectionBar();
   updateLegend();
+  saveSessionToStorage();
 }
 
 function exitTerritorySelectionMode() {
@@ -3232,6 +3504,7 @@ function exitTerritorySelectionMode() {
   }
 
   updateLegend();
+  saveSessionToStorage();
 }
 
 function showLocationPromptModal() {
@@ -3481,6 +3754,7 @@ function initLocationPromptControls() {
     state.pendingSelectedChunks.clear();
     refreshPostalZonesVisualState();
     updateTerritorySelectionBar();
+    scheduleSaveSession();
   });
 
   document.getElementById('btn-sel-cancel')?.addEventListener('click', () => {
@@ -3645,7 +3919,7 @@ async function readParquetBuffer(buffer) {
   });
 }
 
-async function loadTerritory() {
+async function loadTerritory(options = {}) {
   if (!state.manifest) return;
   showLoading('Téléchargement et décompression des données...');
 
@@ -3760,13 +4034,20 @@ async function loadTerritory() {
     applyFilters();
     updateLoadedDataButtonUI();
 
-    // Fly map to bbox
-    if (combinedBbox && state.map) {
+    // Fly map to bbox (unless restoring saved viewport)
+    if (options && options.restoreViewport && Array.isArray(options.restoreViewport.center) && state.map) {
+      state.map.jumpTo({
+        center: options.restoreViewport.center,
+        zoom: options.restoreViewport.zoom || 13,
+      });
+    } else if (combinedBbox && state.map) {
       state.map.fitBounds(
         [[combinedBbox[0], combinedBbox[1]], [combinedBbox[2], combinedBbox[3]]],
         { padding: 50, maxZoom: 16 }
       );
     }
+
+    saveSessionToStorage();
 
   } catch (err) {
     console.error('Error loading territory chunks:', err);
@@ -3780,6 +4061,7 @@ async function loadTerritory() {
    Real-Time Client-Side Filtering (69 Sociological Indicators)
    ========================================================================== */
 function applyFilters() {
+  scheduleSaveSession();
   if (!state.buildings || state.buildings.length === 0) return;
 
   const activeFilterDefs = FILTER_DEFINITIONS.filter(f => f.isActive(state));
@@ -4072,6 +4354,7 @@ function inspectBuilding(batimentGroupeId) {
 
   // Open Drawer
   document.getElementById('building-drawer').classList.add('open');
+  saveSessionToStorage();
 }
 
 // Live French Government Business Directory API Lookup
@@ -4318,6 +4601,7 @@ function switchTab(tabId) {
   } else if (tabId === 'export') {
     updateExportTab();
   }
+  saveSessionToStorage();
 }
 
 /* ==========================================================================
@@ -4675,6 +4959,7 @@ function initBuildingsTableControls() {
         buildingsTableRenderLimit = 200;
         if (container) container.scrollTop = 0;
         renderBuildingsTable();
+        scheduleSaveSession();
       }, 250);
     });
   }
@@ -4684,6 +4969,7 @@ function initBuildingsTableControls() {
       buildingsTableRenderLimit = 200;
       if (container) container.scrollTop = 0;
       renderBuildingsTable();
+      scheduleSaveSession();
     });
   }
 
@@ -5350,6 +5636,7 @@ async function inspectLandlordTarget(target) {
   if (!resultsDiv) return;
   resultsDiv.style.display = 'flex';
   lastInspectedLandlordTarget = query;
+  scheduleSaveSession();
 
   renderLandlordBuildingsTableHeaders();
 
@@ -5669,6 +5956,7 @@ function initEventListeners() {
       if (colorSelect) colorSelect.value = state.mapStyleMode;
       updateLegend();
       applyFilters();
+      saveSessionToStorage();
     });
   });
 
@@ -5693,6 +5981,7 @@ function initEventListeners() {
       state.bgDimPct = parseInt(e.target.value, 10);
       document.getElementById('label-bg-dim').textContent = `${state.bgDimPct}%`;
       setMapDim(state.bgDimPct);
+      scheduleSaveSession();
     });
   }
 
@@ -5702,6 +5991,7 @@ function initEventListeners() {
     maxPolySelect.addEventListener('change', (e) => {
       state.maxPolygons = parseInt(e.target.value, 10);
       applyFilters();
+      saveSessionToStorage();
     });
   }
 
@@ -5712,10 +6002,12 @@ function initEventListeners() {
 
   // Drawer Close Button
   document.getElementById('btn-close-drawer')?.addEventListener('click', () => {
+    state.selectedBuildingId = null;
     document.getElementById('building-drawer').classList.remove('open');
     if (state.map) {
       state.map.setFilter('buildings-selected', ['==', ['get', 'batiment_groupe_id'], '']);
     }
+    saveSessionToStorage();
   });
 
   // Modals & Territory Manager
@@ -5788,12 +6080,24 @@ function initEventListeners() {
     if ('caches' in window) {
       await caches.delete('tezeloma-data-v1');
       await caches.delete('tezeloma-data-v2');
-      alert("Le cache local des chunks Parquet a été vidé avec succès.");
     }
+    try {
+      localStorage.removeItem(SESSION_STORAGE_KEY);
+    } catch (e) {
+      // ignore
+    }
+    alert("Le cache local des données et de session a été vidé avec succès.");
   });
 
   initFieldworkDropzone();
   initAddressSearch();
+
+  window.addEventListener('beforeunload', () => {
+    saveSessionToStorage();
+  });
+  window.addEventListener('pagehide', () => {
+    saveSessionToStorage();
+  });
 }
 
 function closeAllModals() {

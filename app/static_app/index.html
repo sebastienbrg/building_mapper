@@ -19,55 +19,62 @@
 </head>
 <body>
 
-  <!-- Top Application Header -->
-  <header class="app-header">
-    <div class="brand">
-      <span class="brand-icon">🏠</span>
-      <div>
-        <h1 class="brand-title">TeZeLoMa</h1>
-        <p class="brand-subtitle">Cartographie & Enquête Bailleurs</p>
-      </div>
-    </div>
-
-    <div class="header-center">
-      <div class="kpi-strip">
-        <div class="kpi-badge">
-          <span class="kpi-label">Bâtiments</span>
-          <span class="kpi-value" id="kpi-buildings">—</span>
-        </div>
-        <div class="kpi-badge">
-          <span class="kpi-label">Logements</span>
-          <span class="kpi-value" id="kpi-dwellings">—</span>
-        </div>
-        <div class="kpi-badge">
-          <span class="kpi-label">Passoires F/G</span>
-          <span class="kpi-value" id="kpi-slums" style="color: #ef4444;">—</span>
-        </div>
-        <div class="kpi-badge">
-          <span class="kpi-label">Surchauffe Élevée</span>
-          <span class="kpi-value" id="kpi-overheating" style="color: #f97316;">—</span>
-        </div>
-      </div>
-    </div>
-
-    <div class="header-actions">
-      <button class="btn btn-secondary btn-sm" id="btn-open-territory-manager" title="Changer de localisation ou choisir les zones postales">
-        <span>📦</span> Données chargées
-      </button>
-      <button class="btn btn-primary btn-sm" id="btn-header-export">
-        <span>📥</span> Exporter
-      </button>
-    </div>
-  </header>
-
-  <!-- Main Navigation Tabs Bar -->
+  <!-- Main Navigation & Application Bar (Unified Header & Tabs) -->
   <nav class="app-tabs-nav" id="app-tabs-nav">
-    <button class="nav-tab active" data-tab="map">🗺️ Carte</button>
-    <button class="nav-tab" data-tab="buildings">📊 Bâtiments</button>
-    <button class="nav-tab" data-tab="landlords">🔍 Bailleurs & SCI</button>
-    <button class="nav-tab" data-tab="export">📦 Export ZIP</button>
-    <button class="nav-tab" data-tab="sources">📚 Sources de données</button>
-    <button class="nav-tab" data-tab="potential">🔭 Pistes de données</button>
+    <!-- Brand Logo with Hover Information Widget -->
+    <div class="brand-logo-container" id="brand-logo-container" tabindex="0" role="banner" aria-label="TeZeLoMa - Zéro Logement Malade">
+      <a href="https://www.zerologementmalade.org/" target="_blank" rel="noopener noreferrer" class="brand-logo-link" title="Zéro Territoire Logement Malade — Visiter zerologementmalade.org">
+        <img src="logo.png" alt="Zéro Territoire Logement Malade" class="brand-logo-img">
+      </a>
+
+      <!-- Hover Widget: only visible when hovering the logo -->
+      <div class="brand-hover-widget" id="brand-hover-widget">
+        <div class="brand-hover-header">
+          <h2 class="brand-hover-title">TeZeLoMa</h2>
+          <p class="brand-hover-subtitle">Cartographie &amp; Enquête Bailleurs</p>
+        </div>
+        <p class="brand-hover-desc">
+          Outil d'investigation cartographique pour identifier les passoires thermiques, la surchauffe estivale et la concentration foncière des bailleurs.
+        </p>
+        <div class="brand-hover-footer">
+          <a href="https://www.zerologementmalade.org/" target="_blank" rel="noopener noreferrer" class="brand-external-link">
+            <span>🌐</span>
+            <span>www.zerologementmalade.org</span>
+            <span class="external-arrow">↗</span>
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main Navigation Tabs -->
+    <div class="tabs-group" id="tabs-group">
+      <button class="nav-tab active" data-tab="map">🗺️ Carte</button>
+      <button class="nav-tab" data-tab="buildings">📊 Bâtiments</button>
+      <button class="nav-tab" data-tab="landlords">🔍 Bailleurs & SCI</button>
+      <button class="nav-tab" data-tab="export">📦 Export ZIP</button>
+      <button class="nav-tab" data-tab="sources">📚 Sources de données</button>
+      <button class="nav-tab" data-tab="potential">🔭 Pistes de données</button>
+    </div>
+
+    <!-- Live KPI Summary Strip -->
+    <div class="kpi-strip">
+      <div class="kpi-badge">
+        <span class="kpi-label">Bâtiments</span>
+        <span class="kpi-value" id="kpi-buildings">—</span>
+      </div>
+      <div class="kpi-badge">
+        <span class="kpi-label">Logements</span>
+        <span class="kpi-value" id="kpi-dwellings">—</span>
+      </div>
+      <div class="kpi-badge">
+        <span class="kpi-label">Passoires F/G</span>
+        <span class="kpi-value" id="kpi-slums" style="color: #ef4444;">—</span>
+      </div>
+      <div class="kpi-badge">
+        <span class="kpi-label">Surchauffe Élevée</span>
+        <span class="kpi-value" id="kpi-overheating" style="color: #f97316;">—</span>
+      </div>
+    </div>
   </nav>
 
   <!-- Main Container -->

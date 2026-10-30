@@ -7,3 +7,4 @@ package-lock.json
 package.json
 src-tauri/target/
 *.png
+!app/static_app/logo.png

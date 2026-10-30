@@ -95,17 +95,17 @@ async def run():
         assert "active" not in (bar_class_after or ""), "Selection bar should be closed after loading!"
         await page.screenshot(path="app/test_step3_data_loaded_map.png")
 
-        # 9. Test Re-opening Territory Selection from Header Button
-        print("9. Testing Reopening Territory Selector from header button...")
-        await page.click("#btn-open-territory-manager")
+        # 9. Test Re-opening Territory Selection from Sidebar Button
+        print("9. Testing Reopening Territory Selector from sidebar button...")
+        await page.click("#btn-sidebar-donnees-chargees")
         await asyncio.sleep(0.5)
         bar_class_reopen = await page.get_attribute("#territory-selection-bar", "class")
         print(f"Selection bar reopened class: {bar_class_reopen}")
-        assert "active" in (bar_class_reopen or ""), "Selection bar did not reopen when clicking header button!"
+        assert "active" in (bar_class_reopen or ""), "Selection bar did not reopen when clicking sidebar button!"
         await page.screenshot(path="app/test_step4_reopened_selector.png")
 
         # Close selection mode again
-        await page.click("#btn-open-territory-manager")
+        await page.click("#btn-sidebar-donnees-chargees")
         await asyncio.sleep(0.5)
 
         # 10. Verify Buildings Table tab
