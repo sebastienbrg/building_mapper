@@ -280,11 +280,11 @@ nav.app-tabs-nav {
   background: #f8fafc;
   border: 1px solid var(--border-color);
   border-radius: var(--radius-sm);
-  padding: 0.2rem 0.55rem;
+  padding: 0.2rem 0.6rem;
   display: flex;
   flex-direction: column;
   justify-content: center;
-  min-width: 80px;
+  min-width: 92px;
   line-height: 1.2;
 }
 
@@ -300,6 +300,35 @@ nav.app-tabs-nav {
   font-size: 0.88rem;
   font-weight: 700;
   color: var(--accent-primary);
+  white-space: nowrap;
+  display: inline-block;
+  transform-origin: center center;
+  transition: color 0.15s ease, background-color 0.2s ease;
+}
+
+@keyframes kpiBlink {
+  0% {
+    transform: scale(1);
+    color: var(--accent-primary, #0284c7);
+    background-color: transparent;
+  }
+  30% {
+    transform: scale(1.08);
+    color: #0369a1;
+    background-color: rgba(2, 132, 199, 0.18);
+    box-shadow: 0 0 10px rgba(2, 132, 199, 0.35);
+  }
+  100% {
+    transform: scale(1);
+    color: var(--accent-primary, #0284c7);
+    background-color: transparent;
+    box-shadow: none;
+  }
+}
+
+.kpi-value.kpi-blink {
+  animation: kpiBlink 0.45s cubic-bezier(0.2, 0.8, 0.2, 1);
+  border-radius: 4px;
 }
 
 /* ==========================================================================
@@ -474,6 +503,36 @@ aside.app-sidebar {
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: var(--text-muted);
+}
+
+.btn-clear-active-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.25rem;
+  height: 1.25rem;
+  border-radius: 50%;
+  border: 1px solid var(--border-color, #cbd5e1);
+  background: var(--bg-surface-elevated, #ffffff);
+  color: var(--text-muted, #64748b);
+  font-size: 0.95rem;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+  transition: all 0.15s ease;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.btn-clear-active-badge:hover {
+  background: #fee2e2;
+  border-color: #ef4444;
+  color: #ef4444;
+  transform: scale(1.12);
+}
+
+.btn-clear-active-badge:active {
+  transform: scale(0.95);
 }
 
 /* Folding Categorical Accordions */
@@ -816,30 +875,31 @@ input[type="range"] {
   background: #ffffff;
 }
 
+/* Map Style / Color Selector: positioned in bottom-left stack above legend */
 .map-floating-panel {
-  position: absolute;
-  top: 1rem;
-  left: 1rem;
   background: rgba(255, 255, 255, 0.96);
   backdrop-filter: blur(8px);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
-  padding: 0.45rem;
+  padding: 0.35rem 0.5rem;
   display: flex;
-  gap: 0.4rem;
+  flex-wrap: wrap;
+  gap: 0.35rem;
   box-shadow: var(--shadow-md);
-  z-index: 5;
+  pointer-events: auto;
+  max-width: 440px;
 }
 
 .map-style-btn {
-  padding: 0.35rem 0.65rem;
-  font-size: 0.75rem;
+  padding: 0.3rem 0.6rem;
+  font-size: 0.74rem;
   background: transparent;
   color: var(--text-secondary);
   border: none;
   border-radius: var(--radius-sm);
   cursor: pointer;
   transition: all 0.15s ease;
+  white-space: nowrap;
 }
 
 .map-style-btn:hover {
@@ -880,7 +940,7 @@ input[type="range"] {
   outline: none;
 }
 
-/* Bottom-Left Overlays Stack: Display Controls above Legend */
+/* Bottom-Left Overlays Stack: Map Color/Style Selector above Legend */
 .map-bottom-left-stack {
   position: absolute;
   bottom: 1.5rem;
@@ -893,17 +953,40 @@ input[type="range"] {
   pointer-events: none;
 }
 
-/* Overlay Control: Background Whitening & Polygon Limit */
+/* Bottom-Right Overlays Stack: Display Settings Overlay directly above Map Scale (100m) */
+.map-bottom-right-stack {
+  position: absolute;
+  bottom: 2.2rem; /* Sits immediately above the ~18px MapLibre scale ruler */
+  right: 0.65rem;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  z-index: 20;
+  pointer-events: none;
+  transition: right 0.25s ease;
+}
+
+body.territory-selection-active .map-bottom-right-stack,
+.territory-selection-bar.active ~ .map-bottom-right-stack {
+  right: calc(340px + 1.5rem);
+}
+
+/* Overlay Control: Background Whitening & Polygon Limit (Default Collapsed) */
 .map-overlay-control {
   background: rgba(255, 255, 255, 0.96);
   backdrop-filter: blur(10px);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
-  padding: 0.5rem 0.75rem;
-  width: 240px;
+  padding: 0.45rem 0.75rem;
+  width: 230px;
   box-shadow: var(--shadow-md);
   pointer-events: auto;
-  transition: all 0.2s ease;
+  transition: width 0.2s ease, padding 0.2s ease;
+}
+
+.map-overlay-control.collapsed {
+  width: auto;
+  padding: 0.3rem 0.6rem;
 }
 
 .map-overlay-header {
@@ -912,6 +995,7 @@ input[type="range"] {
   justify-content: space-between;
   cursor: pointer;
   user-select: none;
+  gap: 0.5rem;
 }
 
 .map-overlay-title {
@@ -2465,61 +2549,114 @@ table.sources-data-table tr:hover td {
   color: var(--text-secondary);
 }
 
-/* Reworked Floating Territory Selection Bar */
+/* Reworked Floating Territory Selection Bar: Vertical on the Right */
 .territory-selection-bar {
   position: absolute;
-  bottom: 1.25rem;
-  left: 50%;
-  transform: translateX(-50%);
+  top: 1rem;
+  right: 1rem;
+  bottom: 1.5rem;
+  width: 340px;
+  max-width: calc(100vw - 2rem);
+  max-height: calc(100% - 2.5rem);
   z-index: 30;
   background: rgba(255, 255, 255, 0.98);
   backdrop-filter: blur(14px);
   border: 1px solid #cbd5e1;
   border-radius: var(--radius-lg);
-  box-shadow: 0 15px 35px rgba(15, 23, 42, 0.15);
-  padding: 0.85rem 1.15rem;
+  box-shadow: -4px 12px 35px rgba(15, 23, 42, 0.16);
+  padding: 0.9rem 1rem;
   display: none;
   flex-direction: column;
   gap: 0.65rem;
-  max-width: min(620px, 88vw);
-  width: auto;
-  min-width: 440px;
   transition: all 0.25s ease;
-  animation: slideUpFade 0.25s ease-out;
+  animation: slideInRightFade 0.25s ease-out;
+}
+
+@keyframes slideInRightFade {
+  from {
+    opacity: 0;
+    transform: translateX(25px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
 }
 
 .territory-selection-bar.active {
   display: flex;
 }
 
+/* Reposition search bar and MapLibre scale control when selection mode is active to prevent overlap */
+body.territory-selection-active .map-search-bar,
+.territory-selection-bar.active ~ .map-search-bar {
+  right: calc(340px + 1.75rem);
+  transition: right 0.25s ease;
+}
+
+body.territory-selection-active .maplibregl-ctrl-bottom-right,
+.territory-selection-bar.active ~ .maplibregl-control-container .maplibregl-ctrl-bottom-right {
+  right: calc(340px + 1.5rem);
+  transition: right 0.25s ease;
+}
+
 .sel-bar-main {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  flex: 1 1 auto;
+  min-height: 0;
+  gap: 0.6rem;
 }
 
 .sel-bar-header {
   display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  border-bottom: 1px solid #f1f5f9;
+  padding-bottom: 0.6rem;
+}
+
+.sel-bar-header-top {
+  display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 0.75rem;
+  gap: 0.5rem;
 }
 
 .sel-bar-title-wrap {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  flex-wrap: wrap;
+  gap: 0.45rem;
+  min-width: 0;
 }
 
 .sel-bar-badge-icon {
   font-size: 1.05rem;
+  flex-shrink: 0;
 }
 
 .sel-bar-title {
-  font-size: 0.9rem;
+  font-size: 0.88rem;
   font-weight: 700;
   color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sel-bar-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex-shrink: 0;
+}
+
+.sel-bar-header-subline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  font-size: 0.72rem;
 }
 
 .sel-bar-metrics-badge {
@@ -2533,15 +2670,15 @@ table.sources-data-table tr:hover td {
   white-space: nowrap;
 }
 
-.sel-bar-header-actions {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
+.sel-bar-hint {
+  color: var(--text-muted);
+  font-size: 0.7rem;
+  font-style: italic;
 }
 
 .btn-xs {
   font-size: 0.72rem;
-  padding: 0.2rem 0.5rem;
+  padding: 0.2rem 0.45rem;
   border-radius: 4px;
 }
 
@@ -2555,88 +2692,149 @@ table.sources-data-table tr:hover td {
   background: #f1f5f9;
 }
 
-/* Selected Postal Codes / Chunks Interactive Chips */
+/* Vertical List container for selected postal codes / chunks */
 .sel-bar-chips {
   display: flex;
-  flex-wrap: wrap;
-  gap: 0.35rem;
-  max-height: 90px;
+  flex-direction: column;
+  gap: 0.45rem;
+  flex: 1 1 auto;
+  min-height: 120px;
+  max-height: none;
   overflow-y: auto;
-  padding: 0.2rem 0.1rem;
+  padding: 0.2rem 0.2rem;
+  padding-right: 0.35rem;
+}
+
+.sel-bar-chips::-webkit-scrollbar {
+  width: 5px;
+}
+.sel-bar-chips::-webkit-scrollbar-track {
+  background: #f8fafc;
+  border-radius: 3px;
+}
+.sel-bar-chips::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
+}
+.sel-bar-chips::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
 }
 
 .sel-bar-placeholder {
   font-size: 0.78rem;
   color: var(--text-muted);
   font-style: italic;
-  padding: 0.2rem 0;
+  padding: 1.5rem 0.5rem;
+  text-align: center;
+  line-height: 1.4;
 }
 
+/* Vertical Selection Pill Card with visible hover highlights */
 .sel-chunk-pill {
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  gap: 0.35rem;
+  justify-content: space-between;
+  gap: 0.5rem;
   background: #f8fafc;
-  border: 1px solid #cbd5e1;
-  border-radius: 6px;
-  padding: 0.2rem 0.45rem;
-  font-size: 0.75rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 0.45rem 0.65rem;
+  font-size: 0.8rem;
   color: var(--text-primary);
-  transition: all 0.15s ease;
+  transition: all 0.18s ease;
   user-select: none;
+  cursor: pointer;
 }
 
-.sel-chunk-pill:hover {
-  border-color: #94a3b8;
-  background: #ffffff;
+.sel-chunk-pill:hover,
+.sel-chunk-pill.is-hovered {
+  border-color: #8b5cf6;
+  background: #f5f3ff;
+  box-shadow: 0 2px 10px rgba(139, 92, 246, 0.16);
+  transform: translateX(-2px);
 }
 
 .sel-chunk-pill.cached {
+  background: #f0fdf4;
+  border-color: #bbf7d0;
+  color: #14532d;
+}
+
+.sel-chunk-pill.cached:hover,
+.sel-chunk-pill.cached.is-hovered {
+  border-color: #10b981;
   background: #ecfdf5;
-  border-color: #a7f3d0;
-  color: #065f46;
+  box-shadow: 0 2px 10px rgba(16, 185, 129, 0.16);
+}
+
+.sel-chunk-pill-left {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+  flex: 1;
 }
 
 .chunk-dot-status {
-  width: 7px;
-  height: 7px;
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
   flex-shrink: 0;
 }
 
 .dot-cached {
   background: #10b981;
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.2);
 }
 
 .dot-cloud {
   background: #0ea5e9;
+  box-shadow: 0 0 0 2px rgba(14, 165, 233, 0.2);
+}
+
+.chunk-info-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
 }
 
 .chunk-cp-label {
-  font-weight: 600;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--text-primary);
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .chunk-commune-name {
   font-weight: normal;
-  opacity: 0.75;
-  font-size: 0.68rem;
-  margin-left: 0.15rem;
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+  margin-left: 0.25rem;
+}
+
+.chunk-meta-sub {
+  font-size: 0.69rem;
+  color: var(--text-muted);
+  margin-top: 0.1rem;
 }
 
 .btn-remove-chunk {
   border: none;
   background: transparent;
   color: #94a3b8;
-  font-size: 0.95rem;
+  font-size: 1.05rem;
   line-height: 1;
   cursor: pointer;
-  padding: 0 0.15rem;
-  margin-left: 0.1rem;
-  border-radius: 3px;
+  padding: 0.2rem 0.3rem;
+  border-radius: 4px;
   display: flex;
   align-items: center;
   justify-content: center;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
 }
 
 .btn-remove-chunk:hover {
@@ -2646,9 +2844,12 @@ table.sources-data-table tr:hover td {
 
 .sel-bar-footer-action {
   display: flex;
-  justify-content: flex-end;
+  flex-direction: column;
+  gap: 0.4rem;
   border-top: 1px solid #f1f5f9;
-  padding-top: 0.5rem;
+  padding-top: 0.65rem;
+  margin-top: auto;
+  flex-shrink: 0;
 }
 
 .btn-validate-selection {
@@ -2656,16 +2857,31 @@ table.sources-data-table tr:hover td {
   color: #ffffff !important;
   font-weight: 700 !important;
   border: none;
-  padding: 0.55rem 1.1rem;
+  padding: 0.65rem 1.1rem;
   border-radius: 8px;
   cursor: pointer;
   transition: all 0.2s ease;
   white-space: nowrap;
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  gap: 0.4rem;
+  justify-content: center;
+  gap: 0.5rem;
   font-size: 0.88rem;
-  box-shadow: 0 2px 8px rgba(2, 132, 199, 0.25);
+  box-shadow: 0 4px 12px rgba(2, 132, 199, 0.3);
+  width: 100%;
+}
+
+.btn-validate-selection:hover:not(:disabled) {
+  filter: brightness(1.08);
+  box-shadow: 0 6px 16px rgba(2, 132, 199, 0.4);
+  transform: translateY(-1px);
+}
+
+.btn-validate-selection:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  box-shadow: none;
+  transform: none;
 }
 
 .btn-validate-selection:hover:not(:disabled) {
@@ -2864,6 +3080,54 @@ table.sources-data-table tr:hover td {
 .btn-remove-filter:hover {
   color: #ef4444;
   background: #fee2e2;
+}
+
+.dyn-filter-match-count {
+  display: inline-block;
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: #0284c7;
+  background: #e0f2fe;
+  border: 1px solid #bae6fd;
+  border-radius: 9999px;
+  padding: 0.06rem 0.42rem;
+  margin-left: auto;
+  margin-right: 0.25rem;
+  white-space: nowrap;
+  line-height: 1.3;
+}
+
+.dyn-filter-card {
+  background: #ffffff;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: 0.55rem 0.65rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.38rem;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.dyn-filter-card.is-filtering {
+  border-color: #38bdf8;
+  background: #f0f9ff;
+}
+
+.dyn-filter-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.35rem;
+}
+
+.dyn-filter-label {
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* ==========================================================================

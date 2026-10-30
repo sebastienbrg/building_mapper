@@ -2011,11 +2011,15 @@ function saveSessionToStorage() {
     const inspectedLandlord = document.getElementById('input-manual-siren')?.value ||
                               document.getElementById('select-landlord-to-inspect')?.value || '';
 
+    const overlay = document.getElementById('map-display-overlay');
+    const isOverlayCollapsed = overlay ? overlay.classList.contains('collapsed') : true;
+
     const screenState = {
       activeTab: state.activeTab || 'map',
       mapStyleMode: state.mapStyleMode || 'dpe',
       bgDimPct: state.bgDimPct !== undefined ? state.bgDimPct : 20,
       maxPolygons: state.maxPolygons || 3000,
+      mapDisplayOverlayCollapsed: isOverlayCollapsed,
       selectedBuildingId: state.selectedBuildingId || null,
       mapViewport,
       tableSearchQuery,
@@ -2054,6 +2058,70 @@ function loadSessionFromStorage() {
   return null;
 }
 
+const MAP_DISPLAY_SETTINGS_STORAGE_KEY = 'tezeloma_map_display_settings_v1';
+
+function saveMapDisplaySettingsToStorage() {
+  try {
+    const overlay = document.getElementById('map-display-overlay');
+    const isCollapsed = overlay ? overlay.classList.contains('collapsed') : true;
+    const settings = {
+      collapsed: isCollapsed,
+      bgDimPct: state.bgDimPct !== undefined ? state.bgDimPct : 20,
+      maxPolygons: state.maxPolygons || 3000,
+    };
+    localStorage.setItem(MAP_DISPLAY_SETTINGS_STORAGE_KEY, JSON.stringify(settings));
+  } catch (e) {
+    console.warn('Could not save map display settings:', e);
+  }
+}
+
+function loadMapDisplaySettingsFromStorage() {
+  try {
+    const raw = localStorage.getItem(MAP_DISPLAY_SETTINGS_STORAGE_KEY);
+    if (!raw) return { collapsed: true, bgDimPct: 20, maxPolygons: 3000 };
+    const parsed = JSON.parse(raw);
+    return {
+      collapsed: parsed.collapsed !== undefined ? Boolean(parsed.collapsed) : true,
+      bgDimPct: typeof parsed.bgDimPct === 'number' ? parsed.bgDimPct : 20,
+      maxPolygons: typeof parsed.maxPolygons === 'number' ? parsed.maxPolygons : 3000,
+    };
+  } catch (e) {
+    return { collapsed: true, bgDimPct: 20, maxPolygons: 3000 };
+  }
+}
+
+function applyMapDisplaySettings(settings) {
+  if (!settings) return;
+  const overlay = document.getElementById('map-display-overlay');
+  const btn = document.getElementById('btn-toggle-display-overlay');
+  const isCollapsed = settings.collapsed !== undefined ? Boolean(settings.collapsed) : true;
+
+  if (overlay) {
+    if (isCollapsed) {
+      overlay.classList.add('collapsed');
+      if (btn) btn.textContent = '▸';
+    } else {
+      overlay.classList.remove('collapsed');
+      if (btn) btn.textContent = '▾';
+    }
+  }
+
+  if (settings.bgDimPct !== undefined) {
+    state.bgDimPct = Number(settings.bgDimPct);
+    const slider = document.getElementById('slider-bg-dim');
+    if (slider) slider.value = String(state.bgDimPct);
+    const label = document.getElementById('label-bg-dim');
+    if (label) label.textContent = `${state.bgDimPct}%`;
+    setMapDim(state.bgDimPct);
+  }
+
+  if (settings.maxPolygons !== undefined) {
+    state.maxPolygons = Number(settings.maxPolygons);
+    const select = document.getElementById('select-max-polygons');
+    if (select) select.value = String(state.maxPolygons);
+  }
+}
+
 function restoreFiltersFromSession(session) {
   if (!session) return;
 
@@ -2079,6 +2147,7 @@ function restoreFiltersFromSession(session) {
       }
     }
   }
+  clearUnselectedFilters();
 }
 
 function restoreScreenStateFromSession(session) {
@@ -2127,6 +2196,21 @@ function restoreScreenStateFromSession(session) {
   if (ss.activeTab && ss.activeTab !== 'map') {
     switchTab(ss.activeTab);
   }
+
+  // 6. Map Display Overlay Collapsed State
+  if (ss.mapDisplayOverlayCollapsed !== undefined) {
+    const overlay = document.getElementById('map-display-overlay');
+    const btn = document.getElementById('btn-toggle-display-overlay');
+    if (overlay) {
+      if (ss.mapDisplayOverlayCollapsed) {
+        overlay.classList.add('collapsed');
+        if (btn) btn.textContent = '▸';
+      } else {
+        overlay.classList.remove('collapsed');
+        if (btn) btn.textContent = '▾';
+      }
+    }
+  }
 }
 
 function getAllProfiles() {
@@ -2140,6 +2224,9 @@ function applyProfile(profileId) {
 
   state.activeProfileId = prof.id;
   state.activeFilterIds = new Set(prof.filterIds);
+
+  // Clear unselected filters so they never filter data or linger in state
+  clearUnselectedFilters();
 
   // If custom profile has saved filter values, restore them
   if (prof.savedValues && typeof prof.savedValues === 'object') {
@@ -2566,12 +2653,48 @@ function refreshFilterCardActiveState(card, f) {
   scheduleSaveSession();
 }
 
+function clearUnselectedFilters() {
+  if (!state.activeFilterIds) return;
+  for (const f of FILTER_DEFINITIONS) {
+    if (!state.activeFilterIds.has(f.id)) {
+      f.reset(state);
+    }
+  }
+}
+
+function clearAllFilters() {
+  for (const f of FILTER_DEFINITIONS) {
+    f.reset(state);
+  }
+  // Reset DPE pills to select all 8 options so that NO DPE filter is active
+  state.selectedDpes = new Set(['A', 'B', 'C', 'D', 'E', 'F', 'G', 'Inconnu']);
+  state.fieldworkFilters = {};
+  clearUnselectedFilters();
+  renderSidebarFilterControls();
+  applyFilters();
+  saveSessionToStorage();
+  showToast('Tous les filtres ont été effacés (aucun filtre actif).');
+}
+
+function resetAllSociologicalFilters() {
+  clearAllFilters();
+}
+
 function updateFilterCountsUI() {
-  const activeCount = FILTER_DEFINITIONS.filter(f => f.isActive(state)).length;
+  const activeCount = FILTER_DEFINITIONS.filter(f => state.activeFilterIds.has(f.id) && f.isActive(state)).length;
   const activeBadge = document.getElementById('active-filters-count-badge');
+  const clearBtn = document.getElementById('btn-clear-all-filters');
+
   if (activeBadge) {
     activeBadge.textContent = `${activeCount} actif${activeCount > 1 ? 's' : ''}`;
     activeBadge.className = activeCount > 0 ? 'status-badge status-online' : 'status-badge';
+    activeBadge.title = activeCount > 0
+      ? `${activeCount} critère${activeCount > 1 ? 's' : ''} filtrant activement les bâtiments`
+      : 'Aucun filtre actif';
+  }
+
+  if (clearBtn) {
+    clearBtn.style.display = activeCount > 0 ? 'inline-flex' : 'none';
   }
 
   const selCountEl = document.getElementById('selected-controls-count');
@@ -2590,6 +2713,43 @@ function updateFilterCountsUI() {
     } else {
       profNameEl.textContent = 'no profiles';
       profNameEl.classList.add('no-profile');
+    }
+  }
+}
+
+function updateAllFilterCardMatches() {
+  const cards = document.querySelectorAll('.dyn-filter-card');
+  const bldgs = state.buildings || [];
+  for (const card of cards) {
+    const fId = card.getAttribute('data-filter-id');
+    const f = FILTER_DEFINITIONS.find(def => def.id === fId);
+    if (!f) continue;
+    let matchEl = card.querySelector('.dyn-filter-match-count');
+    const isAct = state.activeFilterIds.has(f.id) && f.isActive(state);
+    card.classList.toggle('is-filtering', isAct);
+
+    if (isAct && bldgs.length > 0) {
+      let count = 0;
+      for (let i = 0; i < bldgs.length; i++) {
+        if (f.matches(state, bldgs[i])) count++;
+      }
+      if (!matchEl) {
+        matchEl = document.createElement('span');
+        matchEl.className = 'dyn-filter-match-count';
+        const header = card.querySelector('.dyn-filter-header');
+        const removeBtn = card.querySelector('.btn-remove-filter');
+        if (header && removeBtn) {
+          header.insertBefore(matchEl, removeBtn);
+        } else if (header) {
+          header.appendChild(matchEl);
+        }
+      }
+      matchEl.textContent = `${count.toLocaleString('fr-FR')} bât.`;
+      matchEl.title = `${count.toLocaleString('fr-FR')} bâtiments correspondent à ce critère`;
+      matchEl.style.display = 'inline-block';
+    } else if (matchEl) {
+      matchEl.textContent = '';
+      matchEl.style.display = 'none';
     }
   }
 }
@@ -2629,16 +2789,7 @@ function updateLoadedDataButtonUI() {
 }
 
 function resetAllSociologicalFilters() {
-  for (const f of FILTER_DEFINITIONS) {
-    f.reset(state);
-  }
-  // Default militant preset sets DPE F & G selected
-  state.selectedDpes = new Set(['F', 'G']);
-  state.fieldworkFilters = {};
-  renderSidebarFilterControls();
-  applyFilters();
-  saveSessionToStorage();
-  showToast('Tous les filtres ont été réinitialisés (DPE F & G par défaut).');
+  clearAllFilters();
 }
 
 /* ==========================================================================
@@ -2873,6 +3024,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   // 3. Restore screen controls (dimming, max polygons, active map style, active tab)
   if (savedSession) {
     restoreScreenStateFromSession(savedSession);
+  } else {
+    const displaySettings = loadMapDisplaySettingsFromStorage();
+    applyMapDisplaySettings(displaySettings);
   }
 
   await loadManifest();
@@ -3113,15 +3267,23 @@ async function initPostalZonesLayer() {
     }
   }
 
+  // Ensure each feature has a stable 0-indexed integer ID for MapLibre setFeatureState
+  if (state.postalZonesGeoJson?.features) {
+    state.postalZonesGeoJson.features.forEach((feat, idx) => {
+      feat.id = idx;
+    });
+  }
+
   refreshPostalZonesVisualState();
   tryAttachPostalZones();
 }
 
 function buildFallbackPostalZones() {
   if (!state.manifest?.chunks) return { type: 'FeatureCollection', features: [] };
-  const features = state.manifest.chunks.map(c => {
+  const features = state.manifest.chunks.map((c, idx) => {
     const minx = c.bbox[0], miny = c.bbox[1], maxx = c.bbox[2], maxy = c.bbox[3];
     return {
+      id: idx,
       type: 'Feature',
       properties: {
         id: c.id,
@@ -3156,7 +3318,7 @@ function tryAttachPostalZones() {
     generateId: true,
   });
 
-  // Postal Zones Fill Layer
+  // Postal Zones Fill Layer (with visible hover alpha changes)
   state.map.addLayer({
     id: 'postal-zones-fill',
     type: 'fill',
@@ -3165,35 +3327,113 @@ function tryAttachPostalZones() {
       'fill-color': ['get', 'render_color'],
       'fill-opacity': [
         'case',
-        ['get', 'selected'],
-        0.65,
         ['boolean', ['feature-state', 'hover'], false],
-        0.55,
-        0.35,
+        [
+          'case',
+          ['get', 'selected'],
+          0.88, // Hovered AND selected: strong, saturated, highly visible
+          0.70  // Hovered and unselected: clearly highlighted alpha
+        ],
+        [
+          'case',
+          ['get', 'selected'],
+          0.55, // Selected (not hovered)
+          0.28  // Unselected (idle)
+        ]
       ],
     },
   });
 
-  // Postal Zones Stroke Layer
+  // Postal Zones Stroke Layer (with prominent highlight on hover)
   state.map.addLayer({
     id: 'postal-zones-stroke',
     type: 'line',
     source: 'postal-zones-source',
     paint: {
-      'line-color': ['get', 'stroke_color'],
+      'line-color': [
+        'case',
+        ['boolean', ['feature-state', 'hover'], false],
+        [
+          'case',
+          ['get', 'selected'],
+          '#6d28d9',
+          '#0369a1'
+        ],
+        ['get', 'stroke_color']
+      ],
       'line-width': [
         'case',
-        ['get', 'selected'],
-        3.5,
         ['boolean', ['feature-state', 'hover'], false],
-        2.5,
-        1.2,
+        [
+          'case',
+          ['get', 'selected'],
+          4.5,
+          3.2
+        ],
+        [
+          'case',
+          ['get', 'selected'],
+          3.0,
+          1.2
+        ]
       ],
-      'line-opacity': 0.9,
+      'line-opacity': [
+        'case',
+        ['boolean', ['feature-state', 'hover'], false],
+        1.0,
+        0.85
+      ],
     },
   });
 
   setupPostalZonesInteractions();
+}
+
+let hoveredPostalZoneIds = [];
+
+function clearPostalZoneHover() {
+  if (!state.map || hoveredPostalZoneIds.length === 0) return;
+  for (const id of hoveredPostalZoneIds) {
+    try {
+      state.map.setFeatureState({ source: 'postal-zones-source', id }, { hover: false });
+    } catch (_) {}
+  }
+  hoveredPostalZoneIds = [];
+  document.querySelectorAll('.sel-chunk-pill.is-hovered').forEach(el => {
+    el.classList.remove('is-hovered');
+  });
+}
+
+function setPostalZoneHoverForChunk(chunkId, currentFeatureId = null) {
+  if (!state.map) return;
+  clearPostalZoneHover();
+
+  const toHover = new Set();
+  if (currentFeatureId !== null && currentFeatureId !== undefined) {
+    toHover.add(currentFeatureId);
+  }
+  if (chunkId && state.postalZonesGeoJson?.features) {
+    for (const f of state.postalZonesGeoJson.features) {
+      if (f.properties?.chunk_id === chunkId && f.id !== undefined) {
+        toHover.add(f.id);
+      }
+    }
+  }
+
+  for (const id of toHover) {
+    try {
+      state.map.setFeatureState({ source: 'postal-zones-source', id }, { hover: true });
+    } catch (_) {}
+  }
+  hoveredPostalZoneIds = Array.from(toHover);
+
+  if (chunkId) {
+    const matchingPill = document.querySelector(`.sel-chunk-pill[data-chunk-id="${chunkId}"]`);
+    if (matchingPill) {
+      matchingPill.classList.add('is-hovered');
+      matchingPill.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    }
+  }
 }
 
 function setupPostalZonesInteractions() {
@@ -3203,7 +3443,11 @@ function setupPostalZonesInteractions() {
     if (!state.territorySelectionMode) return;
     if (e.features && e.features.length > 0) {
       state.map.getCanvas().style.cursor = 'pointer';
-      const props = e.features[0].properties;
+      const feat = e.features[0];
+      const chunkId = feat.properties?.chunk_id;
+      setPostalZoneHoverForChunk(chunkId, feat.id);
+
+      const props = feat.properties;
 
       let statusLabel = 'Prêt au téléchargement';
       let statusClass = 'status-dl';
@@ -3257,6 +3501,7 @@ function setupPostalZonesInteractions() {
 
   state.map.on('mouseleave', 'postal-zones-fill', () => {
     state.map.getCanvas().style.cursor = '';
+    clearPostalZoneHover();
     if (zonePopup) {
       zonePopup.remove();
       zonePopup = null;
@@ -3356,6 +3601,48 @@ function refreshPostalZonesVisualState() {
   }
 }
 
+function getBoundingBoxForChunkIds(chunkIds) {
+  if (!chunkIds || chunkIds.length === 0) return null;
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+
+  for (const cId of chunkIds) {
+    const chunk = (state.manifest?.chunks || []).find(c => c.id === cId);
+    if (chunk && Array.isArray(chunk.bbox) && chunk.bbox.length === 4) {
+      minX = Math.min(minX, chunk.bbox[0]);
+      minY = Math.min(minY, chunk.bbox[1]);
+      maxX = Math.max(maxX, chunk.bbox[2]);
+      maxY = Math.max(maxY, chunk.bbox[3]);
+      continue;
+    }
+    if (state.postalZonesGeoJson?.features) {
+      const feat = state.postalZonesGeoJson.features.find(f => f.properties?.chunk_id === cId || f.properties?.id === cId);
+      if (feat?.properties?.bbox && Array.isArray(feat.properties.bbox) && feat.properties.bbox.length === 4) {
+        minX = Math.min(minX, feat.properties.bbox[0]);
+        minY = Math.min(minY, feat.properties.bbox[1]);
+        maxX = Math.max(maxX, feat.properties.bbox[2]);
+        maxY = Math.max(maxY, feat.properties.bbox[3]);
+      }
+    }
+  }
+
+  if (minX !== Infinity && minY !== Infinity && maxX !== -Infinity && maxY !== -Infinity) {
+    return [[minX, minY], [maxX, maxY]];
+  }
+  return null;
+}
+
+function fitBoundsToPendingSelection() {
+  if (!state.map || state.pendingSelectedChunks.size === 0) return;
+  const bbox = getBoundingBoxForChunkIds(Array.from(state.pendingSelectedChunks));
+  if (bbox) {
+    state.map.fitBounds(bbox, {
+      padding: { top: 80, bottom: 80, left: 80, right: 390 },
+      maxZoom: 11.5,
+      essential: true
+    });
+  }
+}
+
 function updateTerritorySelectionBar() {
   const selBar = document.getElementById('territory-selection-bar');
   if (!selBar) return;
@@ -3370,7 +3657,7 @@ function updateTerritorySelectionBar() {
     if (summaryText) summaryText.textContent = '0 code postal sélectionné';
     if (metricsText) metricsText.textContent = '0 bâtiment • 0 Mo';
     if (chipsContainer) {
-      chipsContainer.innerHTML = '<span class="sel-bar-placeholder">Cliquez sur un secteur sur la carte pour l\'ajouter</span>';
+      chipsContainer.innerHTML = '<span class="sel-bar-placeholder">📍 Cliquez sur un secteur sur la carte pour l\'ajouter</span>';
     }
     if (btnValidate) btnValidate.disabled = true;
     return;
@@ -3404,7 +3691,7 @@ function updateTerritorySelectionBar() {
     metricsText.textContent = `${totalBldgs.toLocaleString('fr-FR')} bât. • ${sizeInfo}`;
   }
 
-  // Populate selected postal codes / chunks chips
+  // Populate selected postal codes / chunks chips (vertical card list)
   if (chipsContainer) {
     chipsContainer.innerHTML = '';
     const list = [];
@@ -3413,8 +3700,9 @@ function updateTerritorySelectionBar() {
       list.push({
         id: cId,
         cp: match ? match.cp : cId,
-        commune: match?.commune || '',
+        commune: match?.commune || (match?.communes ? match.communes[0] : ''),
         buildings_count: match?.buildings_count || 0,
+        total_size_bytes: match?.total_size_bytes || 0,
         isCached: state.locallyCachedChunkIds.has(cId),
       });
     }
@@ -3427,11 +3715,46 @@ function updateTerritorySelectionBar() {
     for (const item of list) {
       const pill = document.createElement('div');
       pill.className = `sel-chunk-pill${item.isCached ? ' cached' : ''}`;
+      pill.dataset.chunkId = item.id;
+      pill.title = `Cliquer pour centrer sur ${escapeHtml(String(item.cp))}`;
+
+      const bldgLabel = item.buildings_count ? `${Number(item.buildings_count).toLocaleString('fr-FR')} bât.` : '';
+      const sizeLabel = item.total_size_bytes ? `${(item.total_size_bytes / 1048576).toFixed(1)} Mo` : '';
+      const metaSub = [bldgLabel, sizeLabel, item.isCached ? 'En cache' : 'Prêt'].filter(Boolean).join(' • ');
+
       pill.innerHTML = `
-        <span class="chunk-dot-status ${item.isCached ? 'dot-cached' : 'dot-cloud'}"></span>
-        <span class="chunk-cp-label"><strong>${escapeHtml(String(item.cp))}</strong>${item.commune ? ` <span class="chunk-commune-name">${escapeHtml(item.commune)}</span>` : ''}</span>
+        <div class="sel-chunk-pill-left">
+          <span class="chunk-dot-status ${item.isCached ? 'dot-cached' : 'dot-cloud'}" title="${item.isCached ? 'En cache local' : 'Prêt au téléchargement'}"></span>
+          <div class="chunk-info-text">
+            <span class="chunk-cp-label"><strong>${escapeHtml(String(item.cp))}</strong>${item.commune ? ` <span class="chunk-commune-name">${escapeHtml(item.commune)}</span>` : ''}</span>
+            <span class="chunk-meta-sub">${escapeHtml(metaSub)}</span>
+          </div>
+        </div>
         <button type="button" class="btn-remove-chunk" title="Retirer ${escapeHtml(String(item.cp))}" data-chunk-id="${escapeHtml(item.id)}">&times;</button>
       `;
+
+      // Hover on pill highlights corresponding zone polygon on map
+      pill.addEventListener('mouseenter', () => {
+        setPostalZoneHoverForChunk(item.id);
+      });
+      pill.addEventListener('mouseleave', () => {
+        clearPostalZoneHover();
+      });
+
+      // Clicking pill zooms/centers to this sector on the map with margin
+      pill.addEventListener('click', (e) => {
+        if (e.target.closest('.btn-remove-chunk')) return;
+        const chunkBbox = getBoundingBoxForChunkIds([item.id]);
+        if (chunkBbox && state.map) {
+          state.map.fitBounds(chunkBbox, {
+            padding: { top: 90, bottom: 90, left: 90, right: 390 },
+            maxZoom: 12.8,
+            essential: true
+          });
+        }
+      });
+
+      // Remove button handler
       pill.querySelector('.btn-remove-chunk').addEventListener('click', (e) => {
         e.stopPropagation();
         state.pendingSelectedChunks.delete(item.id);
@@ -3439,6 +3762,7 @@ function updateTerritorySelectionBar() {
         updateTerritorySelectionBar();
         scheduleSaveSession();
       });
+
       chipsContainer.appendChild(pill);
     }
   }
@@ -3461,6 +3785,7 @@ async function validateAndLoadSelectedChunks() {
 
 function enterTerritorySelectionMode(centerLocation = null) {
   state.territorySelectionMode = true;
+  document.body.classList.add('territory-selection-active');
   const selBar = document.getElementById('territory-selection-bar');
   if (selBar) selBar.classList.add('active');
 
@@ -3473,11 +3798,21 @@ function enterTerritorySelectionMode(centerLocation = null) {
   }
 
   if (centerLocation && state.map) {
-    state.map.flyTo({
-      center: centerLocation.center,
-      zoom: centerLocation.zoom || 12,
-      essential: true
-    });
+    if (centerLocation.bbox) {
+      const bounds = Array.isArray(centerLocation.bbox[0])
+        ? centerLocation.bbox
+        : [[centerLocation.bbox[0], centerLocation.bbox[1]], [centerLocation.bbox[2], centerLocation.bbox[3]]];
+      state.map.fitBounds(
+        bounds,
+        { padding: { top: 80, bottom: 80, left: 80, right: 390 }, maxZoom: centerLocation.maxZoom || 11.5, essential: true }
+      );
+    } else {
+      state.map.flyTo({
+        center: centerLocation.center,
+        zoom: centerLocation.zoom || 11.2,
+        essential: true
+      });
+    }
   }
 
   refreshPostalZonesVisualState();
@@ -3488,6 +3823,8 @@ function enterTerritorySelectionMode(centerLocation = null) {
 
 function exitTerritorySelectionMode() {
   state.territorySelectionMode = false;
+  document.body.classList.remove('territory-selection-active');
+  clearPostalZoneHover();
   const selBar = document.getElementById('territory-selection-bar');
   if (selBar) selBar.classList.remove('active');
 
@@ -3643,10 +3980,10 @@ async function performLocationSearch(query) {
       if (sel.bbox && state.map) {
         state.map.fitBounds(
           [[sel.bbox[0], sel.bbox[1]], [sel.bbox[2], sel.bbox[3]]],
-          { padding: 60, maxZoom: 14 }
+          { padding: { top: 80, bottom: 80, left: 80, right: 390 }, maxZoom: 11.8, essential: true }
         );
       } else if (sel.center && state.map) {
-        state.map.flyTo({ center: sel.center, zoom: 13, essential: true });
+        state.map.flyTo({ center: sel.center, zoom: 11.5, essential: true });
       }
 
       enterTerritorySelectionMode();
@@ -3697,7 +4034,8 @@ function initLocationPromptControls() {
         .filter(c => LYON_PRESET_CPS.has(c.cp))
         .forEach(c => state.pendingSelectedChunks.add(c.id));
     }
-    enterTerritorySelectionMode({ center: [4.8467, 45.7628], zoom: 12.5 });
+    const lyonBbox = getBoundingBoxForChunkIds(Array.from(state.pendingSelectedChunks));
+    enterTerritorySelectionMode(lyonBbox ? { bbox: lyonBbox, maxZoom: 11.2 } : { center: [4.8467, 45.7628], zoom: 11.2 });
     refreshPostalZonesVisualState();
     updateTerritorySelectionBar();
   });
@@ -3712,7 +4050,8 @@ function initLocationPromptControls() {
         .filter(c => GRENOBLE_PRESET_CPS.has(c.cp))
         .forEach(c => state.pendingSelectedChunks.add(c.id));
     }
-    enterTerritorySelectionMode({ center: [5.7255, 45.1785], zoom: 12.5 });
+    const grenobleBbox = getBoundingBoxForChunkIds(Array.from(state.pendingSelectedChunks));
+    enterTerritorySelectionMode(grenobleBbox ? { bbox: grenobleBbox, maxZoom: 10.6 } : { center: [5.7255, 45.1785], zoom: 10.6 });
     refreshPostalZonesVisualState();
     updateTerritorySelectionBar();
   });
@@ -3721,7 +4060,7 @@ function initLocationPromptControls() {
   document.getElementById('link-explore-freely')?.addEventListener('click', (e) => {
     e.preventDefault();
     closeLocationPromptModal();
-    enterTerritorySelectionMode({ center: [4.8467, 45.7628], zoom: 11 });
+    enterTerritorySelectionMode({ center: [4.8467, 45.7628], zoom: 10.2 });
     refreshPostalZonesVisualState();
     updateTerritorySelectionBar();
   });
@@ -3738,7 +4077,7 @@ function initLocationPromptControls() {
         hideLoading();
         closeLocationPromptModal();
         const coords = [pos.coords.longitude, pos.coords.latitude];
-        enterTerritorySelectionMode({ center: coords, zoom: 13.5 });
+        enterTerritorySelectionMode({ center: coords, zoom: 11.8 });
         refreshPostalZonesVisualState();
         updateTerritorySelectionBar();
       },
@@ -3751,6 +4090,10 @@ function initLocationPromptControls() {
   });
 
   // Selection bar buttons
+  document.getElementById('btn-sel-fit')?.addEventListener('click', () => {
+    fitBoundsToPendingSelection();
+  });
+
   document.getElementById('btn-sel-clear')?.addEventListener('click', () => {
     state.pendingSelectedChunks.clear();
     refreshPostalZonesVisualState();
@@ -4044,7 +4387,7 @@ async function loadTerritory(options = {}) {
     } else if (combinedBbox && state.map) {
       state.map.fitBounds(
         [[combinedBbox[0], combinedBbox[1]], [combinedBbox[2], combinedBbox[3]]],
-        { padding: 50, maxZoom: 16 }
+        { padding: { top: 80, bottom: 80, left: 80, right: 80 }, maxZoom: 14.0, essential: true }
       );
     }
 
@@ -4062,10 +4405,11 @@ async function loadTerritory(options = {}) {
    Real-Time Client-Side Filtering (69 Sociological Indicators)
    ========================================================================== */
 function applyFilters() {
+  clearUnselectedFilters();
   scheduleSaveSession();
   if (!state.buildings || state.buildings.length === 0) return;
 
-  const activeFilterDefs = FILTER_DEFINITIONS.filter(f => f.isActive(state));
+  const activeFilterDefs = FILTER_DEFINITIONS.filter(f => state.activeFilterIds.has(f.id) && f.isActive(state));
   const { fieldwork, maxPolygons } = state;
   const filtered = [];
 
@@ -4104,6 +4448,7 @@ function applyFilters() {
   state.filteredBuildings = filtered;
   updateKPIs(filtered);
   updateFilterCountsUI();
+  updateAllFilterCardMatches();
 
   // Apply max polygons limit to map display
   const mapBuildings = (maxPolygons && maxPolygons < filtered.length)
@@ -4121,28 +4466,78 @@ function applyFilters() {
 }
 
 function updateKPIs(filtered) {
-  const totalBuildings = filtered.length;
-  let totalDwellings = 0;
+  const filteredBuildings = filtered ? filtered.length : 0;
+  const allBuildingsCount = state.buildings ? state.buildings.length : 0;
+
+  let filteredDwellings = 0;
   let fgCount = 0;
   let highOverheatCount = 0;
 
-  for (let i = 0; i < filtered.length; i++) {
+  for (let i = 0; i < filteredBuildings; i++) {
     const b = filtered[i];
-    totalDwellings += Number(b.nb_log || 0);
+    filteredDwellings += Number(b.nb_log || 0);
     const dpe = b.dpe;
     if (dpe === 'F' || dpe === 'G') fgCount++;
     if (b.risque_surchauffe_ete === 'Critique' || b.risque_surchauffe_ete === 'Élevé') highOverheatCount++;
   }
 
-  document.getElementById('kpi-buildings').textContent = totalBuildings.toLocaleString();
-  document.getElementById('kpi-dwellings').textContent = totalDwellings.toLocaleString();
-  document.getElementById('kpi-slums').textContent = totalBuildings > 0 
-    ? `${Math.round((fgCount / totalBuildings) * 100)}%` 
-    : '0%';
-  document.getElementById('kpi-overheating').textContent = totalBuildings > 0 
-    ? `${Math.round((highOverheatCount / totalBuildings) * 100)}%` 
-    : '0%';
-  document.getElementById('export-count').textContent = totalBuildings.toLocaleString();
+  // Calculate or retrieve total dwellings in territory
+  if (state._totalTerritoryDwellings === undefined || state._totalTerritoryBuildingsRef !== state.buildings) {
+    state._totalTerritoryBuildingsRef = state.buildings;
+    state._totalTerritoryDwellings = (state.buildings || []).reduce((sum, b) => sum + Number(b.nb_log || 0), 0);
+  }
+  const allDwellingsCount = state._totalTerritoryDwellings || 0;
+
+  const bldgEl = document.getElementById('kpi-buildings');
+  const dwellEl = document.getElementById('kpi-dwellings');
+  const slumsEl = document.getElementById('kpi-slums');
+  const overheatEl = document.getElementById('kpi-overheating');
+  const exportCountEl = document.getElementById('export-count');
+
+  const bldgText = allBuildingsCount > 0 
+    ? `${filteredBuildings.toLocaleString('fr-FR')} / ${allBuildingsCount.toLocaleString('fr-FR')}` 
+    : '—';
+  const dwellText = allBuildingsCount > 0 
+    ? `${filteredDwellings.toLocaleString('fr-FR')} / ${allDwellingsCount.toLocaleString('fr-FR')}` 
+    : '—';
+
+  const prevBuildings = state._lastKpiBuildings;
+  const prevDwellings = state._lastKpiDwellings;
+
+  if (bldgEl) {
+    bldgEl.textContent = bldgText;
+    if (prevBuildings !== undefined && prevBuildings !== filteredBuildings) {
+      bldgEl.classList.remove('kpi-blink');
+      void bldgEl.offsetWidth; // Force DOM reflow to re-trigger CSS keyframe animation
+      bldgEl.classList.add('kpi-blink');
+    }
+  }
+
+  if (dwellEl) {
+    dwellEl.textContent = dwellText;
+    if (prevDwellings !== undefined && prevDwellings !== filteredDwellings) {
+      dwellEl.classList.remove('kpi-blink');
+      void dwellEl.offsetWidth; // Force DOM reflow to re-trigger CSS keyframe animation
+      dwellEl.classList.add('kpi-blink');
+    }
+  }
+
+  state._lastKpiBuildings = filteredBuildings;
+  state._lastKpiDwellings = filteredDwellings;
+
+  if (slumsEl) {
+    slumsEl.textContent = filteredBuildings > 0 
+      ? `${Math.round((fgCount / filteredBuildings) * 100)}%` 
+      : '0%';
+  }
+  if (overheatEl) {
+    overheatEl.textContent = filteredBuildings > 0 
+      ? `${Math.round((highOverheatCount / filteredBuildings) * 100)}%` 
+      : '0%';
+  }
+  if (exportCountEl) {
+    exportCountEl.textContent = filteredBuildings.toLocaleString('fr-FR');
+  }
 }
 
 function updateMapSource(buildings) {
@@ -6942,8 +7337,11 @@ function initEventListeners() {
     const overlay = document.getElementById('map-display-overlay');
     if (!overlay) return;
     overlay.classList.toggle('collapsed');
+    const isCollapsed = overlay.classList.contains('collapsed');
     const btn = document.getElementById('btn-toggle-display-overlay');
-    if (btn) btn.textContent = overlay.classList.contains('collapsed') ? '▸' : '▾';
+    if (btn) btn.textContent = isCollapsed ? '▸' : '▾';
+    saveMapDisplaySettingsToStorage();
+    scheduleSaveSession();
   };
   document.getElementById('header-toggle-display-overlay')?.addEventListener('click', toggleDisplayOverlay);
   document.getElementById('btn-toggle-display-overlay')?.addEventListener('click', (e) => {
@@ -6958,6 +7356,7 @@ function initEventListeners() {
       state.bgDimPct = parseInt(e.target.value, 10);
       document.getElementById('label-bg-dim').textContent = `${state.bgDimPct}%`;
       setMapDim(state.bgDimPct);
+      saveMapDisplaySettingsToStorage();
       scheduleSaveSession();
     });
   }
@@ -6968,13 +7367,17 @@ function initEventListeners() {
     maxPolySelect.addEventListener('change', (e) => {
       state.maxPolygons = parseInt(e.target.value, 10);
       applyFilters();
+      saveMapDisplaySettingsToStorage();
       saveSessionToStorage();
     });
   }
 
-  // Reset Filters Button (delegates to Sociological Filter System)
+  // Reset Filters & Clear All Filters Buttons
   document.getElementById('btn-reset-filters')?.addEventListener('click', () => {
-    resetAllSociologicalFilters();
+    clearAllFilters();
+  });
+  document.getElementById('btn-clear-all-filters')?.addEventListener('click', () => {
+    clearAllFilters();
   });
 
   // Drawer Close Button

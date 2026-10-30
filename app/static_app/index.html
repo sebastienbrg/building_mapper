@@ -130,6 +130,7 @@
         <div style="display: flex; align-items: center; gap: 0.45rem;">
           <span class="sidebar-header-title">Filtres actifs</span>
           <span class="status-badge status-online" id="active-filters-count-badge" title="Nombre de critères filtrant activement les bâtiments">1 actif</span>
+          <button type="button" class="btn-clear-active-badge" id="btn-clear-all-filters" title="Effacer tous les filtres" aria-label="Effacer tous les filtres">&times;</button>
         </div>
         <div style="display: flex; gap: 0.35rem;">
           <button class="btn btn-secondary btn-sm" id="btn-reset-filters" title="Réinitialiser toutes les valeurs de filtres" style="font-size: 0.72rem; padding: 0.2rem 0.55rem;">
@@ -190,22 +191,28 @@
           <span><strong>Sélection du Territoire</strong> — Cliquez sur les codes postaux à charger</span>
         </div>
 
-        <!-- Floating Territory Selection Bar (at bottom of map) -->
+        <!-- Floating Territory Selection Bar (on the right of map, vertical) -->
         <div class="territory-selection-bar" id="territory-selection-bar">
           <div class="sel-bar-main">
             <div class="sel-bar-header">
-              <div class="sel-bar-title-wrap">
-                <span class="sel-bar-badge-icon">📍</span>
-                <span class="sel-bar-title" id="sel-bar-summary-text">0 code postal sélectionné</span>
-                <span class="sel-bar-metrics-badge" id="sel-bar-metrics-text">0 bâtiment • 0 Mo</span>
+              <div class="sel-bar-header-top">
+                <div class="sel-bar-title-wrap">
+                  <span class="sel-bar-badge-icon">📍</span>
+                  <span class="sel-bar-title" id="sel-bar-summary-text">0 code postal sélectionné</span>
+                </div>
+                <div class="sel-bar-header-actions">
+                  <button type="button" class="btn btn-secondary btn-xs" id="btn-sel-fit" title="Recadrer la carte sur la sélection">🔍 Cadrer</button>
+                  <button type="button" class="btn btn-secondary btn-xs" id="btn-sel-clear" title="Réinitialiser la sélection de secteurs">↺ Vider</button>
+                  <button type="button" class="btn btn-secondary btn-xs btn-sel-close" id="btn-sel-cancel" title="Quitter le mode de sélection">&times; Fermer</button>
+                </div>
               </div>
-              <div class="sel-bar-header-actions">
-                <button type="button" class="btn btn-secondary btn-xs" id="btn-sel-clear" title="Réinitialiser la sélection de secteurs">↺ Vider</button>
-                <button type="button" class="btn btn-secondary btn-xs btn-sel-close" id="btn-sel-cancel" title="Quitter le mode de sélection">&times; Fermer</button>
+              <div class="sel-bar-header-subline">
+                <span class="sel-bar-metrics-badge" id="sel-bar-metrics-text">0 bâtiment • 0 Mo</span>
+                <span class="sel-bar-hint">Cliquez sur un secteur</span>
               </div>
             </div>
 
-            <!-- Chips container for selected postal codes / chunks -->
+            <!-- Chips / vertical list container for selected postal codes / chunks -->
             <div class="sel-bar-chips" id="sel-bar-chips">
               <span class="sel-bar-placeholder">Cliquez sur un secteur sur la carte pour l'ajouter à la sélection</span>
             </div>
@@ -219,27 +226,38 @@
           </div>
         </div>
 
-        <!-- Floating Map Style Switcher -->
-        <div class="map-floating-panel">
-          <button class="map-style-btn active" data-style="dpe">🎨 Classe DPE</button>
-          <button class="map-style-btn" data-style="overheating">☀️ Surchauffe Été</button>
-          <button class="map-style-btn" data-style="concentration">🏢 Concentration Foncière</button>
-          <button class="map-style-btn" data-style="fieldwork" id="btn-style-fieldwork" style="display: none;">📋 Enquête Terrain</button>
-        </div>
-
         <!-- Address Search Bar -->
         <div class="map-search-bar">
           <span>🔍</span>
           <input type="text" id="input-address-search" placeholder="Rechercher une adresse (ex: 27 Rue Paul Chenavard)...">
         </div>
 
-        <!-- Bottom-Left Stack: Display Settings Overlay above Legend -->
+        <!-- Bottom-Left Stack: Map Color/Style Selector above Legend -->
         <div class="map-bottom-left-stack" id="map-bottom-left-stack">
-          <!-- Overlay control: Background whitening & polygon limit -->
-          <div class="map-overlay-control" id="map-display-overlay">
+          <!-- Floating Map Style / Color Switcher (moved where display control was) -->
+          <div class="map-floating-panel" id="map-style-switcher">
+            <button class="map-style-btn active" data-style="dpe">🎨 Classe DPE</button>
+            <button class="map-style-btn" data-style="overheating">☀️ Surchauffe Été</button>
+            <button class="map-style-btn" data-style="concentration">🏢 Concentration Foncière</button>
+            <button class="map-style-btn" data-style="fieldwork" id="btn-style-fieldwork" style="display: none;">📋 Enquête Terrain</button>
+          </div>
+
+          <!-- Map Legend (dynamically switches to Chunk Status in selection mode) -->
+          <div class="map-legend" id="map-legend">
+            <div class="legend-title" id="legend-title">Diagnostic Énergétique (DPE)</div>
+            <div class="legend-items" id="legend-items">
+              <!-- Dynamically populated -->
+            </div>
+          </div>
+        </div>
+
+        <!-- Bottom-Right: Display Settings Overlay directly above Map Scale (100m) -->
+        <div class="map-bottom-right-stack" id="map-bottom-right-stack">
+          <!-- Overlay control: Background whitening & polygon limit (default collapsed) -->
+          <div class="map-overlay-control collapsed" id="map-display-overlay">
             <div class="map-overlay-header" id="header-toggle-display-overlay">
               <span class="map-overlay-title">⚙️ Affichage</span>
-              <button type="button" class="btn-toggle-overlay" id="btn-toggle-display-overlay" title="Réduire / Agrandir les réglages d'affichage">▾</button>
+              <button type="button" class="btn-toggle-overlay" id="btn-toggle-display-overlay" title="Réduire / Agrandir les réglages d'affichage">▸</button>
             </div>
             <div class="map-overlay-body" id="map-display-overlay-body">
               <div class="map-overlay-row">
@@ -262,15 +280,8 @@
               </div>
             </div>
           </div>
-
-          <!-- Map Legend (dynamically switches to Chunk Status in selection mode) -->
-          <div class="map-legend" id="map-legend">
-            <div class="legend-title" id="legend-title">Diagnostic Énergétique (DPE)</div>
-            <div class="legend-items" id="legend-items">
-              <!-- Dynamically populated -->
-            </div>
-          </div>
         </div>
+
       </div>
 
       <!-- TAB 2: 📊 BÂTIMENTS -->
