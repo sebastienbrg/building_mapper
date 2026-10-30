@@ -2866,6 +2866,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   initBuildingsTableControls();
   initLandlordsTabControls();
   initExportTabControls();
+  initSourcesTabControls();
   initEventListeners();
   initLocationPromptControls();
 
@@ -4600,6 +4601,8 @@ function switchTab(tabId) {
     renderLandlordsTab();
   } else if (tabId === 'export') {
     updateExportTab();
+  } else if (tabId === 'sources') {
+    renderSourcesTab();
   }
   saveSessionToStorage();
 }
@@ -5869,6 +5872,980 @@ function escapeHtml(str) {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
+}
+
+/* ==========================================================================
+   Tab 5: Info-Oriented Data Sources & Traceability Dictionary
+   ========================================================================== */
+
+const SOURCE_METADATA_MAP = {
+  'ADEME / BDNB': { file: 'csv/batiment_groupe_dpe_representatif_logement.csv', producer: 'ADEME / CSTB BDNB', mode: 'csv', coverage: 'France entière' },
+  'ADEME DPE par lot': { file: 'csv/batiment_groupe_dpe_statistique_logement.csv', producer: 'ADEME (Observatoire DPE)', mode: 'csv', coverage: 'France entière' },
+  'ADEME DPE': { file: 'csv/batiment_groupe_dpe_representatif_logement.csv', producer: 'ADEME (Observatoire DPE)', mode: 'csv', coverage: 'France entière' },
+  'BDNB / ADEME': { file: 'csv/batiment_groupe_dpe_statistique_logement.csv', producer: 'ADEME / CSTB BDNB', mode: 'csv', coverage: 'France entière' },
+  'BDNB / DPE': { file: 'csv/batiment_groupe_dpe_representatif_logement.csv', producer: 'ADEME / CSTB BDNB', mode: 'csv', coverage: 'France entière' },
+  'Score Composite TeZeLoMa': { file: 'Calcul composite (BDNB ADEME + WFS Grand Lyon / Cerema)', producer: 'Collectif TeZeLoMa', mode: 'etl', coverage: 'Lyon (69) & Grenoble (38)' },
+  'Data Grand Lyon WFS': { file: 'ilots_chaleur_urbains.geojson & encadrement_loyers.geojson', producer: 'Métropole de Lyon (Data Grand Lyon)', mode: 'wfs', coverage: '69 — Métropole de Lyon' },
+  'DGFiP MAJIC / RNE': { file: 'csv/proprietaire.csv + API recherche-entreprises.api.gouv.fr', producer: 'DGFiP MAJIC / DINUM RNE', mode: 'api', coverage: 'France entière' },
+  'DGFiP MAJIC': { file: 'csv/rel_batiment_groupe_proprietaire.csv + csv/proprietaire.csv', producer: 'DGFiP (Fichiers Fonciers MAJIC)', mode: 'csv', coverage: 'Départements 69 & 38' },
+  'DGFiP MAJIC / INSEE': { file: 'csv/proprietaire.csv', producer: 'DGFiP MAJIC / INSEE', mode: 'csv', coverage: 'France entière' },
+  'ANCT / BDNB': { file: 'csv/batiment_groupe_qpv.csv', producer: 'ANCT (Politique de la Ville)', mode: 'csv', coverage: 'France entière' },
+  'Ministère du Logement (RPLS)': { file: 'csv/batiment_groupe_rpls.csv', producer: 'Ministère du Logement (RPLS)', mode: 'csv', coverage: 'France entière' },
+  'RPLS': { file: 'csv/batiment_groupe_rpls.csv', producer: 'Ministère du Logement (RPLS)', mode: 'csv', coverage: 'France entière' },
+  'RPLS (accessible_pmr)': { file: 'csv/batiment_groupe_rpls.csv', producer: 'Ministère du Logement (RPLS)', mode: 'csv', coverage: 'France entière' },
+  'Préfecture / Data Grand Lyon': { file: 'encadrement_loyers.geojson & Base_OP_2024_L3800.csv', producer: 'Préfecture / Observatoire des Loyers', mode: 'wfs', coverage: 'Lyon (69) & Grenoble (38)' },
+  'Arrêté Préfectoral 2025-2026': { file: 'encadrement_loyers.geojson & Base_OP_2024_L3800.csv', producer: 'Préfecture du Rhône / de l\'Isère', mode: 'wfs', coverage: 'Lyon (69) & Grenoble (38)' },
+  'DGFiP DVF Open Data': { file: 'csv/batiment_groupe_dvf_open_statistique.csv', producer: 'DGFiP (DVF Open Data)', mode: 'csv', coverage: 'France entière' },
+  'ANAH RNIC': { file: 'csv/batiment_groupe_rnc.csv', producer: 'ANAH (Registre Copropriétés RNIC)', mode: 'csv', coverage: 'France entière' },
+  'DGFiP FFO / BDNB': { file: 'csv/batiment_groupe_ffo_bat.csv', producer: 'DGFiP (Fichiers Fonciers) / CSTB', mode: 'csv', coverage: 'France entière' },
+  'DGFiP FFO': { file: 'csv/batiment_groupe_ffo_bat.csv', producer: 'DGFiP (Fichiers Fonciers)', mode: 'csv', coverage: 'France entière' },
+  'IGN BD TOPO': { file: 'csv/batiment_groupe_bdtopo_bat.csv', producer: 'IGN (BD TOPO)', mode: 'csv', coverage: 'France entière' },
+  'ADEME DPE / FFO': { file: 'csv/batiment_groupe_dpe_representatif_logement.csv', producer: 'ADEME / DGFiP FFO', mode: 'csv', coverage: 'France entière' },
+  'BDNB Synthèse': { file: 'csv/batiment_groupe_synthese_propriete_usage.csv', producer: 'CSTB BDNB', mode: 'csv', coverage: 'France entière' },
+  'GPU Urbanisme / BDNB': { file: 'csv/batiment_groupe_urbanisme.csv', producer: 'GPU (Géoportail de l\'Urbanisme)', mode: 'csv', coverage: 'France entière' },
+  'IRSN / BDNB': { file: 'csv/batiment_groupe_risques.csv', producer: 'IRSN (Aléa Radon)', mode: 'csv', coverage: 'France entière' },
+  'BRGM / Géorisques': { file: 'csv/batiment_groupe_risques.csv', producer: 'BRGM (Géorisques / Argiles)', mode: 'csv', coverage: 'France entière' },
+  'CEREMA / France Chaleur Urbaine': { file: 'csv/batiment_groupe_indicateur_reseau_chaud_froid.csv', producer: 'Cerema / France Chaleur Urbaine', mode: 'csv', coverage: 'France entière' },
+  'INSEE / BAN': { file: 'csv/adresse.csv + csv/batiment_groupe_adresse.csv', producer: 'INSEE / Base Adresse Nationale', mode: 'csv', coverage: 'France entière' },
+  'INSEE IRIS': { file: 'csv/batiment_groupe_bdtopo_bat.csv', producer: 'INSEE (Contours IRIS)', mode: 'csv', coverage: 'France entière' },
+  'BAN Adresses': { file: 'csv/rel_batiment_groupe_adresse.csv + csv/adresse.csv', producer: 'Base Adresse Nationale (BAN)', mode: 'csv', coverage: 'France entière' },
+  'Tableur militant (.xlsx)': { file: 'Tableur local .xlsx importé (fieldwork_saved.parquet)', producer: 'Collectif d\'enquête TeZeLoMa', mode: 'xlsx', coverage: 'Territoire d\'enquête' },
+  'Enedis DLE / SDES': { file: 'csv/batiment_groupe_dle_elec_multimillesime.csv', producer: 'Enedis / SDES (Données Énergie)', mode: 'csv', coverage: 'France entière' },
+  'GRDF DLE / SDES': { file: 'csv/batiment_groupe_dle_gaz_multimillesime.csv', producer: 'GRDF / SDES (Données Énergie)', mode: 'csv', coverage: 'France entière' },
+};
+
+const RAW_COLUMN_OVERRIDE = {
+  'dpe': 'classe_bilan_dpe / dpe',
+  'classe_ges': 'classe_emission_ges / classe_ges',
+  'conso_ep_m2': 'conso_energie_primaire_m2 / conso_ep_m2',
+  'hauteur_moyenne_m': 'hauteur_mean / hauteur_moyenne_m',
+  'owner_search': 'denomination / concentration_prop_max_denomination',
+  'legal_category': 'forme_juridique / formes_juridiques',
+  'concentration_pct': 'concentration_prop_max_pct / concentration_prop_max_num',
+  'max_locaux_un_prop': 'max_locaux_open_un_prop',
+  'min_patrimoine_majic': 'nb_locaux_open_dans_MAJIC / max_patrimoine_majic_bailleur',
+  'bailleur_distant': 'code_postal_proprietaire',
+  'social_rpls_mode': 'est_logement_social_rpls',
+  'pmr_rpls_mode': 'nb_log_pmr_rpls',
+  'qpv_mode': 'quartier_qpv',
+  'rent_control_mode': 'zone_encadrement_loyers',
+  'loyer_max_t2_nm': 'loyer_max_t2_non_meuble_m2',
+  'copro_status': 'immat_copro / est_copro_rnc',
+  'copro_search': 'nom_copro',
+  'nb_lots_copro': 'nb_lots_copro / nb_lots_habitation_copro',
+  'patrimoine_abf': 'zone_plu_bati_patrimonial / contrainte_urbanisme_ac1',
+  'has_clim': 'type_energie_climatisation',
+  'fieldwork_status': 'fieldwork_status (clé batiment_groupe_id)',
+  'surface_habitable_logement': 'surface_habitable_logement',
+};
+
+const EXTRA_DISPLAYABLE_VARIABLES = [
+  {
+    id: 'batiment_groupe_id',
+    category: 'morphology',
+    label: 'Identifiant national unique BDNB du bâtiment',
+    rawColumn: 'batiment_groupe_id',
+    source: 'CSTB BDNB',
+    sourceFile: 'csv/batiment_groupe.csv',
+    producer: 'CSTB (Base Nationale des Bâtiments)',
+    retrievalMode: 'parquet',
+    coverage: 'France entière',
+    isFilter: false,
+    isDisplay: true,
+    isLandlord: false,
+    desc: 'Identifiant pivot officiel pérenne attribué par le CSTB pour relier l\'ensemble des 16 tables foncières, cadastrales, énergétiques et cartographiques d\'un même groupe de bâtiments.',
+  },
+  {
+    id: 'adr',
+    category: 'geography',
+    label: 'Adresse postale officielle (Numéro et nom de voie)',
+    rawColumn: 'adr',
+    source: 'Base Adresse Nationale (BAN)',
+    sourceFile: 'csv/adresse.csv + csv/rel_batiment_groupe_adresse.csv',
+    producer: 'Base Adresse Nationale (BAN)',
+    retrievalMode: 'parquet',
+    coverage: 'France entière',
+    isFilter: true,
+    isDisplay: true,
+    isLandlord: false,
+    desc: 'Libellé d\'adresse complet certifié issu de la Base Adresse Nationale (BAN) et rattaché à l\'emprise du bâtiment. Utilisé pour les infobulles, la table et les fiches d\'enquête.',
+  },
+  {
+    id: 'cp',
+    category: 'geography',
+    label: 'Code postal de distribution',
+    rawColumn: 'cp',
+    source: 'Base Adresse Nationale (BAN)',
+    sourceFile: 'csv/adresse.csv',
+    producer: 'Base Adresse Nationale (BAN)',
+    retrievalMode: 'parquet',
+    coverage: 'France entière',
+    isFilter: true,
+    isDisplay: true,
+    isLandlord: false,
+    desc: 'Code postal d\'acheminement à 5 chiffres (ex: 69001 à 69009, 69100, 38000...) servant au découpage en zones polygonales et au ciblage d\'intervention par quartier.',
+  },
+  {
+    id: 'code_commune_insee',
+    category: 'geography',
+    label: 'Code officiel géographique commune (INSEE)',
+    rawColumn: 'code_commune_insee',
+    source: 'INSEE',
+    sourceFile: 'csv/adresse.csv',
+    producer: 'INSEE',
+    retrievalMode: 'parquet',
+    coverage: 'France entière',
+    isFilter: false,
+    isDisplay: true,
+    isLandlord: false,
+    desc: 'Code INSEE officiel à 5 chiffres de la commune ou arrondissement de rattachement (ex: 69381 à 69389 pour Lyon, 69266 pour Villeurbanne, 38185 pour Grenoble).',
+  },
+  {
+    id: 'surface_emprise_sol_m2',
+    category: 'morphology',
+    label: 'Surface d\'emprise au sol du bâtiment (m²)',
+    rawColumn: 'surface_emprise_sol_m2',
+    source: 'IGN BD TOPO',
+    sourceFile: 'csv/batiment_groupe_bdtopo_bat.csv',
+    producer: 'IGN (BD TOPO)',
+    retrievalMode: 'parquet',
+    coverage: 'France entière',
+    isFilter: false,
+    isDisplay: true,
+    isLandlord: false,
+    desc: 'Superficie calculée en mètres carrés de l\'emprise cadastrale au sol du bâtiment, calculée géométriquement d\'après les contours de la BD TOPO IGN.',
+  },
+  {
+    id: 'geometry',
+    category: 'morphology',
+    label: 'Emprise vectorielle polygonale GPS (WGS84)',
+    rawColumn: 'geom_groupe / geometry',
+    source: 'IGN BD TOPO',
+    sourceFile: 'csv/batiment_groupe_bdtopo_bat.csv',
+    producer: 'IGN (BD TOPO)',
+    retrievalMode: 'parquet',
+    coverage: 'France entière',
+    isFilter: false,
+    isDisplay: true,
+    isLandlord: false,
+    desc: 'Coordonnées vectorielles polygonales géoréférencées (polygone ou multipolygone GPS WGS84) du bâtiment, restituées et stylisées dynamiquement sur la carte MapLibre.',
+  },
+  {
+    id: 'nb_adresses',
+    category: 'geography',
+    label: 'Nombre d\'adresses postales distinctes rattachées',
+    rawColumn: 'nb_adresses',
+    source: 'Base Adresse Nationale (BAN)',
+    sourceFile: 'csv/batiment_groupe_adresse.csv',
+    producer: 'Base Adresse Nationale (BAN)',
+    retrievalMode: 'parquet',
+    coverage: 'France entière',
+    isFilter: false,
+    isDisplay: true,
+    isLandlord: false,
+    desc: 'Nombre d\'entrées d\'immeuble et de numéros de rue officiels recensés sur la même emprise bâtie (permet de repérer les grands ensembles ou immeubles d\'angle).',
+  },
+  {
+    id: 'usage_principal_bdnb_open',
+    category: 'morphology',
+    label: 'Usage principal officiel BDNB',
+    rawColumn: 'usage_principal_bdnb_open',
+    source: 'CSTB BDNB',
+    sourceFile: 'csv/batiment_groupe.csv',
+    producer: 'CSTB (Base Nationale des Bâtiments)',
+    retrievalMode: 'parquet',
+    coverage: 'France entière',
+    isFilter: false,
+    isDisplay: true,
+    isLandlord: false,
+    desc: 'Affectation d\'usage majoritaire du bâtiment (Résidentiel, Tertiaire, Mixte) consolidée par le CSTB à partir des déclarations fiscales foncières.',
+  },
+  {
+    id: 'facteurs_surchauffe',
+    category: 'summer',
+    label: 'Facteurs explicatifs de vulnérabilité canicule',
+    rawColumn: 'facteurs_surchauffe',
+    source: 'Collectif TeZeLoMa',
+    sourceFile: 'Score Composite TeZeLoMa (Algorithme multi-critères)',
+    producer: 'Collectif TeZeLoMa',
+    retrievalMode: 'etl',
+    coverage: 'Lyon (69) & Grenoble (38)',
+    isFilter: false,
+    isDisplay: true,
+    isLandlord: false,
+    desc: 'Liste textuelle synthétique détaillant les défauts thermiques cumulés de l\'immeuble (ex: « Toiture non isolée • Absence de volets • ICU Nocturne élevé »). Affichée sur la fiche inspecteur.',
+  },
+  {
+    id: 'loyer_ref_t2_non_meuble_m2',
+    category: 'social',
+    label: 'Loyer de référence médian préfectoral T2 non-meublé (€/m²)',
+    rawColumn: 'loyer_ref_t2_non_meuble_m2',
+    source: 'Préfecture / Observatoire des Loyers',
+    sourceFile: 'encadrement_loyers.geojson & Base_OP_2024_L3800.csv',
+    producer: 'Préfecture / Observatoire des Loyers',
+    retrievalMode: 'wfs',
+    coverage: 'Lyon (69) & Grenoble (38)',
+    isFilter: false,
+    isDisplay: true,
+    isLandlord: false,
+    desc: 'Loyer médian de référence fixé par arrêté préfectoral pour un logement T2 de même époque. Le loyer plafond légal (+20%) découle directement de cette valeur.',
+  },
+  {
+    id: 'loyer_max_t2_meuble_m2',
+    category: 'social',
+    label: 'Loyer plafond légal majoré T2 meublé (€/m²)',
+    rawColumn: 'loyer_max_t2_meuble_m2',
+    source: 'Préfecture / Data Grand Lyon',
+    sourceFile: 'encadrement_loyers.geojson',
+    producer: 'Préfecture / Data Grand Lyon',
+    retrievalMode: 'wfs',
+    coverage: '69 — Métropole de Lyon',
+    isFilter: false,
+    isDisplay: true,
+    isLandlord: false,
+    desc: 'Montant maximal légal autorisé au m² pour un bail meublé T2 (majoration meublé comprise). Tout dépassement expose le bailleur à une mise en demeure et une action locataire.',
+  },
+  {
+    id: 'dvf_valeur_mediane',
+    category: 'social',
+    label: 'Valeur vénale médiane des transactions DVF (€)',
+    rawColumn: 'dvf_valeur_mediane',
+    source: 'DGFiP DVF Open Data',
+    sourceFile: 'csv/batiment_groupe_dvf_open_statistique.csv',
+    producer: 'DGFiP (DVF Open Data)',
+    retrievalMode: 'csv',
+    coverage: 'France entière',
+    isFilter: false,
+    isDisplay: true,
+    isLandlord: false,
+    desc: 'Montant net vendeur médian en euros des ventes immobilières actées chez le notaire dans cet ensemble immobilier au cours des 5 dernières années.',
+  },
+  {
+    id: 'personne_id',
+    category: 'landlords',
+    label: 'Identifiant propriétaire personne morale (Cadastre MAJIC)',
+    rawColumn: 'personne_id',
+    source: 'DGFiP MAJIC',
+    sourceFile: 'csv/proprietaire.csv',
+    producer: 'DGFiP (Fichiers Fonciers MAJIC)',
+    retrievalMode: 'parquet',
+    coverage: 'Départements 69 & 38',
+    isFilter: false,
+    isDisplay: true,
+    isLandlord: true,
+    desc: 'Identifiant cadastral fiscal anonymisé ou pivot attribué par la DGFiP à chaque propriétaire personne morale pour rattacher l\'ensemble de son patrimoine foncier.',
+  },
+  {
+    id: 'nb_locaux_open_dans_batiment',
+    category: 'landlords',
+    label: 'Lots détenus par le propriétaire dans l\'immeuble',
+    rawColumn: 'nb_locaux_open_dans_batiment',
+    source: 'DGFiP MAJIC',
+    sourceFile: 'csv/rel_batiment_groupe_proprietaire.csv',
+    producer: 'DGFiP (Fichiers Fonciers MAJIC)',
+    retrievalMode: 'parquet',
+    coverage: 'Départements 69 & 38',
+    isFilter: false,
+    isDisplay: true,
+    isLandlord: true,
+    desc: 'Nombre exact de logements, commerces ou locaux déclarés au cadastre MAJIC au nom de cette société ou SCI dans ce bâtiment spécifique.',
+  },
+  {
+    id: 'dirigeants',
+    category: 'landlords',
+    label: 'Dirigeants, gérants et administrateurs d\'entreprises / SCI',
+    rawColumn: 'dirigeants (API REST live)',
+    source: 'DINUM / INPI / RNE',
+    sourceFile: 'https://recherche-entreprises.api.gouv.fr/search?q={siren}',
+    producer: 'DINUM / INPI (Registre National des Entreprises)',
+    retrievalMode: 'api',
+    coverage: 'France entière',
+    isFilter: false,
+    isDisplay: true,
+    isLandlord: true,
+    desc: 'Noms, prénoms, qualité (Gérant, Associé-Gérant, Président) et année de naissance des personnes physiques dirigeant la SCI ou la foncière, levés en temps réel au RNE lors du clic sur « Voir Dirigeants ».',
+  },
+  {
+    id: 'siege_adresse',
+    category: 'landlords',
+    label: 'Adresse postale et commune du siège social de l\'entreprise',
+    rawColumn: 'siege.adresse (API REST live)',
+    source: 'INSEE (Répertoire Sirene)',
+    sourceFile: 'https://recherche-entreprises.api.gouv.fr/search?q={siren}',
+    producer: 'INSEE (Répertoire Sirene)',
+    retrievalMode: 'api',
+    coverage: 'France entière',
+    isFilter: false,
+    isDisplay: true,
+    isLandlord: true,
+    desc: 'Adresse officielle du siège social de la personne morale propriétaire déclarée au répertoire Sirene de l\'INSEE (permet de démasquer les holdings basées à Paris ou à l\'étranger).',
+  },
+  {
+    id: 'libelle_activite_principale',
+    category: 'landlords',
+    label: 'Activité principale et code NAF de la société',
+    rawColumn: 'libelle_activite_principale (API REST live)',
+    source: 'INSEE (Répertoire Sirene)',
+    sourceFile: 'https://recherche-entreprises.api.gouv.fr/search?q={siren}',
+    producer: 'INSEE (Répertoire Sirene)',
+    retrievalMode: 'api',
+    coverage: 'France entière',
+    isFilter: false,
+    isDisplay: true,
+    isLandlord: true,
+    desc: 'Code et libellé officiel d\'activité économique (NAF / APE) de l\'entreprise propriétaire (ex: 68.20A Location de logements, 68.20B Location de terrains et autres biens...).',
+  },
+  {
+    id: 'fieldwork_custom',
+    category: 'geography',
+    label: 'Colonnes personnalisées libres de votre tableur .xlsx terrain',
+    rawColumn: 'Colonnes libres .xlsx (clé pivot batiment_groupe_id)',
+    source: 'Tableur militant (.xlsx)',
+    sourceFile: 'Fichier Excel (.xlsx) téléversé dans la barre latérale',
+    producer: 'Tableur terrain de l\'utilisateur',
+    retrievalMode: 'xlsx',
+    coverage: 'Territoire de l\'enquête',
+    isFilter: true,
+    isDisplay: true,
+    isLandlord: false,
+    desc: 'Toutes les colonnes personnalisées de votre fichier Excel de suivi militant (notes, contacts locataires, dates d\'assemblée, litiges) fusionnées automatiquement grâce à l\'identifiant pivot batiment_groupe_id.',
+  },
+];
+
+let DATA_SOURCES_DICTIONARY = [];
+
+function buildDataSourcesDictionary() {
+  const dict = [];
+
+  // 1. Convert all FILTER_DEFINITIONS
+  for (const f of FILTER_DEFINITIONS) {
+    const meta = SOURCE_METADATA_MAP[f.source] || {
+      file: f.source,
+      producer: f.source,
+      mode: 'csv',
+      coverage: 'France entière',
+    };
+
+    const rawCol = RAW_COLUMN_OVERRIDE[f.id] || f.column;
+    const cat = SOCIOLOGICAL_CATEGORIES.find(c => c.id === f.category);
+    const categoryLabel = cat ? cat.shortLabel : f.category;
+    const categoryIcon = cat ? cat.icon : '📌';
+
+    const isDisplay = [
+      'dpe', 'classe_ges', 'conso_ep_m2', 'nb_log', 'nb_niveau', 'annee_construction',
+      'score_surchauffe_ete', 'risque_surchauffe_ete', 'loyer_max_t2_nm', 'loyer_max_t2_non_meuble_m2',
+      'quartier_qpv', 'nom_copro', 'type_energie_chauffage', 'type_vitrage', 'type_ventilation',
+      'conso_elec_res_par_pdl_kwh', 'distance_reseau_chaleur', 'dvf_prix_m2_median', 'dvf_nb_mutations',
+      'adr', 'cp', 'pct_dpe_fg', 'nb_dpe_fg',
+    ].includes(f.id);
+
+    const isLandlord = [
+      'owner_search', 'legal_category', 'forme_juridique_principale', 'concentration_pct',
+      'max_locaux_un_prop', 'min_patrimoine_majic', 'nb_proprietaires_open', 'bailleur_distant',
+    ].includes(f.id);
+
+    dict.push({
+      id: f.id,
+      label: f.label,
+      category: f.category,
+      categoryLabel: categoryLabel,
+      categoryIcon: categoryIcon,
+      rawColumn: rawCol,
+      desc: f.desc,
+      source: f.source,
+      sourceFile: meta.file,
+      producer: meta.producer,
+      retrievalMode: meta.mode,
+      coverage: meta.coverage,
+      isFilter: true,
+      isDisplay: isDisplay,
+      isLandlord: isLandlord,
+    });
+  }
+
+  // 2. Add extra displayable variables
+  for (const extra of EXTRA_DISPLAYABLE_VARIABLES) {
+    const cat = SOCIOLOGICAL_CATEGORIES.find(c => c.id === extra.category);
+    dict.push({
+      id: extra.id,
+      label: extra.label,
+      category: extra.category,
+      categoryLabel: cat ? cat.shortLabel : extra.category,
+      categoryIcon: cat ? cat.icon : '📌',
+      rawColumn: extra.rawColumn,
+      desc: extra.desc,
+      source: extra.source,
+      sourceFile: extra.sourceFile,
+      producer: extra.producer,
+      retrievalMode: extra.retrievalMode,
+      coverage: extra.coverage,
+      isFilter: extra.isFilter,
+      isDisplay: extra.isDisplay,
+      isLandlord: extra.isLandlord,
+    });
+  }
+
+  DATA_SOURCES_DICTIONARY = dict;
+  return DATA_SOURCES_DICTIONARY;
+}
+
+const sourcesState = {
+  subview: 'info', // 'info' | 'dataset'
+  searchQuery: '',
+  categoryFilter: 'all',
+  producerFilter: 'all',
+  usageFilter: 'all',
+  sortCol: 'label',
+  sortDir: 'asc',
+  pinnedRowId: null,
+};
+
+const SOURCES_TABLE_COLUMNS = [
+  {
+    key: 'label',
+    label: 'Information / Libellé',
+    sortValue: (item) => (item.label || '').toLowerCase(),
+  },
+  {
+    key: 'rawColumn',
+    label: 'Colonne brute d\'origine',
+    sortValue: (item) => (item.rawColumn || '').toLowerCase(),
+  },
+  {
+    key: 'desc',
+    label: 'Description & Contexte légal',
+    sortValue: (item) => (item.desc || '').toLowerCase(),
+  },
+  {
+    key: 'sourceFile',
+    label: 'Fichier / API Source',
+    sortValue: (item) => (item.sourceFile || '').toLowerCase(),
+  },
+  {
+    key: 'producer',
+    label: 'Producteur officiel',
+    sortValue: (item) => (item.producer || '').toLowerCase(),
+  },
+  {
+    key: 'category',
+    label: 'Thématique',
+    sortValue: (item) => (item.categoryLabel || '').toLowerCase(),
+  },
+];
+
+function getFilteredSourcesList() {
+  if (DATA_SOURCES_DICTIONARY.length === 0) {
+    buildDataSourcesDictionary();
+  }
+
+  const q = (sourcesState.searchQuery || '').trim().toLowerCase();
+  const cat = sourcesState.categoryFilter;
+  const prod = sourcesState.producerFilter;
+  const usage = sourcesState.usageFilter;
+
+  let list = DATA_SOURCES_DICTIONARY.filter(item => {
+    // 1. Category Filter
+    if (cat !== 'all' && item.category !== cat) {
+      return false;
+    }
+
+    // 2. Producer Filter
+    if (prod !== 'all' && item.producer !== prod) {
+      return false;
+    }
+
+    // 3. Usage Filter
+    if (usage === 'filter' && !item.isFilter) return false;
+    if (usage === 'display' && !item.isDisplay) return false;
+    if (usage === 'landlord' && !item.isLandlord) return false;
+    if (usage === 'rhone' && !item.coverage.includes('69') && !item.coverage.includes('Lyon')) return false;
+    if (usage === 'isere' && !item.coverage.includes('38') && !item.coverage.includes('Grenoble')) return false;
+    if (usage === 'national' && !item.coverage.includes('France')) return false;
+
+    // 4. Text Search Query
+    if (q) {
+      const match =
+        (item.label && item.label.toLowerCase().includes(q)) ||
+        (item.rawColumn && item.rawColumn.toLowerCase().includes(q)) ||
+        (item.desc && item.desc.toLowerCase().includes(q)) ||
+        (item.sourceFile && item.sourceFile.toLowerCase().includes(q)) ||
+        (item.producer && item.producer.toLowerCase().includes(q)) ||
+        (item.categoryLabel && item.categoryLabel.toLowerCase().includes(q)) ||
+        (item.coverage && item.coverage.toLowerCase().includes(q));
+      if (!match) return false;
+    }
+
+    return true;
+  });
+
+  // Sort
+  if (sourcesState.sortCol) {
+    const colDef = SOURCES_TABLE_COLUMNS.find(c => c.key === sourcesState.sortCol);
+    if (colDef) {
+      list.sort((a, b) => {
+        const vA = colDef.sortValue(a);
+        const vB = colDef.sortValue(b);
+        const cmp = vA.localeCompare(vB, 'fr', { numeric: true, sensitivity: 'base' });
+        return sourcesState.sortDir === 'desc' ? -cmp : cmp;
+      });
+    }
+  }
+
+  return list;
+}
+
+function switchSourcesSubview(subview) {
+  sourcesState.subview = subview;
+
+  const btnInfo = document.getElementById('btn-sources-subview-info');
+  const btnDataset = document.getElementById('btn-sources-subview-dataset');
+  const panelInfo = document.getElementById('sources-subview-info');
+  const panelDataset = document.getElementById('sources-subview-dataset');
+
+  if (btnInfo) btnInfo.classList.toggle('active', subview === 'info');
+  if (btnDataset) btnDataset.classList.toggle('active', subview === 'dataset');
+
+  if (panelInfo) panelInfo.style.display = subview === 'info' ? 'block' : 'none';
+  if (panelDataset) panelDataset.style.display = subview === 'dataset' ? 'block' : 'none';
+
+  if (subview === 'info') {
+    renderSourcesDictTable();
+  }
+}
+
+function renderSourcesDictHeaders() {
+  const tr = document.getElementById('sources-dict-thead-tr');
+  if (!tr) return;
+  tr.innerHTML = '';
+
+  for (const col of SOURCES_TABLE_COLUMNS) {
+    const th = document.createElement('th');
+    th.className = 'sortable';
+
+    const isActive = sourcesState.sortCol === col.key;
+    if (isActive) {
+      th.classList.add('sorted-active');
+    }
+
+    const sortSymbol = isActive
+      ? (sourcesState.sortDir === 'asc' ? ' ▲' : ' ▼')
+      : ' <span style="opacity:0.35;">⇅</span>';
+
+    th.innerHTML = `${escapeHtml(col.label)} <span class="sort-indicator">${sortSymbol}</span>`;
+
+    th.addEventListener('click', () => {
+      if (sourcesState.sortCol === col.key) {
+        sourcesState.sortDir = sourcesState.sortDir === 'asc' ? 'desc' : 'asc';
+      } else {
+        sourcesState.sortCol = col.key;
+        sourcesState.sortDir = 'asc';
+      }
+      renderSourcesDictTable();
+    });
+
+    tr.appendChild(th);
+  }
+}
+
+function renderSourcesDictTable() {
+  const tbody = document.getElementById('table-sources-dict-body');
+  if (!tbody) return;
+
+  renderSourcesDictHeaders();
+
+  const filtered = getFilteredSourcesList();
+
+  // Update dynamic count feedback
+  const feedbackEl = document.getElementById('sources-filter-feedback');
+  if (feedbackEl) {
+    feedbackEl.innerHTML = `Affichage de <strong>${filtered.length}</strong> sur <strong>${DATA_SOURCES_DICTIONARY.length}</strong> information(s) et colonnes sources`;
+  }
+
+  // Update count pill in subnav
+  const pillEl = document.getElementById('sources-count-pill');
+  if (pillEl) {
+    pillEl.textContent = `${DATA_SOURCES_DICTIONARY.length} variables & colonnes sources répertoriées`;
+  }
+
+  if (filtered.length === 0) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="6">
+          <div class="sources-empty-state">
+            <div class="sources-empty-icon">🔍</div>
+            <div class="sources-empty-title">Aucune information trouvée</div>
+            <p>Aucun indicateur ni colonne brute ne correspond à vos filtres actuels.</p>
+            <button type="button" class="btn btn-secondary btn-sm" id="btn-sources-empty-reset" style="margin-top:0.6rem;">
+              🔄 Réinitialiser tous les filtres
+            </button>
+          </div>
+        </td>
+      </tr>
+    `;
+    document.getElementById('btn-sources-empty-reset')?.addEventListener('click', resetSourcesFilters);
+    return;
+  }
+
+  tbody.innerHTML = '';
+  const fragment = document.createDocumentFragment();
+
+  for (const item of filtered) {
+    const tr = document.createElement('tr');
+    tr.setAttribute('data-id', item.id);
+
+    // 1. Information / Libellé
+    const tdInfo = document.createElement('td');
+    tdInfo.className = 'sources-info-cell';
+
+    let usagePillsHtml = '';
+    if (item.isFilter) {
+      usagePillsHtml += `<span class="badge-usage-filter" title="Indicateur filtrable dans le catalogue dynamique">🎛️ Filtre</span> `;
+    }
+    if (item.isDisplay) {
+      usagePillsHtml += `<span class="badge-usage-display" title="Affiché dans la table ou la fiche détaillée de l'immeuble">👁️ Affiché</span> `;
+    }
+    if (item.isLandlord) {
+      usagePillsHtml += `<span class="badge-usage-landlord" title="Affiché dans l'onglet Bailleurs & SCI">🏛️ Bailleur</span> `;
+    }
+
+    tdInfo.innerHTML = `
+      <div class="sources-info-name">
+        <span>${item.categoryIcon}</span>
+        <span>${escapeHtml(item.label)}</span>
+      </div>
+      <div class="sources-info-badges">
+        ${usagePillsHtml}
+      </div>
+    `;
+
+    // 2. Colonne brute d'origine
+    const tdCol = document.createElement('td');
+    tdCol.innerHTML = `
+      <div class="sources-col-box" data-col="${escapeHtml(item.rawColumn)}" title="Cliquer pour copier le nom de la colonne brute">
+        <code>${escapeHtml(item.rawColumn)}</code>
+        <span class="btn-copy-col">📋</span>
+      </div>
+    `;
+
+    // 3. Description (preview and hover if big)
+    const tdDesc = document.createElement('td');
+    const isLongDesc = item.desc && item.desc.length > 75;
+    const isPinned = sourcesState.pinnedRowId === item.id;
+
+    tdDesc.innerHTML = `
+      <div class="sources-desc-cell${isPinned ? ' pinned' : ''}" data-id="${item.id}" title="Cliquer pour épingler/fermer l'explication complète">
+        <div class="sources-desc-preview">
+          ${escapeHtml(item.desc)}
+        </div>
+        ${isLongDesc ? `<span class="sources-desc-more-hint">🔍 Survoler / Cliquer pour lire la suite</span>` : ''}
+        <div class="sources-desc-popover">
+          <div class="sources-desc-popover-title">
+            <span>${item.categoryIcon}</span>
+            <span>${escapeHtml(item.label)}</span>
+          </div>
+          <div class="sources-desc-popover-body">
+            ${escapeHtml(item.desc)}
+          </div>
+          <div class="sources-desc-popover-law">
+            <b>Colonne :</b> <code>${escapeHtml(item.rawColumn)}</code> • <b>Source :</b> ${escapeHtml(item.sourceFile)} (${escapeHtml(item.producer)})
+          </div>
+        </div>
+      </div>
+    `;
+
+    // 4. Fichier / API Source
+    const tdFile = document.createElement('td');
+    tdFile.className = 'sources-file-cell';
+    const tagClass = `tz-tag-${item.retrievalMode || 'csv'}`;
+    const modeLabel = {
+      csv: '📦 CSV Open Data',
+      parquet: '🗄️ GeoParquet',
+      wfs: '🗺️ WFS Spatial',
+      api: '⚡ API REST Live',
+      xlsx: '📋 Tableur .xlsx',
+      etl: '⚙️ Build ETL',
+    }[item.retrievalMode] || '📦 Fichier';
+
+    tdFile.innerHTML = `
+      <div class="sources-file-name" title="${escapeHtml(item.sourceFile)}">${escapeHtml(item.sourceFile)}</div>
+      <div class="sources-file-meta">
+        <span class="tz-tag ${tagClass}" style="font-size:0.68rem; padding: 1px 6px;">${modeLabel}</span>
+        <span class="badge-coverage">${escapeHtml(item.coverage)}</span>
+      </div>
+    `;
+
+    // 5. Producteur officiel
+    const tdProd = document.createElement('td');
+    tdProd.className = 'sources-producer-cell';
+    tdProd.innerHTML = `
+      <span class="badge-producer">🏛️ ${escapeHtml(item.producer)}</span>
+    `;
+
+    // 6. Catégorie / Thématique
+    const tdCat = document.createElement('td');
+    tdCat.innerHTML = `
+      <span class="badge-category badge-cat-${item.category}">
+        <span>${item.categoryIcon}</span>
+        <span>${escapeHtml(item.categoryLabel)}</span>
+      </span>
+    `;
+
+    tr.appendChild(tdInfo);
+    tr.appendChild(tdCol);
+    tr.appendChild(tdDesc);
+    tr.appendChild(tdFile);
+    tr.appendChild(tdProd);
+    tr.appendChild(tdCat);
+
+    fragment.appendChild(tr);
+  }
+
+  tbody.appendChild(fragment);
+
+  // Attach interactive click-to-copy handlers on column boxes
+  tbody.querySelectorAll('.sources-col-box').forEach(box => {
+    box.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const colText = box.getAttribute('data-col');
+      if (colText && navigator.clipboard) {
+        navigator.clipboard.writeText(colText).then(() => {
+          const originalHtml = box.innerHTML;
+          box.innerHTML = `<code>${escapeHtml(colText)}</code> <span style="color:#059669; font-weight:700;">✓ Copié !</span>`;
+          setTimeout(() => {
+            box.innerHTML = originalHtml;
+          }, 1400);
+        }).catch(err => {
+          console.warn('Clipboard write failed:', err);
+        });
+      }
+    });
+  });
+
+  // Attach click-to-pin handlers on description cells
+  tbody.querySelectorAll('.sources-desc-cell').forEach(cell => {
+    cell.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const cellId = cell.getAttribute('data-id');
+      if (sourcesState.pinnedRowId === cellId) {
+        sourcesState.pinnedRowId = null;
+        cell.classList.remove('pinned');
+      } else {
+        tbody.querySelectorAll('.sources-desc-cell.pinned').forEach(c => c.classList.remove('pinned'));
+        sourcesState.pinnedRowId = cellId;
+        cell.classList.add('pinned');
+      }
+    });
+  });
+}
+
+function resetSourcesFilters() {
+  sourcesState.searchQuery = '';
+  sourcesState.categoryFilter = 'all';
+  sourcesState.producerFilter = 'all';
+  sourcesState.usageFilter = 'all';
+
+  const inputSearch = document.getElementById('sources-search-input');
+  if (inputSearch) inputSearch.value = '';
+
+  const btnClear = document.getElementById('btn-sources-clear-search');
+  if (btnClear) btnClear.style.display = 'none';
+
+  const selectCat = document.getElementById('sources-filter-category');
+  if (selectCat) selectCat.value = 'all';
+
+  const selectProd = document.getElementById('sources-filter-producer');
+  if (selectProd) selectProd.value = 'all';
+
+  const selectUsage = document.getElementById('sources-filter-usage');
+  if (selectUsage) selectUsage.value = 'all';
+
+  renderSourcesDictTable();
+}
+
+function exportSourcesDictionaryCSV() {
+  const visibleItems = getFilteredSourcesList();
+  if (visibleItems.length === 0) {
+    alert('Aucune information à exporter avec les filtres actuels.');
+    return;
+  }
+
+  const headers = [
+    'Information',
+    'Thematique',
+    'Colonne_Brute_Origine',
+    'Description',
+    'Fichier_ou_API_Source',
+    'Producteur_Officiel',
+    'Mode_Recuperation',
+    'Couverture_Territoriale',
+    'Filtrable_Catalogue',
+    'Affiche_Detail',
+  ];
+
+  const rows = visibleItems.map(i => [
+    `"${(i.label || '').replace(/"/g, '""')}"`,
+    `"${(i.categoryLabel || '').replace(/"/g, '""')}"`,
+    `"${(i.rawColumn || '').replace(/"/g, '""')}"`,
+    `"${(i.desc || '').replace(/"/g, '""')}"`,
+    `"${(i.sourceFile || '').replace(/"/g, '""')}"`,
+    `"${(i.producer || '').replace(/"/g, '""')}"`,
+    `"${(i.retrievalMode || '').replace(/"/g, '""')}"`,
+    `"${(i.coverage || '').replace(/"/g, '""')}"`,
+    i.isFilter ? 'Oui' : 'Non',
+    i.isDisplay ? 'Oui' : 'Non',
+  ]);
+
+  const csvContent = '\uFEFF' + [headers.join(','), ...rows.map(r => r.join(','))].join('\r\n');
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  const dateStr = new Date().toISOString().slice(0, 10);
+  a.download = `tezeloma_dictionnaire_sources_${dateStr}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function navigateToSourceInfo(query) {
+  switchTab('sources');
+  switchSourcesSubview('info');
+
+  sourcesState.searchQuery = query || '';
+  sourcesState.categoryFilter = 'all';
+  sourcesState.producerFilter = 'all';
+  sourcesState.usageFilter = 'all';
+
+  const inputSearch = document.getElementById('sources-search-input');
+  if (inputSearch) inputSearch.value = query || '';
+
+  const btnClear = document.getElementById('btn-sources-clear-search');
+  if (btnClear) btnClear.style.display = query ? 'block' : 'none';
+
+  const selectCat = document.getElementById('sources-filter-category');
+  if (selectCat) selectCat.value = 'all';
+
+  const selectProd = document.getElementById('sources-filter-producer');
+  if (selectProd) selectProd.value = 'all';
+
+  const selectUsage = document.getElementById('sources-filter-usage');
+  if (selectUsage) selectUsage.value = 'all';
+
+  renderSourcesDictTable();
+
+  // Highlight matching row if present
+  setTimeout(() => {
+    const matchingRow = document.querySelector(`#table-sources-dict-body tr[data-id="${query}"]`);
+    if (matchingRow) {
+      matchingRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      matchingRow.classList.add('highlight-row');
+      setTimeout(() => matchingRow.classList.remove('highlight-row'), 2500);
+    }
+  }, 100);
+}
+
+window.navigateToSourceInfo = navigateToSourceInfo;
+
+function initSourcesTabControls() {
+  buildDataSourcesDictionary();
+
+  // Subview toggle buttons
+  document.getElementById('btn-sources-subview-info')?.addEventListener('click', () => {
+    switchSourcesSubview('info');
+  });
+
+  document.getElementById('btn-sources-subview-dataset')?.addEventListener('click', () => {
+    switchSourcesSubview('dataset');
+  });
+
+  // Populate Producer select filter
+  const selectProd = document.getElementById('sources-filter-producer');
+  if (selectProd) {
+    const producers = Array.from(new Set(DATA_SOURCES_DICTIONARY.map(i => i.producer))).sort();
+    selectProd.innerHTML = '<option value="all">Tous les producteurs</option>';
+    for (const p of producers) {
+      const opt = document.createElement('option');
+      opt.value = p;
+      opt.textContent = p;
+      selectProd.appendChild(opt);
+    }
+    selectProd.addEventListener('change', () => {
+      sourcesState.producerFilter = selectProd.value;
+      renderSourcesDictTable();
+    });
+  }
+
+  // Category select filter
+  const selectCat = document.getElementById('sources-filter-category');
+  if (selectCat) {
+    selectCat.addEventListener('change', () => {
+      sourcesState.categoryFilter = selectCat.value;
+      renderSourcesDictTable();
+    });
+  }
+
+  // Usage select filter
+  const selectUsage = document.getElementById('sources-filter-usage');
+  if (selectUsage) {
+    selectUsage.addEventListener('change', () => {
+      sourcesState.usageFilter = selectUsage.value;
+      renderSourcesDictTable();
+    });
+  }
+
+  // Search input with instant filtering
+  const inputSearch = document.getElementById('sources-search-input');
+  const btnClear = document.getElementById('btn-sources-clear-search');
+  if (inputSearch) {
+    inputSearch.addEventListener('input', () => {
+      sourcesState.searchQuery = inputSearch.value;
+      if (btnClear) {
+        btnClear.style.display = inputSearch.value ? 'block' : 'none';
+      }
+      renderSourcesDictTable();
+    });
+  }
+
+  if (btnClear && inputSearch) {
+    btnClear.addEventListener('click', () => {
+      inputSearch.value = '';
+      sourcesState.searchQuery = '';
+      btnClear.style.display = 'none';
+      inputSearch.focus();
+      renderSourcesDictTable();
+    });
+  }
+
+  // Reset filters button
+  document.getElementById('btn-sources-reset-filters')?.addEventListener('click', resetSourcesFilters);
+
+  // Export CSV button
+  document.getElementById('btn-sources-export-csv')?.addEventListener('click', exportSourcesDictionaryCSV);
+
+  // Building drawer goto sources button
+  document.getElementById('btn-drawer-goto-sources')?.addEventListener('click', () => {
+    switchTab('sources');
+    switchSourcesSubview('info');
+  });
+
+  // Close pinned popovers on click outside
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('.sources-desc-cell')) {
+      sourcesState.pinnedRowId = null;
+      document.querySelectorAll('.sources-desc-cell.pinned').forEach(c => c.classList.remove('pinned'));
+    }
+  });
+
+  // Initial render
+  renderSourcesDictTable();
+}
+
+function renderSourcesTab() {
+  if (DATA_SOURCES_DICTIONARY.length === 0) {
+    buildDataSourcesDictionary();
+  }
+  if (sourcesState.subview === 'info') {
+    renderSourcesDictTable();
+  }
 }
 
 /* ==========================================================================

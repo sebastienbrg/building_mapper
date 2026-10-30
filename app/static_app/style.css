@@ -1773,6 +1773,487 @@ details.tz-geo-lyon > summary {
 }
 
 /* ==========================================================================
+   Tab 5: Info-Oriented Data Sources & Traceability Dictionary
+   ========================================================================== */
+
+.sources-subnav-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-bottom: 0.85rem;
+  border-bottom: 2px solid var(--border-color);
+  padding-bottom: 0.65rem;
+}
+
+.sources-subnav-buttons {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.sources-subnav-btn {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: 0.45rem 0.95rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.sources-subnav-btn:hover {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+.sources-subnav-btn.active {
+  background: var(--accent-primary);
+  color: #ffffff;
+  border-color: var(--accent-primary);
+  box-shadow: 0 2px 6px rgba(37, 99, 235, 0.25);
+}
+
+.sources-count-pill {
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 999px;
+  padding: 0.25rem 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--accent-primary);
+}
+
+.sources-subview-panel {
+  display: none;
+}
+
+.sources-subview-panel.active {
+  display: block;
+}
+
+.sources-toolbar {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 0.75rem 1rem;
+  margin-bottom: 0.65rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.sources-search-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.sources-search-box {
+  position: relative;
+  flex: 1;
+  min-width: 280px;
+}
+
+.sources-search-box input {
+  padding-right: 2rem;
+  width: 100%;
+}
+
+.sources-filters-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.sources-filter-group {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.sources-filter-label {
+  font-size: 0.74rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.sources-select {
+  font-size: 0.78rem;
+  padding: 0.35rem 0.65rem;
+  min-width: 175px;
+  max-width: 260px;
+  height: 34px;
+}
+
+.sources-actions-group {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  margin-left: auto;
+}
+
+.sources-status-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.76rem;
+  color: var(--text-secondary);
+  margin-bottom: 0.5rem;
+  padding: 0 0.2rem;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.sources-status-bar strong {
+  color: var(--accent-primary);
+  font-weight: 700;
+}
+
+.sources-status-hint {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
+.sources-table-container {
+  max-height: calc(100vh - 310px);
+  min-height: 320px;
+  overflow-y: auto;
+  overflow-x: auto;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: #ffffff;
+}
+
+table.sources-data-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 0.8rem;
+  text-align: left;
+}
+
+table.sources-data-table th {
+  position: sticky;
+  top: 0;
+  background: #f8fafc;
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 0.65rem 0.85rem;
+  border-bottom: 2px solid var(--border-color);
+  z-index: 5;
+  white-space: nowrap;
+}
+
+table.sources-data-table th.sortable {
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+table.sources-data-table th.sortable:hover {
+  background: #f1f5f9;
+  color: var(--text-primary);
+}
+
+table.sources-data-table th.sorted-active {
+  color: var(--accent-primary);
+  background: #f1f5f9;
+}
+
+table.sources-data-table th .sort-indicator {
+  display: inline-block;
+  margin-left: 0.35rem;
+  font-size: 0.72rem;
+  color: var(--accent-primary);
+}
+
+table.sources-data-table td {
+  padding: 0.6rem 0.85rem;
+  border-bottom: 1px solid #f1f5f9;
+  color: var(--text-primary);
+  vertical-align: top;
+}
+
+table.sources-data-table tr:hover td {
+  background: #f8fafc;
+}
+
+/* Info Column */
+.sources-info-cell {
+  max-width: 290px;
+  min-width: 210px;
+}
+
+.sources-info-name {
+  font-weight: 700;
+  font-size: 0.81rem;
+  color: var(--text-primary);
+  line-height: 1.35;
+  margin-bottom: 0.25rem;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.35rem;
+}
+
+.sources-info-badges {
+  display: flex;
+  gap: 0.3rem;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.badge-usage-filter {
+  background: rgba(37, 99, 235, 0.12);
+  color: #2563eb;
+  border: 1px solid rgba(37, 99, 235, 0.28);
+  border-radius: 999px;
+  padding: 1px 6px;
+  font-size: 0.68rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.badge-usage-display {
+  background: rgba(5, 150, 105, 0.12);
+  color: #059669;
+  border: 1px solid rgba(5, 150, 105, 0.28);
+  border-radius: 999px;
+  padding: 1px 6px;
+  font-size: 0.68rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.badge-usage-landlord {
+  background: rgba(124, 58, 237, 0.12);
+  color: #7c3aed;
+  border: 1px solid rgba(124, 58, 237, 0.28);
+  border-radius: 999px;
+  padding: 1px 6px;
+  font-size: 0.68rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* Raw Column */
+.sources-col-box {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  background: #f1f5f9;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  padding: 0.2rem 0.5rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 0.74rem;
+  color: #0f172a;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: all;
+}
+
+.sources-col-box:hover {
+  background: #e2e8f0;
+  border-color: #94a3b8;
+  color: var(--accent-primary);
+}
+
+.sources-col-box .btn-copy-col {
+  font-size: 0.7rem;
+  opacity: 0.7;
+}
+
+/* Description Cell with Preview and Hover if Big */
+.sources-desc-cell {
+  position: relative;
+  max-width: 380px;
+  min-width: 220px;
+  white-space: normal;
+  cursor: help;
+}
+
+.sources-desc-preview {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.38;
+  font-size: 0.77rem;
+  color: var(--text-primary);
+}
+
+.sources-desc-more-hint {
+  display: inline-block;
+  font-size: 0.68rem;
+  color: var(--accent-primary);
+  margin-top: 2px;
+  font-weight: 600;
+}
+
+.sources-desc-popover {
+  position: absolute;
+  left: 0;
+  top: calc(100% + 4px);
+  width: 440px;
+  max-width: 90vw;
+  background: #0f172a;
+  color: #f8fafc;
+  border: 1px solid #334155;
+  border-radius: 6px;
+  padding: 0.75rem 0.95rem;
+  font-size: 0.77rem;
+  line-height: 1.45;
+  box-shadow: 0 10px 25px -3px rgba(0, 0, 0, 0.5), 0 4px 6px -2px rgba(0, 0, 0, 0.2);
+  z-index: 10000;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+  transform: translateY(4px);
+  white-space: normal;
+}
+
+.sources-desc-cell:hover .sources-desc-popover,
+.sources-desc-cell.pinned .sources-desc-popover {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transform: translateY(0);
+}
+
+.sources-desc-popover-title {
+  font-weight: 700;
+  font-size: 0.82rem;
+  color: #38bdf8;
+  margin-bottom: 0.35rem;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.sources-desc-popover-body {
+  color: #e2e8f0;
+  font-size: 0.76rem;
+  line-height: 1.45;
+}
+
+.sources-desc-popover-law {
+  margin-top: 0.45rem;
+  padding-top: 0.45rem;
+  border-top: 1px solid #334155;
+  color: #94a3b8;
+  font-size: 0.72rem;
+  font-style: italic;
+}
+
+/* File / API Column */
+.sources-file-cell {
+  max-width: 280px;
+  min-width: 170px;
+  white-space: normal;
+}
+
+.sources-file-name {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 0.72rem;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  padding: 2px 5px;
+  border-radius: 4px;
+  color: var(--text-primary);
+  display: inline-block;
+  word-break: break-all;
+  margin-bottom: 0.25rem;
+}
+
+.sources-file-meta {
+  display: flex;
+  gap: 0.3rem;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+/* Producer Column */
+.sources-producer-cell {
+  white-space: normal;
+  max-width: 170px;
+  min-width: 130px;
+}
+
+.badge-producer {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.2rem 0.55rem;
+  border-radius: 4px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+}
+
+.badge-coverage {
+  font-size: 0.69rem;
+  color: var(--text-muted);
+  display: inline-block;
+  margin-top: 0.2rem;
+}
+
+/* Category Badge */
+.badge-category {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.badge-cat-winter { background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; }
+.badge-cat-summer { background: #fef3c7; color: #b45309; border: 1px solid #fde68a; }
+.badge-cat-landlords { background: #f3e8ff; color: #7e22ce; border: 1px solid #e9d5ff; }
+.badge-cat-social { background: #dcfce7; color: #15803d; border: 1px solid #bbf7d0; }
+.badge-cat-copro { background: #ffedd5; color: #c2410c; border: 1px solid #fed7aa; }
+.badge-cat-morphology { background: #f1f5f9; color: #334155; border: 1px solid #e2e8f0; }
+.badge-cat-geography { background: #fae8ff; color: #a21caf; border: 1px solid #f5d0fe; }
+
+/* Empty state */
+.sources-empty-state {
+  text-align: center;
+  padding: 3rem 1.5rem;
+  color: var(--text-muted);
+}
+
+.sources-empty-icon {
+  font-size: 2.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.sources-empty-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 0.3rem;
+}
+
+/* ==========================================================================
    Location Entry Modal & Territory Selection Mode
    ========================================================================== */
 

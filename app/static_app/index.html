@@ -415,6 +415,97 @@
 
       <!-- TAB 5: 📚 SOURCES DE DONNÉES -->
       <div class="tab-pane content-pane" id="pane-sources">
+        <!-- Subview Switcher: Info-oriented vs Dataset/Geo-oriented -->
+        <div class="sources-subnav-bar">
+          <div class="sources-subnav-buttons">
+            <button type="button" class="sources-subnav-btn active" id="btn-sources-subview-info" data-subview="info">
+              📋 Dictionnaire des Informations & Traçabilité (Vue Info-Orientée)
+            </button>
+            <button type="button" class="sources-subnav-btn" id="btn-sources-subview-dataset" data-subview="dataset">
+              📦 Référentiels Bruts & Territoires (Archives & Flux)
+            </button>
+          </div>
+          <div class="sources-subnav-summary">
+            <span class="sources-count-pill" id="sources-count-pill">Chargement du dictionnaire...</span>
+          </div>
+        </div>
+
+        <!-- SUBVIEW 1: INFO-ORIENTED VIEW (Default) -->
+        <div id="sources-subview-info" class="sources-subview-panel active">
+          <!-- Control Toolbar: Search, Filters, Reset, Export -->
+          <div class="sources-toolbar">
+            <div class="sources-search-row">
+              <div class="sources-search-box">
+                <input type="text" id="sources-search-input" class="form-input" placeholder="🔍 Rechercher une information, colonne brute (ex: classe_bilan_dpe, siren, icu_lcz_lib...), mot-clé..." autocomplete="off">
+                <button type="button" id="btn-sources-clear-search" class="btn-clear-input" title="Effacer" style="display:none;">✕</button>
+              </div>
+              <div class="sources-actions-group">
+                <button type="button" id="btn-sources-reset-filters" class="btn btn-secondary btn-sm" title="Réinitialiser tous les filtres">
+                  🔄 Réinitialiser
+                </button>
+                <button type="button" id="btn-sources-export-csv" class="btn btn-secondary btn-sm" title="Télécharger le dictionnaire au format CSV">
+                  📥 Exporter CSV
+                </button>
+              </div>
+            </div>
+            <div class="sources-filters-row">
+              <div class="sources-filter-group">
+                <label for="sources-filter-category" class="sources-filter-label">Thématique :</label>
+                <select id="sources-filter-category" class="form-select sources-select">
+                  <option value="all">Toutes les thématiques</option>
+                  <option value="winter">🌡️ 1. Précarité Hiver & Factures</option>
+                  <option value="summer">☀️ 2. Canicule & Bouilloires Été</option>
+                  <option value="landlords">🏛️ 3. Propriétaires, SCI & Rapports de force</option>
+                  <option value="social">⚖️ 4. Justice Sociale, Loyers & Marché</option>
+                  <option value="copro">🏢 5. Copropriétés, Salubrité & Qualité</option>
+                  <option value="morphology">🏗️ 6. Morphologie Urbaine, Époque & Risques</option>
+                  <option value="geography">📍 7. Géographie Fine & Terrain (.xlsx)</option>
+                </select>
+              </div>
+              <div class="sources-filter-group">
+                <label for="sources-filter-producer" class="sources-filter-label">Producteur officiel :</label>
+                <select id="sources-filter-producer" class="form-select sources-select">
+                  <option value="all">Tous les producteurs</option>
+                </select>
+              </div>
+              <div class="sources-filter-group">
+                <label for="sources-filter-usage" class="sources-filter-label">Type d'usage :</label>
+                <select id="sources-filter-usage" class="form-select sources-select">
+                  <option value="all">Tous les usages</option>
+                  <option value="filter">🎛️ Filtrable dans le catalogue (69 filtres)</option>
+                  <option value="display">👁️ Données affichées (Fiche / Table / Carte)</option>
+                  <option value="landlord">🏛️ Bailleurs & SCI</option>
+                  <option value="rhone">🦁 Spécifique Lyon & Rhône (69)</option>
+                  <option value="isere">⛰️ Spécifique Grenoble & Isère (38)</option>
+                  <option value="national">🇫🇷 Échelle France entière</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <!-- Dynamic Status & Sort Hint -->
+          <div class="sources-status-bar">
+            <span id="sources-filter-feedback">Affichage de <strong>0</strong> information(s)</span>
+            <span class="sources-status-hint">💡 Cliquez sur un en-tête pour trier (▲ / ▼) • Survolez la description pour lire l'intégralité du contexte juridique</span>
+          </div>
+
+          <!-- Data Table Container -->
+          <div class="data-table-container sources-table-container">
+            <table class="tz-data-table sources-data-table" id="table-sources-dict">
+              <thead>
+                <tr id="sources-dict-thead-tr">
+                  <!-- Rendered dynamically with click-to-sort headers -->
+                </tr>
+              </thead>
+              <tbody id="table-sources-dict-body">
+                <!-- Rendered dynamically -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- SUBVIEW 2: DATASET / GEO VIEW -->
+        <div id="sources-subview-dataset" class="sources-subview-panel" style="display: none;">
         <div class="tz-tag-legend">
           <b>🏷️ Étiquettes du mode de récupération</b> <span style="color: var(--text-muted);">(survolez une étiquette avec la souris pour lire l'explication non-technique) :</span>
           <span class="tz-tag tz-tag-etl" data-tooltip="Étape de préparation (script app/build_dataset.py) qui télécharge les gros fichiers bruts officiels, les nettoie, les relie entre eux et fabrique nos fichiers locaux prêts à l'emploi en 5 secondes.">⚙️ Fabriquer les archives de données (Build ETL) ℹ️</span>
@@ -676,6 +767,7 @@
             </details>
           </div>
         </details>
+        </div><!-- /#sources-subview-dataset -->
       </div>
 
       <!-- TAB 6: 🔭 PISTES DE DONNÉES -->
@@ -802,6 +894,13 @@
           <div class="dpe-stat" id="drawer-rent-control">Non soumis ou zone standard.</div>
           <div class="dpe-stat" id="drawer-urban-rules" style="margin-top: 0.35rem;">—</div>
           <div class="dpe-stat" id="drawer-tech-details" style="margin-top: 0.35rem;">—</div>
+        </div>
+
+        <!-- Traceability & Sources Link -->
+        <div style="margin-top: 1rem; margin-bottom: 0.5rem; text-align: center;">
+          <button type="button" class="btn btn-secondary btn-sm" id="btn-drawer-goto-sources" style="width: 100%; font-size: 0.76rem; padding: 0.45rem 0.6rem; display: flex; align-items: center; justify-content: center; gap: 0.4rem;">
+            <span>📚</span> Voir la traçabilité & les sources de ces données
+          </button>
         </div>
 
       </div>
