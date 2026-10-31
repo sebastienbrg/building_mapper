@@ -47,6 +47,26 @@
   box-sizing: border-box;
   margin: 0;
   padding: 0;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(148, 163, 184, 0.4) transparent;
+}
+
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.35);
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(100, 116, 139, 0.65);
 }
 
 body {
@@ -788,10 +808,17 @@ select:focus, input:focus {
 }
 
 .pill-btn.active {
-  background: var(--accent-primary);
-  color: #ffffff;
-  border-color: var(--accent-primary);
+  background: #ffffff;
+  color: #0284c7;
+  border: 1.5px solid #0284c7;
   font-weight: 600;
+  box-shadow: 0 1px 3px rgba(2, 132, 199, 0.08);
+}
+
+.pill-btn.active:hover {
+  background: #f0f9ff;
+  border-color: #0369a1;
+  color: #0369a1;
 }
 
 /* DPE pills colored */
@@ -940,10 +967,10 @@ input[type="range"] {
   outline: none;
 }
 
-/* Bottom-Left Overlays Stack: Map Color/Style Selector above Legend */
+/* Bottom-Left Overlays Stack: Map Legend with integrated Style Select */
 .map-bottom-left-stack {
   position: absolute;
-  bottom: 1.5rem;
+  bottom: 1.25rem;
   left: 1rem;
   display: flex;
   flex-direction: column;
@@ -953,22 +980,23 @@ input[type="range"] {
   pointer-events: none;
 }
 
-/* Bottom-Right Overlays Stack: Display Settings Overlay directly above Map Scale (100m) */
-.map-bottom-right-stack {
+/* Bottom-Center Overlays Stack: Display Settings Overlay (Fond blanc & Limite bât.) */
+.map-bottom-center-stack {
   position: absolute;
-  bottom: 2.2rem; /* Sits immediately above the ~18px MapLibre scale ruler */
-  right: 0.65rem;
+  bottom: 0.85rem;
+  left: 50%;
+  transform: translateX(-50%);
   display: flex;
   flex-direction: column;
-  align-items: flex-end;
-  z-index: 20;
+  align-items: center;
+  z-index: 35;
   pointer-events: none;
-  transition: right 0.25s ease;
+  transition: left 0.25s ease;
 }
 
-body.territory-selection-active .map-bottom-right-stack,
-.territory-selection-bar.active ~ .map-bottom-right-stack {
-  right: calc(340px + 1.5rem);
+body.territory-selection-active .map-bottom-center-stack,
+.territory-selection-bar.active ~ .map-bottom-center-stack {
+  left: calc(50% - 170px);
 }
 
 /* Overlay Control: Background Whitening & Polygon Limit (Default Collapsed) */
@@ -1069,11 +1097,40 @@ body.territory-selection-active .map-bottom-right-stack,
   backdrop-filter: blur(10px);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
-  padding: 0.55rem 0.8rem;
+  padding: 0.45rem 0.65rem;
   font-size: 0.72rem;
   box-shadow: var(--shadow-md);
   color: var(--text-primary);
   pointer-events: auto;
+  min-width: 210px;
+}
+
+.map-legend-select-wrap {
+  margin-bottom: 0.4rem;
+}
+
+.map-legend-select {
+  width: 100%;
+  font-size: 0.74rem;
+  font-weight: 600;
+  padding: 0.28rem 0.45rem;
+  background: #ffffff;
+  border: 1px solid var(--border-color, #cbd5e1);
+  border-radius: var(--radius-sm, 6px);
+  color: var(--text-primary, #0f172a);
+  cursor: pointer;
+  outline: none;
+  transition: all 0.15s ease;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.map-legend-select:hover {
+  border-color: var(--accent-primary, #0284c7);
+}
+
+.map-legend-select:focus {
+  border-color: var(--accent-primary, #0284c7);
+  box-shadow: 0 0 0 2px rgba(2, 132, 199, 0.15);
 }
 
 .legend-title {
@@ -1084,7 +1141,9 @@ body.territory-selection-active .map-bottom-right-stack,
 
 .legend-items {
   display: flex;
-  gap: 0.5rem;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+  align-items: center;
 }
 
 .legend-item {
@@ -1097,6 +1156,46 @@ body.territory-selection-active .map-bottom-right-stack,
   width: 12px;
   height: 12px;
   border-radius: 2px;
+}
+
+/* Discrete MapLibre & OpenStreetMap attribution */
+.maplibregl-ctrl-attrib.maplibregl-compact {
+  opacity: 0.55;
+  transition: opacity 0.2s ease;
+  margin: 0 4px 4px 0 !important;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.75);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.maplibregl-ctrl-attrib.maplibregl-compact:hover {
+  opacity: 0.95;
+  background: rgba(255, 255, 255, 0.95);
+}
+
+.maplibregl-ctrl-attrib a {
+  color: var(--text-muted, #94a3b8);
+  font-size: 10px;
+}
+
+.maplibregl-ctrl-attrib a:hover {
+  color: var(--accent-primary, #0284c7);
+}
+
+.maplibregl-ctrl-logo {
+  display: none !important;
+}
+
+.maplibregl-ctrl-scale {
+  background: rgba(255, 255, 255, 0.75) !important;
+  backdrop-filter: blur(4px);
+  border: 1px solid rgba(148, 163, 184, 0.4) !important;
+  border-top: none !important;
+  color: #64748b !important;
+  font-size: 10px !important;
+  line-height: 1.1 !important;
+  padding: 0 4px !important;
+  box-shadow: none !important;
 }
 
 /* ==========================================================================
@@ -1112,7 +1211,9 @@ body.territory-selection-active .map-bottom-right-stack,
   border-left: 1px solid var(--border-color);
   box-shadow: -5px 0 25px rgba(0, 0, 0, 0.08);
   transform: translateX(100%);
-  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  visibility: hidden;
+  pointer-events: none;
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), visibility 0.25s;
   z-index: 15;
   display: flex;
   flex-direction: column;
@@ -1120,6 +1221,8 @@ body.territory-selection-active .map-bottom-right-stack,
 
 #building-drawer.open {
   transform: translateX(0);
+  visibility: visible;
+  pointer-events: auto;
 }
 
 .drawer-header {
@@ -3087,14 +3190,15 @@ body.territory-selection-active .maplibregl-ctrl-bottom-right,
   font-size: 0.68rem;
   font-weight: 600;
   color: #0284c7;
-  background: #e0f2fe;
-  border: 1px solid #bae6fd;
+  background: #ffffff;
+  border: 1px solid #38bdf8;
   border-radius: 9999px;
-  padding: 0.06rem 0.42rem;
+  padding: 0.05rem 0.4rem;
   margin-left: auto;
   margin-right: 0.25rem;
   white-space: nowrap;
   line-height: 1.3;
+  box-shadow: 0 1px 2px rgba(2, 132, 199, 0.06);
 }
 
 .dyn-filter-card {
@@ -3200,11 +3304,11 @@ body.territory-selection-active .maplibregl-ctrl-bottom-right,
 }
 
 .profile-pill-btn.active {
-  background: var(--accent-primary);
-  color: #ffffff;
-  border-color: var(--accent-primary);
+  background: #ffffff;
+  color: #0284c7;
+  border: 1.5px solid #0284c7;
   font-weight: 700;
-  box-shadow: 0 2px 8px rgba(2, 132, 199, 0.25);
+  box-shadow: 0 1px 4px rgba(2, 132, 199, 0.15);
 }
 
 .profile-delete-x {

@@ -28,16 +28,18 @@ async def run():
         assert color_box["x"] < 500, f"Expected color selector on the left of map (x < 500), got {color_box['x']}"
         assert color_box["y"] > 500, f"Expected color selector in bottom area (y > 500), got {color_box['y']}"
 
-        # 3. Check Map Display Controls position (in bottom-right stack, above scale) and default collapsed
+        # 3. Check Map Display Controls position (bottom center of map) and default collapsed
         print("3. Checking Map Display Controls position & default collapsed...")
         display_parent = await page.evaluate("document.getElementById('map-display-overlay').parentElement.className")
         print(f"Display overlay parent class: {display_parent}")
-        assert "map-bottom-right-stack" in display_parent
+        assert "map-bottom-center-stack" in display_parent
 
         display_box = await page.locator("#map-display-overlay").bounding_box()
         print(f"Display overlay bounding box: {display_box}")
-        # Viewport width is 1440, right side should be near 1440
-        assert display_box["x"] > 1100, f"Expected display overlay on bottom-right (x > 1100), got {display_box['x']}"
+        # Viewport width is 1440, sidebar is ~430px, so map pane is ~1010px wide with center at 430 + 1010/2 = 935
+        center_x = display_box["x"] + display_box["width"] / 2
+        print(f"Display overlay center X: {center_x}")
+        assert 910 < center_x < 960, f"Expected display overlay centered in map pane (~935), got center {center_x}"
         assert display_box["y"] > 750, f"Expected display overlay near bottom (y > 750), got {display_box['y']}"
 
         # Check default collapsed

@@ -2389,7 +2389,7 @@ function renderSidebarFilterControls() {
         <span>${escapeHtml(cat.shortLabel)}</span>
       </span>
       <span style="display:flex; align-items:center; gap:0.35rem;">
-        <span class="cat-active-badge" style="font-size:0.66rem; padding:0.1rem 0.38rem; border-radius:999px; background:${activeInCat > 0 ? 'rgba(56,189,248,0.22)' : 'rgba(255,255,255,0.06)'}; color:${activeInCat > 0 ? 'var(--accent-primary)' : 'var(--text-muted)'}; font-weight:700;">
+        <span class="cat-active-badge" style="font-size:0.66rem; padding:0.1rem 0.45rem; border-radius:999px; background:${activeInCat > 0 ? '#ffffff' : '#f8fafc'}; color:${activeInCat > 0 ? '#0284c7' : 'var(--text-muted)'}; border: 1px solid ${activeInCat > 0 ? '#38bdf8' : 'var(--border-color)'}; font-weight:700;">
           ${activeInCat > 0 ? `${activeInCat} actif${activeInCat > 1 ? 's' : ''}` : `${catFilters.length}`}
         </span>
         <span class="accordion-chevron">▶</span>
@@ -3091,6 +3091,7 @@ function initMap(initialViewport = null) {
   const zoom = (initialViewport && typeof initialViewport.zoom === 'number') ? initialViewport.zoom : 13;
   state.map = new maplibregl.Map({
     container: 'map',
+    attributionControl: false,
     style: {
       version: 8,
       sources: {
@@ -3131,7 +3132,8 @@ function initMap(initialViewport = null) {
     maxZoom: 19,
   });
 
-  // Scale control on bottom right
+  // Discrete compact attribution and scale control on bottom right
+  state.map.addControl(new maplibregl.AttributionControl({ compact: true }), 'bottom-right');
   state.map.addControl(new maplibregl.ScaleControl({ unit: 'metric' }), 'bottom-right');
 
   state.map.on('load', () => {
@@ -4590,13 +4592,19 @@ function setMapDim(dimPct) {
 function updateLegend() {
   const title = document.getElementById('legend-title');
   const items = document.getElementById('legend-items');
-  if (!title || !items) return;
+  const selectWrap = document.getElementById('map-legend-select-wrap');
+  const colorSelect = document.getElementById('select-color-mode');
+  if (!items) return;
 
   items.innerHTML = '';
 
   // In Territory / Chunk Selection mode, replace building legend with Chunk Status Legend
   if (state.territorySelectionMode) {
-    title.textContent = 'Statut des Chunks & Territoires';
+    if (selectWrap) selectWrap.style.display = 'none';
+    if (title) {
+      title.style.display = 'block';
+      title.textContent = 'Statut des Chunks & Territoires';
+    }
     items.innerHTML = `
       <div class="legend-item"><span class="legend-color" style="background: #8b5cf6;"></span><span>Sélectionné</span></div>
       <div class="legend-item"><span class="legend-color" style="background: #10b981;"></span><span>En cache local</span></div>
@@ -4606,8 +4614,20 @@ function updateLegend() {
     return;
   }
 
+  // Normal mode: Show select dropdown at the top of the legend
+  if (selectWrap) selectWrap.style.display = 'block';
+  if (title) title.style.display = 'none';
+  if (colorSelect && colorSelect.value !== state.mapStyleMode) {
+    colorSelect.value = state.mapStyleMode;
+  }
+
+  // Fieldwork option visibility
+  const optFieldwork = document.getElementById('opt-color-fieldwork');
+  if (optFieldwork) {
+    optFieldwork.style.display = (state.fieldwork && state.fieldwork.size > 0) ? 'block' : 'none';
+  }
+
   if (state.mapStyleMode === 'dpe') {
-    title.textContent = 'Diagnostic Énergétique (DPE)';
     const classes = ['A', 'B', 'C', 'D', 'E', 'F', 'G'];
     for (const c of classes) {
       items.innerHTML += `
@@ -4618,7 +4638,6 @@ function updateLegend() {
       `;
     }
   } else if (state.mapStyleMode === 'overheating') {
-    title.textContent = 'Risque de Surchauffe Estivale';
     items.innerHTML = `
       <div class="legend-item"><span class="legend-color" style="background: #991b1b;"></span><span>Critique 🔥🔥</span></div>
       <div class="legend-item"><span class="legend-color" style="background: #ef4444;"></span><span>Élevé 🔥</span></div>
@@ -4627,7 +4646,6 @@ function updateLegend() {
       <div class="legend-item"><span class="legend-color" style="background: #64748b;"></span><span>Non renseigné</span></div>
     `;
   } else if (state.mapStyleMode === 'concentration') {
-    title.textContent = 'Concentration Foncière (Principal Propriétaire)';
     items.innerHTML = `
       <div class="legend-item"><span class="legend-color" style="background: #ef4444;"></span><span>≥ 80%</span></div>
       <div class="legend-item"><span class="legend-color" style="background: #f59e0b;"></span><span>50–80%</span></div>
@@ -4635,7 +4653,6 @@ function updateLegend() {
       <div class="legend-item"><span class="legend-color" style="background: #64748b;"></span><span>&lt; 20%</span></div>
     `;
   } else if (state.mapStyleMode === 'fieldwork') {
-    title.textContent = 'Enquête de Terrain';
     items.innerHTML = `
       <div class="legend-item"><span class="legend-color" style="background: #a855f7;"></span><span>Visité / Enquêté</span></div>
       <div class="legend-item"><span class="legend-color" style="background: rgba(100, 116, 139, 0.4);"></span><span>Non visité</span></div>
@@ -7307,30 +7324,16 @@ function initEventListeners() {
     loadTerritory();
   });
 
-  // Map Style Mode buttons & Select
+  // Map Style Mode Select inside Legend
   const colorSelect = document.getElementById('select-color-mode');
   if (colorSelect) {
     colorSelect.addEventListener('change', (e) => {
       state.mapStyleMode = e.target.value;
-      document.querySelectorAll('.map-style-btn').forEach(b => {
-        b.classList.toggle('active', b.getAttribute('data-style') === state.mapStyleMode);
-      });
-      updateLegend();
-      applyFilters();
-    });
-  }
-
-  document.querySelectorAll('.map-style-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      document.querySelectorAll('.map-style-btn').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      state.mapStyleMode = btn.getAttribute('data-style');
-      if (colorSelect) colorSelect.value = state.mapStyleMode;
       updateLegend();
       applyFilters();
       saveSessionToStorage();
     });
-  });
+  }
 
   // Map Display Settings Overlay (Fond blanc & Limite de polygones)
   const toggleDisplayOverlay = () => {

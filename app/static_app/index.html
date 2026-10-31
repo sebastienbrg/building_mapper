@@ -232,27 +232,27 @@
           <input type="text" id="input-address-search" placeholder="Rechercher une adresse (ex: 27 Rue Paul Chenavard)...">
         </div>
 
-        <!-- Bottom-Left Stack: Map Color/Style Selector above Legend -->
+        <!-- Bottom-Left Stack: Map Legend with integrated Style Select -->
         <div class="map-bottom-left-stack" id="map-bottom-left-stack">
-          <!-- Floating Map Style / Color Switcher (moved where display control was) -->
-          <div class="map-floating-panel" id="map-style-switcher">
-            <button class="map-style-btn active" data-style="dpe">🎨 Classe DPE</button>
-            <button class="map-style-btn" data-style="overheating">☀️ Surchauffe Été</button>
-            <button class="map-style-btn" data-style="concentration">🏢 Concentration Foncière</button>
-            <button class="map-style-btn" data-style="fieldwork" id="btn-style-fieldwork" style="display: none;">📋 Enquête Terrain</button>
-          </div>
-
-          <!-- Map Legend (dynamically switches to Chunk Status in selection mode) -->
-          <div class="map-legend" id="map-legend">
-            <div class="legend-title" id="legend-title">Diagnostic Énergétique (DPE)</div>
+          <!-- Map Legend (contains style select at top, switches to Chunk Status in selection mode) -->
+          <div class="map-floating-panel map-legend" id="map-legend">
+            <div class="map-legend-select-wrap" id="map-legend-select-wrap">
+              <select id="select-color-mode" class="map-legend-select" aria-label="Coloration de la carte">
+                <option value="dpe">🎨 Diagnostic Énergétique (DPE)</option>
+                <option value="overheating">☀️ Risque Surchauffe Estivale</option>
+                <option value="concentration">🏢 Concentration Foncière</option>
+                <option value="fieldwork" id="opt-color-fieldwork" style="display: none;">📋 Enquête de Terrain</option>
+              </select>
+            </div>
+            <div class="legend-title" id="legend-title" style="display: none;">Diagnostic Énergétique (DPE)</div>
             <div class="legend-items" id="legend-items">
               <!-- Dynamically populated -->
             </div>
           </div>
         </div>
 
-        <!-- Bottom-Right: Display Settings Overlay directly above Map Scale (100m) -->
-        <div class="map-bottom-right-stack" id="map-bottom-right-stack">
+        <!-- Bottom-Center: Display Settings Overlay (Fond blanc & Limite bât.) -->
+        <div class="map-bottom-center-stack" id="map-bottom-center-stack">
           <!-- Overlay control: Background whitening & polygon limit (default collapsed) -->
           <div class="map-overlay-control collapsed" id="map-display-overlay">
             <div class="map-overlay-header" id="header-toggle-display-overlay">
