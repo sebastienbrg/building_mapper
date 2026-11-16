@@ -4280,24 +4280,13 @@ async function loadTerritory(options = {}) {
 
   const mode = state.activeTerritory.mode;
   let targetChunks = [];
-  let bundleFile = null;
 
   if (mode === 'chunks') {
     const chunkIds = new Set(state.activeTerritory.chunkIds || []);
     targetChunks = state.manifest.chunks.filter(c => chunkIds.has(c.id));
   } else if (mode === 'dep') {
     const dep = state.activeTerritory.dep;
-    const depMeta = state.manifest.departments[dep];
-    if (depMeta) {
-      bundleFile = {
-        buildings: depMeta.buildings_file,
-        owners: depMeta.owners_file,
-        bbox: depMeta.bbox,
-        center: depMeta.center,
-        label: depMeta.label,
-        sizeMb: (depMeta.buildings_size_bytes / 1048576).toFixed(1),
-      };
-    }
+    targetChunks = state.manifest.chunks.filter(c => c.departement === dep);
   } else if (mode === 'cp') {
     const cp = state.activeTerritory.cp;
     targetChunks = state.manifest.chunks.filter(c => c.cp === cp);
@@ -4311,21 +4300,7 @@ async function loadTerritory(options = {}) {
     let allOwners = [];
     let combinedBbox = null;
 
-    if (bundleFile) {
-      // Load department bundle directly
-      const statusEl = document.getElementById('territory-status-text');
-      if (statusEl) statusEl.textContent = bundleFile.label;
-      const sizeEl = document.getElementById('territory-size-text');
-      if (sizeEl) sizeEl.textContent = `~${bundleFile.sizeMb} Mo`;
-
-      const [bBuf, oBuf] = await Promise.all([
-        fetchWithCache(bundleFile.buildings),
-        fetchWithCache(bundleFile.owners),
-      ]);
-      allBuildings = await readParquetBuffer(bBuf);
-      allOwners = await readParquetBuffer(oBuf);
-      combinedBbox = bundleFile.bbox;
-    } else if (targetChunks.length > 0) {
+    if (targetChunks.length > 0) {
       const totalBytes = targetChunks.reduce((acc, c) => acc + c.total_size_bytes, 0);
       const totalMb = (totalBytes / 1048576).toFixed(1);
       const cpLabels = targetChunks.map(c => c.cp).join(', ');

@@ -136,21 +136,11 @@ def build_chunks(
             f"{len(o_sub):,} owners ({o_size / 1024:.1f} KB)"
         )
 
-    # Department bundles (for downloading an entire metropolitan territory in one file)
-    print("\nGenerating department bundles...")
+    # Department summary metadata (without redundant monolithic bundle files)
     dep_bundles = {}
     for dep in unique_deps:
         b_dep = gdf_buildings[gdf_buildings["departement"].astype(str) == dep]
         o_dep = df_owners[df_owners["departement"].astype(str) == dep]
-
-        b_dep_name = f"buildings_dep_{dep}.parquet"
-        o_dep_name = f"owners_dep_{dep}.parquet"
-        b_dep_path = out_dir / b_dep_name
-        o_dep_path = out_dir / o_dep_name
-
-        b_dep.to_parquet(b_dep_path, compression=compression, index=False)
-        o_dep.to_parquet(o_dep_path, compression=compression, index=False)
-
         dep_cps = [c["cp"] for c in chunks_meta if c["departement"] == dep]
         dep_bundles[dep] = {
             "departement": dep,
@@ -158,10 +148,6 @@ def build_chunks(
             "postal_codes": dep_cps,
             "buildings_count": int(len(b_dep)),
             "owners_count": int(len(o_dep)),
-            "buildings_file": b_dep_name,
-            "owners_file": o_dep_name,
-            "buildings_size_bytes": b_dep_path.stat().st_size,
-            "owners_size_bytes": o_dep_path.stat().st_size,
             "bbox": [
                 float(np.round(b_dep["lon"].min(), 6)),
                 float(np.round(b_dep["lat"].min(), 6)),
@@ -173,11 +159,6 @@ def build_chunks(
                 float(np.round((b_dep["lat"].min() + b_dep["lat"].max()) / 2.0, 6)),
             ],
         }
-        print(
-            f"  Bundle Dept {dep}: {len(b_dep):,} bldgs "
-            f"({b_dep_path.stat().st_size / (1024 * 1024):.2f} MB), "
-            f"{len(o_dep):,} owners ({o_dep_path.stat().st_size / (1024 * 1024):.2f} MB)"
-        )
 
     # Master manifest
     manifest = {
