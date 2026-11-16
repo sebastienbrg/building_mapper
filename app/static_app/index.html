@@ -54,7 +54,7 @@
         <button class="nav-tab tools-toggle" id="btn-tools-toggle" type="button" aria-haspopup="true" aria-expanded="false">🧰 Outils ▾</button>
         <div class="tools-menu" id="tools-menu" role="menu">
           <button type="button" role="menuitem" data-tool="landlords">🔍 Bailleurs &amp; SCI</button>
-          <button type="button" role="menuitem" data-tool="export">📦 Export ZIP</button>
+          <button type="button" role="menuitem" data-tool="export">📥 Exporter</button>
           <button type="button" role="menuitem" data-tool="sources">📚 Sources de données</button>
           <button type="button" role="menuitem" data-tool="potential">🔭 Pistes de données</button>
         </div>
@@ -232,9 +232,11 @@
         </div>
 
         <!-- Address Search Bar -->
-        <div class="map-search-bar">
-          <span>🔍</span>
-          <input type="text" id="input-address-search" placeholder="Rechercher une adresse (ex: 27 Rue Paul Chenavard)...">
+        <div class="map-search-bar" id="map-search-bar">
+          <span class="map-search-icon" id="map-search-icon">🔍</span>
+          <input type="text" id="input-address-search" placeholder="Rechercher une adresse (ex: 27 Rue Paul Chenavard)..." autocomplete="off">
+          <button type="button" class="map-search-clear" id="btn-clear-address-search" title="Effacer la recherche" aria-label="Effacer la recherche" style="display: none;">&times;</button>
+          <div class="map-search-suggestions" id="address-search-suggestions"></div>
         </div>
 
         <!-- Bottom-Left Stack: Map Legend with integrated Style Select -->
@@ -395,35 +397,102 @@
         </div>
       </div>
 
-      <!-- TAB 4: 📦 EXPORT ZIP -->
+      <!-- TAB 4: 📥 EXPORTER -->
       <div class="tool-pane content-pane" id="pane-export" data-tool-pane="export">
-        <div class="card" style="max-width: 800px; margin: 0 auto; width: 100%;">
-          <div class="card-title" style="font-size: 1.1rem; color: var(--accent-primary);">
-            <span>📦</span> Export instantané de votre sélection (<span id="export-tab-count">0</span> bâtiments)
+        <div class="export-pane-wrapper">
+          <!-- Top Summary Banner -->
+          <div class="export-summary-banner">
+            <div class="export-summary-title">
+              <span>📥</span>
+              <span>Exporter la sélection active (<strong id="export-tab-count">0</strong> bâtiments)</span>
+            </div>
+            <div class="export-summary-pills">
+              <span class="export-summary-pill">🏢 <b id="export-tab-total-count">0</b> bât. chargés</span>
+              <span class="export-summary-pill">🏛️ <b id="export-tab-owners-count">0</b> bailleurs PM</span>
+              <span class="export-summary-pill">🎛️ <b id="export-tab-filters-count">0</b> filtre(s) excluant(s)</span>
+            </div>
           </div>
 
-          <p style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.6; margin-bottom: 1.5rem;">
-            Générez une archive ZIP complète ou téléchargez individuellement les fichiers prêts pour le militantisme de terrain, la cartographie externe ou le croisement statistique :
-          </p>
+          <!-- 4 Primary Export Cards -->
+          <div class="export-cards-grid">
+            <!-- 1. Map PNG -->
+            <div class="export-option-card">
+              <div class="export-card-head">
+                <span class="export-card-icon">🗺️</span>
+                <div>
+                  <h4 class="export-card-title">Carte (.png)</h4>
+                  <span class="export-card-badge">Image haute résolution</span>
+                </div>
+              </div>
+              <p class="export-card-desc">
+                Capture instantanée de la carte telle qu'affichée avec sa légende active, le territoire et le compteur de sélection.
+              </p>
+              <button type="button" class="btn btn-primary export-card-btn" id="btn-export-map-png">
+                <span>🖼️</span> Exporter la Carte (.png)
+              </button>
+            </div>
 
-          <ul style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.8; margin-left: 1.5rem; margin-bottom: 1.5rem;">
-            <li><code>tableur_batiments_groupe.xlsx</code> — <strong>1 ligne par bâtiment</strong> (DPE, score et facteurs de surchauffe d'été, îlot de chaleur, encadrement des loyers, concentration propriétaire, colonnes de terrain).</li>
-            <li><code>tableur_proprietaires_detaille.xlsx</code> — <strong>1 ligne par couple (bâtiment × propriétaire moral)</strong> avec SIREN, forme juridique, commune du siège et locaux détenus.</li>
-            <li><code>carte_batiments.geojson</code> — Couche géographique prête à être importée dans <strong>Framacarte / uMap</strong> ou <strong>QGIS</strong>.</li>
-          </ul>
+            <!-- 2. Bâtiments Excel -->
+            <div class="export-option-card">
+              <div class="export-card-head">
+                <span class="export-card-icon">📊</span>
+                <div>
+                  <h4 class="export-card-title">Tableau Bâtiments (.xlsx)</h4>
+                  <span class="export-card-badge">Tableur Excel</span>
+                </div>
+              </div>
+              <p class="export-card-desc">
+                Tableur complet des bâtiments filtrés (DPE, score et facteurs de surchauffe d'été, bailleur principal, loyers, colonnes de terrain).
+              </p>
+              <button type="button" class="btn btn-primary export-card-btn" id="btn-export-tab-bldgs">
+                <span>📊</span> Exporter Bâtiments (.xlsx)
+              </button>
+            </div>
 
-          <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
-            <button class="btn btn-primary" id="btn-export-full-zip" style="padding: 0.65rem 1.25rem; font-size: 0.95rem;">
-              <span>⚡</span> Télécharger l'archive complète (export_tezeloma.zip)
-            </button>
-            <button class="btn btn-secondary" id="btn-export-tab-bldgs">
-              <span>📊</span> Bâtiments (.xlsx)
-            </button>
-            <button class="btn btn-secondary" id="btn-export-tab-owners">
-              <span>🏢</span> Bailleurs (.xlsx)
-            </button>
-            <button class="btn btn-secondary" id="btn-export-tab-geojson">
-              <span>🗺️</span> Couche GeoJSON
+            <!-- 3. Bailleurs Excel -->
+            <div class="export-option-card">
+              <div class="export-card-head">
+                <span class="export-card-icon">🏛️</span>
+                <div>
+                  <h4 class="export-card-title">Tableau Bailleurs (.xlsx)</h4>
+                  <span class="export-card-badge">Tableur Excel</span>
+                </div>
+              </div>
+              <p class="export-card-desc">
+                Tableur des propriétaires personnes morales de la sélection (synthèse classée par locaux détenus + détail par bâtiment).
+              </p>
+              <button type="button" class="btn btn-primary export-card-btn" id="btn-export-tab-owners">
+                <span>🏛️</span> Exporter Bailleurs (.xlsx)
+              </button>
+            </div>
+
+            <!-- 4. Word Report (.docx) -->
+            <div class="export-option-card export-option-card-featured">
+              <div class="export-card-head">
+                <span class="export-card-icon">📝</span>
+                <div>
+                  <h4 class="export-card-title">Rapport Complet Word (.docx)</h4>
+                  <span class="export-card-badge export-card-badge-word">Document 4 pages</span>
+                </div>
+              </div>
+              <p class="export-card-desc">
+                Rapport synthétique prêt à partager comprenant :
+                <br>• <b>Page 1 :</b> Filtres actifs (ceux qui excluent effectivement des bâtiments)
+                <br>• <b>Page 2 :</b> Carte de la sélection &amp; légende
+                <br>• <b>Page 3 :</b> Tableau des Bâtiments
+                <br>• <b>Page 4 :</b> Tableau des Bailleurs
+              </p>
+              <button type="button" class="btn btn-primary export-card-btn" id="btn-export-word-doc">
+                <span>📝</span> Exporter le Rapport Word (.docx)
+              </button>
+            </div>
+          </div>
+
+          <!-- Least visible: subtle archive ZIP link at the bottom -->
+          <div class="export-zip-subtle-row">
+            <span class="export-zip-subtle-label">Archive brute complète (Excel + GeoJSON + README) :</span>
+            <button type="button" class="btn-export-zip-subtle" id="btn-export-full-zip" title="Télécharger l'archive ZIP complète">
+              📦 Télécharger le .zip
             </button>
           </div>
         </div>

@@ -60,6 +60,7 @@ const state = {
   fieldworkFilters: {}, // customCol -> text/value filter
   map: null,
   selectedBuildingId: null,
+  searchedAddressMarkers: [],
   activeTab: 'map',
   openTool: null,
   dataBaseUrl: '../../data/chunks/', // Local default, can be switched to GitHub Releases URL
@@ -1826,10 +1827,11 @@ function initSociologicalFilterSystem() {
   // Top "Données chargées" button in sidebar
   document.getElementById('btn-sidebar-donnees-chargees')?.addEventListener('click', () => {
     const mapTabBtn = document.querySelector('button[data-tab="map"]');
-    if (mapTabBtn && !mapTabBtn.classList.contains('active')) {
+    const wasOnOtherTab = Boolean(mapTabBtn && !mapTabBtn.classList.contains('active'));
+    if (wasOnOtherTab) {
       mapTabBtn.click();
     }
-    if (state.territorySelectionMode) {
+    if (state.territorySelectionMode && !wasOnOtherTab) {
       exitTerritorySelectionMode();
     } else {
       enterTerritorySelectionMode();
@@ -3072,14 +3074,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     if (savedSession?.territoryData?.territorySelectionMode) {
-      enterTerritorySelectionMode(savedSession.screenState?.mapViewport ? { center: savedSession.screenState.mapViewport.center, zoom: savedSession.screenState.mapViewport.zoom } : null);
+      enterTerritorySelectionMode();
     }
   } else {
     if (savedSession?.territoryData?.territorySelectionMode && savedSession.territoryData.pendingSelectedChunks?.length > 0) {
       state.pendingSelectedChunks = new Set(savedSession.territoryData.pendingSelectedChunks);
       closeLocationPromptModal();
-      enterTerritorySelectionMode(savedSession.screenState?.mapViewport ? { center: savedSession.screenState.mapViewport.center, zoom: savedSession.screenState.mapViewport.zoom } : null);
+      enterTerritorySelectionMode();
     } else {
+      enterTerritorySelectionMode();
       showLocationPromptModal();
     }
   }
@@ -3094,6 +3097,7 @@ function initMap(initialViewport = null) {
   state.map = new maplibregl.Map({
     container: 'map',
     attributionControl: false,
+    preserveDrawingBuffer: true,
     style: {
       version: 8,
       sources: {
@@ -3642,13 +3646,64 @@ function getBoundingBoxForChunkIds(chunkIds) {
   return null;
 }
 
+function getLoadedChunkIds() {
+  if (!state.buildings || state.buildings.length === 0 || !state.activeTerritory) return [];
+  const mode = state.activeTerritory.mode;
+  if (mode === 'chunks' && Array.isArray(state.activeTerritory.chunkIds) && state.activeTerritory.chunkIds.length > 0) {
+    return state.activeTerritory.chunkIds;
+  }
+  const chunks = state.manifest?.chunks || [];
+  if (mode === 'dep' && state.activeTerritory.dep) {
+    return chunks.filter(c => c.departement === state.activeTerritory.dep).map(c => c.id);
+  }
+  if (mode === 'cp' && state.activeTerritory.cp) {
+    return chunks.filter(c => c.cp === Number(state.activeTerritory.cp)).map(c => c.id);
+  }
+  if (mode === 'range' && Array.isArray(state.activeTerritory.range)) {
+    const [start, end] = state.activeTerritory.range;
+    return chunks.filter(c => c.cp >= start && c.cp <= end).map(c => c.id);
+  }
+  return [];
+}
+
+function getAllAvailableChunkIds() {
+  if (state.manifest?.chunks && state.manifest.chunks.length > 0) {
+    return state.manifest.chunks.map(c => c.id);
+  }
+  if (state.postalZonesGeoJson?.features && state.postalZonesGeoJson.features.length > 0) {
+    const ids = [];
+    for (const f of state.postalZonesGeoJson.features) {
+      if (f.properties?.chunk_id && (f.properties.status === 'available_locally' || f.properties.status === 'downloadable' || !f.properties.status)) {
+        ids.push(f.properties.chunk_id);
+      }
+    }
+    return ids;
+  }
+  return [];
+}
+
 function fitBoundsToPendingSelection() {
-  if (!state.map || state.pendingSelectedChunks.size === 0) return;
-  const bbox = getBoundingBoxForChunkIds(Array.from(state.pendingSelectedChunks));
+  if (!state.map) return;
+  state.map.resize();
+
+  let targetChunkIds = [];
+  if (state.pendingSelectedChunks && state.pendingSelectedChunks.size > 0) {
+    targetChunkIds = Array.from(state.pendingSelectedChunks);
+  } else {
+    const loadedIds = getLoadedChunkIds();
+    if (loadedIds.length > 0) {
+      targetChunkIds = loadedIds;
+    } else {
+      targetChunkIds = getAllAvailableChunkIds();
+    }
+  }
+
+  const bbox = getBoundingBoxForChunkIds(targetChunkIds);
   if (bbox) {
     state.map.fitBounds(bbox, {
       padding: { top: 80, bottom: 80, left: 80, right: 390 },
       maxZoom: 11.5,
+      duration: 700,
       essential: true
     });
   }
@@ -3808,21 +3863,34 @@ function enterTerritorySelectionMode(centerLocation = null) {
     state.map.setLayoutProperty('postal-zones-stroke', 'visibility', 'visible');
   }
 
-  if (centerLocation && state.map) {
-    if (centerLocation.bbox) {
-      const bounds = Array.isArray(centerLocation.bbox[0])
-        ? centerLocation.bbox
-        : [[centerLocation.bbox[0], centerLocation.bbox[1]], [centerLocation.bbox[2], centerLocation.bbox[3]]];
-      state.map.fitBounds(
-        bounds,
-        { padding: { top: 80, bottom: 80, left: 80, right: 390 }, maxZoom: centerLocation.maxZoom || 11.5, essential: true }
-      );
+  // If no pending chunks are currently selected, sync with loaded chunks if any
+  if (state.pendingSelectedChunks.size === 0) {
+    const loadedIds = getLoadedChunkIds();
+    if (loadedIds.length > 0) {
+      loadedIds.forEach(id => state.pendingSelectedChunks.add(id));
+    }
+  }
+
+  if (state.map) {
+    state.map.resize();
+    if (centerLocation) {
+      if (centerLocation.bbox) {
+        const bounds = Array.isArray(centerLocation.bbox[0])
+          ? centerLocation.bbox
+          : [[centerLocation.bbox[0], centerLocation.bbox[1]], [centerLocation.bbox[2], centerLocation.bbox[3]]];
+        state.map.fitBounds(
+          bounds,
+          { padding: { top: 80, bottom: 80, left: 80, right: 390 }, maxZoom: centerLocation.maxZoom || 11.5, duration: 700, essential: true }
+        );
+      } else if (centerLocation.center) {
+        state.map.flyTo({
+          center: centerLocation.center,
+          zoom: centerLocation.zoom || 11.2,
+          essential: true
+        });
+      }
     } else {
-      state.map.flyTo({
-        center: centerLocation.center,
-        zoom: centerLocation.zoom || 11.2,
-        essential: true
-      });
+      fitBoundsToPendingSelection();
     }
   }
 
@@ -3988,21 +4056,22 @@ async function performLocationSearch(query) {
       dropdown.classList.remove('open');
       closeLocationPromptModal();
 
-      if (sel.bbox && state.map) {
-        state.map.fitBounds(
-          [[sel.bbox[0], sel.bbox[1]], [sel.bbox[2], sel.bbox[3]]],
-          { padding: { top: 80, bottom: 80, left: 80, right: 390 }, maxZoom: 11.8, essential: true }
-        );
-      } else if (sel.center && state.map) {
-        state.map.flyTo({ center: sel.center, zoom: 11.5, essential: true });
-      }
-
-      enterTerritorySelectionMode();
-
       if (sel.chunkId) {
         state.pendingSelectedChunks.add(sel.chunkId);
-        refreshPostalZonesVisualState();
-        updateTerritorySelectionBar();
+      }
+
+      if (sel.bbox) {
+        enterTerritorySelectionMode({ bbox: sel.bbox, maxZoom: 11.8 });
+      } else if (sel.center) {
+        enterTerritorySelectionMode({ center: sel.center, zoom: 11.5 });
+        addSearchedAddressPin({
+          lon: sel.center[0],
+          lat: sel.center[1],
+          label: sel.title,
+          context: sel.context,
+        });
+      } else {
+        enterTerritorySelectionMode();
       }
     });
   });
@@ -4071,9 +4140,7 @@ function initLocationPromptControls() {
   document.getElementById('link-explore-freely')?.addEventListener('click', (e) => {
     e.preventDefault();
     closeLocationPromptModal();
-    enterTerritorySelectionMode({ center: [4.8467, 45.7628], zoom: 10.2 });
-    refreshPostalZonesVisualState();
-    updateTerritorySelectionBar();
+    enterTerritorySelectionMode();
   });
 
   // GPS position button
@@ -4884,45 +4951,227 @@ async function handleFieldworkFile(file) {
 }
 
 /* ==========================================================================
-   Exports (Excel & GeoJSON)
+   Exports (Map PNG, Excel Bâtiments, Excel Bailleurs, Word .docx & GeoJSON/ZIP)
    ========================================================================== */
+function getBuildingCellPlainValue(b, col) {
+  if (col.customKey) {
+    const r = state.fieldwork ? state.fieldwork.get(b.batiment_groupe_id) : null;
+    return r && r[col.customKey] != null ? r[col.customKey] : '';
+  }
+  switch (col.key) {
+    case 'batiment_groupe_id': return b.batiment_groupe_id || '';
+    case 'adr': return b.adr || 'Adresse inconnue';
+    case 'cp': return b.cp != null ? String(b.cp) : '';
+    case 'nb_log': return b.nb_log != null ? Number(b.nb_log) : 1;
+    case 'dpe': return b.dpe || 'NC';
+    case 'nb_dpe_fg': return b.nb_dpe_fg != null ? Number(b.nb_dpe_fg) : 0;
+    case 'pct_dpe_fg': return b.pct_dpe_fg != null ? Math.round(Number(b.pct_dpe_fg)) + '%' : '0%';
+    case 'risque_surchauffe_ete': return b.risque_surchauffe_ete || 'Non renseigné';
+    case 'score_surchauffe_ete': return b.score_surchauffe_ete != null ? Number(b.score_surchauffe_ete) : 0;
+    case 'facteurs_surchauffe': return b.facteurs_surchauffe || '';
+    case 'icu_expo_nuit': return b.icu_expo_nuit != null ? String(b.icu_expo_nuit) : '';
+    case 'type_isolation_plancher_haut': return b.type_isolation_plancher_haut || '';
+    case 'type_isolation_mur_exterieur': return b.type_isolation_mur_exterieur || '';
+    case 'type_fermeture': return b.type_fermeture || '';
+    case 'classe_inertie': return b.classe_inertie || '';
+    case 'concentration_prop_max_denomination': return b.concentration_prop_max_denomination || '';
+    case 'siren_principal': return b.siren_principal || '';
+    case 'concentration_prop_max_pct': {
+      const val = b.concentration_prop_max_num != null ? b.concentration_prop_max_num : b.concentration_prop_max_pct;
+      const conc = val != null ? Math.round(Number(val)) : 0;
+      return conc > 0 ? conc + '%' : '';
+    }
+    case 'max_patrimoine_majic_bailleur':
+      return b.max_patrimoine_majic_bailleur ? Number(b.max_patrimoine_majic_bailleur) : 0;
+    case 'loyer_max_t2_non_meuble_m2':
+      return b.loyer_max_t2_non_meuble_m2 ? Number(b.loyer_max_t2_non_meuble_m2).toFixed(1) + ' €' : (b.zone_encadrement_loyers ? 'Zoné' : 'Non');
+    case 'loyer_max_t2_meuble_m2':
+      return b.loyer_max_t2_meuble_m2 ? Number(b.loyer_max_t2_meuble_m2).toFixed(1) + ' €' : (b.zone_encadrement_loyers ? 'Zoné' : 'Non');
+    case 'est_logement_social_rpls':
+      return b.est_logement_social_rpls ? 'Oui' : 'Non';
+    case 'nom_copro': {
+      let val = b.nom_copro || '';
+      if (typeof val === 'string' && val.startsWith('[') && val.endsWith(']')) {
+        try {
+          const parsed = JSON.parse(val);
+          if (Array.isArray(parsed)) val = parsed.join(', ');
+        } catch (_) {}
+      }
+      return val;
+    }
+    case 'quartier_qpv':
+      return b.quartier_qpv || '';
+    default: {
+      const v = b[col.key];
+      if (v === null || v === undefined || v === 'None') return '';
+      if (typeof v === 'boolean') return v ? 'Oui' : 'Non';
+      return v;
+    }
+  }
+}
+
+function getSortedBuildingsForExport() {
+  const cols = getAllBuildingsColumns().filter(c => !c.isAction);
+  const list = [...state.filteredBuildings];
+  if (buildingsSortCol && buildingsSortDir) {
+    const activeCol = cols.find(c => c.key === buildingsSortCol);
+    if (activeCol) {
+      list.sort((a, b) => compareBuildingRows(a, b, activeCol, buildingsSortDir));
+    } else {
+      list.sort(defaultBuildingSort);
+    }
+  } else {
+    list.sort(defaultBuildingSort);
+  }
+  return { rows: list, cols };
+}
+
+function getGroupedLandlordsForSelection() {
+  const bIdSet = new Set(state.filteredBuildings.map(b => b.batiment_groupe_id));
+  const matchedOwners = state.owners.filter(o => bIdSet.has(o.batiment_groupe_id) && o.denomination);
+
+  const groups = new Map();
+  for (const o of matchedOwners) {
+    const key = (o.siren || o.denomination).trim();
+    if (!groups.has(key)) {
+      groups.set(key, {
+        siren: o.siren ? String(o.siren).trim() : '',
+        denomination: o.denomination,
+        forme_juridique: o.forme_juridique || 'Personne Morale',
+        commune_siege: o.libelle_commune_proprietaire || '',
+        patrimoine_majic: Number(o.nb_locaux_open_dans_MAJIC || o.max_patrimoine_majic_bailleur || 0),
+        buildings: new Set(),
+        locauxCount: 0,
+      });
+    }
+    const g = groups.get(key);
+    g.buildings.add(o.batiment_groupe_id);
+    g.locauxCount += Number(o.nb_locaux_open_dans_batiment || 1);
+    const majic = Number(o.nb_locaux_open_dans_MAJIC || o.max_patrimoine_majic_bailleur || 0);
+    if (majic > g.patrimoine_majic) g.patrimoine_majic = majic;
+    if (!g.commune_siege && o.libelle_commune_proprietaire) {
+      g.commune_siege = o.libelle_commune_proprietaire;
+    }
+  }
+
+  const list = Array.from(groups.values());
+  if (landlordsSortCol && landlordsSortDir) {
+    const activeCol = TOP_LANDLORDS_COLUMNS.find(c => c.key === landlordsSortCol);
+    if (activeCol) {
+      list.sort((a, b) => {
+        const vA = activeCol.sortValue(a);
+        const vB = activeCol.sortValue(b);
+        const blankA = isBlankValue(vA);
+        const blankB = isBlankValue(vB);
+        if (blankA && blankB) return 0;
+        if (blankA) return 1;
+        if (blankB) return -1;
+        const cmp = activeCol.type === 'number'
+          ? Number(vA || 0) - Number(vB || 0)
+          : String(vA).localeCompare(String(vB), 'fr', { numeric: true, sensitivity: 'base' });
+        return landlordsSortDir === 'desc' ? -cmp : cmp;
+      });
+      return { grouped: list, matchedOwners };
+    }
+  }
+  list.sort((a, b) => {
+    if (b.locauxCount !== a.locauxCount) return b.locauxCount - a.locauxCount;
+    return b.buildings.size - a.buildings.size;
+  });
+  return { grouped: list, matchedOwners };
+}
+
+function buildBuildingsWorkbook() {
+  const { rows, cols } = getSortedBuildingsForExport();
+  const tableRows = rows.map(b => {
+    const obj = {};
+    for (const col of cols) {
+      obj[col.label] = getBuildingCellPlainValue(b, col);
+    }
+    return obj;
+  });
+
+  const wsTable = XLSX.utils.json_to_sheet(tableRows);
+  wsTable['!cols'] = cols.map(c => ({ wch: Math.max(12, Math.min(34, c.label.length + 6)) }));
+
+  const rawRows = rows.map(b => {
+    const copy = { ...b };
+    delete copy.geometry;
+    delete copy.render_color;
+    return copy;
+  });
+  const wsRaw = XLSX.utils.json_to_sheet(rawRows);
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, wsTable, 'Tableau_Batiments');
+  XLSX.utils.book_append_sheet(wb, wsRaw, 'Donnees_Brutes');
+  return wb;
+}
+
+function buildOwnersWorkbook() {
+  const { grouped, matchedOwners } = getGroupedLandlordsForSelection();
+  const summaryRows = grouped.map(g => ({
+    'SIREN': g.siren || 'NC',
+    'Dénomination': g.denomination || '',
+    'Forme Juridique': g.forme_juridique || '',
+    'Bâtiments (sélection)': g.buildings.size,
+    'Locaux (sélection)': g.locauxCount,
+    'Patrimoine Total (locaux)': g.patrimoine_majic || 0,
+    'Commune du Siège': g.commune_siege || '',
+  }));
+
+  const wsSummary = XLSX.utils.json_to_sheet(summaryRows);
+  wsSummary['!cols'] = [
+    { wch: 14 },
+    { wch: 36 },
+    { wch: 24 },
+    { wch: 20 },
+    { wch: 18 },
+    { wch: 22 },
+    { wch: 22 },
+  ];
+
+  const wsDetail = XLSX.utils.json_to_sheet(matchedOwners);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, wsSummary, 'Tableau_Bailleurs');
+  XLSX.utils.book_append_sheet(wb, wsDetail, 'Detail_Par_Batiment');
+  return wb;
+}
+
 function exportFilteredBuildingsExcel() {
-  if (state.filteredBuildings.length === 0) return;
+  if (state.filteredBuildings.length === 0) {
+    alert('Aucun bâtiment dans la sélection à exporter.');
+    return;
+  }
   showLoading('Génération du tableur Excel des bâtiments...');
 
   setTimeout(() => {
-    // Strip geometry before exporting to Excel
-    const rows = state.filteredBuildings.map(b => {
-      const copy = { ...b };
-      delete copy.geometry;
-      delete copy.render_color;
-      return copy;
-    });
-
-    const worksheet = XLSX.utils.json_to_sheet(rows);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'Batiments_Filtres');
-    XLSX.writeFile(workbook, `tezeloma_batiments_export_${new Date().toISOString().slice(0, 10)}.xlsx`);
-    hideLoading();
-    closeAllModals();
-  }, 100);
+    try {
+      const workbook = buildBuildingsWorkbook();
+      XLSX.writeFile(workbook, `tezeloma_batiments_export_${new Date().toISOString().slice(0, 10)}.xlsx`);
+    } finally {
+      hideLoading();
+      closeAllModals();
+    }
+  }, 80);
 }
 
 function exportFilteredOwnersExcel() {
-  if (state.filteredBuildings.length === 0) return;
+  if (state.filteredBuildings.length === 0) {
+    alert('Aucun bâtiment dans la sélection à exporter.');
+    return;
+  }
   showLoading('Génération du tableur des bailleurs...');
 
   setTimeout(() => {
-    const bIdSet = new Set(state.filteredBuildings.map(b => b.batiment_groupe_id));
-    const matchedOwners = state.owners.filter(o => bIdSet.has(o.batiment_groupe_id));
-
-    const worksheet = XLSX.utils.json_to_sheet(matchedOwners);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'Bailleurs_Filtres');
-    XLSX.writeFile(workbook, `tezeloma_bailleurs_export_${new Date().toISOString().slice(0, 10)}.xlsx`);
-    hideLoading();
-    closeAllModals();
-  }, 100);
+    try {
+      const workbook = buildOwnersWorkbook();
+      XLSX.writeFile(workbook, `tezeloma_bailleurs_export_${new Date().toISOString().slice(0, 10)}.xlsx`);
+    } finally {
+      hideLoading();
+      closeAllModals();
+    }
+  }, 80);
 }
 
 function exportFilteredGeoJSON() {
@@ -4960,7 +5209,7 @@ function exportFilteredGeoJSON() {
    ========================================================================== */
 const TOOL_TITLES = {
   landlords: '🔍 Bailleurs & SCI',
-  export: '📦 Export ZIP',
+  export: '📥 Exporter la sélection',
   sources: '📚 Sources de données',
   potential: '🔭 Pistes de données',
 };
@@ -6204,23 +6453,834 @@ function renderLandlordApiResults(data, query) {
 }
 
 /* ==========================================================================
-   Tab 4: ZIP & Multi-format Export Logic
+   Tab 4: Export Logic (Map PNG, Excel Bâtiments, Excel Bailleurs, Word .docx, subtle ZIP)
    ========================================================================== */
+function formatFilterActiveCriterion(f) {
+  const val = f.getValue ? f.getValue(state) : null;
+  if (f.controlType === 'dpe_pills') {
+    const arr = Array.isArray(val) ? val : Array.from(state.selectedDpes || []);
+    return arr.length > 0 ? `Étiquettes retenues : ${arr.join(', ')}` : 'Aucune étiquette';
+  }
+  if (f.controlType === 'overheating_pills') {
+    const arr = Array.isArray(val) ? val : Array.from(state.selectedOverheating || []);
+    return arr.length > 0 ? `Niveaux retenus : ${arr.join(', ')}` : 'Aucun niveau';
+  }
+  if (f.controlType === 'legal_pills') {
+    const arr = val && Array.isArray(val.selected) ? val.selected : Array.from(state.selectedLegal || []);
+    const mode = (val && val.mode) || state.legalMode || 'inclusif';
+    return `${arr.join(', ')} (mode ${mode})`;
+  }
+  if (f.controlType === 'slider' || f.controlType === 'number_min') {
+    return `Seuil minimum : ≥ ${val}${f.unit || ''}`;
+  }
+  if (f.controlType === 'range_min_max') {
+    const min = val && val.min ? val.min : '—';
+    const max = val && val.max ? val.max : '—';
+    return `Plage : de ${min} à ${max}`;
+  }
+  if (f.controlType === 'select') {
+    if (Array.isArray(f.options)) {
+      const opt = f.options.find(o => String(o.value) === String(val));
+      if (opt) return opt.label;
+    }
+    return String(val || '');
+  }
+  if (f.controlType === 'text') {
+    return `Recherche : « ${val || ''} »`;
+  }
+  return String(val != null ? val : '');
+}
+
+/**
+ * Returns the active filters that ACTUALLY remove matches from the loaded territory
+ * (i.e. where matchCount < state.buildings.length).
+ */
+function getEffectiveActiveFilters() {
+  const bldgs = state.buildings || [];
+  const totalCount = bldgs.length;
+  if (totalCount === 0) return [];
+
+  const catMap = new Map(SOCIOLOGICAL_CATEGORIES.map(c => [c.id, `${c.icon} ${c.title}`]));
+  const effective = [];
+
+  for (const f of FILTER_DEFINITIONS) {
+    if (!state.activeFilterIds.has(f.id) || !f.isActive(state)) continue;
+    let matchCount = 0;
+    for (let i = 0; i < totalCount; i++) {
+      if (f.matches(state, bldgs[i])) matchCount++;
+    }
+    const removedCount = totalCount - matchCount;
+    if (removedCount > 0) {
+      effective.push({
+        id: f.id,
+        label: f.label,
+        categoryTitle: catMap.get(f.category) || f.category,
+        criterionText: formatFilterActiveCriterion(f),
+        desc: f.desc || '',
+        source: f.source || 'BDNB',
+        matchCount,
+        removedCount,
+        totalCount,
+        removedPct: ((removedCount / totalCount) * 100).toFixed(1),
+      });
+    }
+  }
+
+  // Also check custom fieldwork filters if any remove matches
+  if (state.fieldworkFilters && state.fieldwork && state.fieldwork.size > 0) {
+    for (const [colName, filterVal] of Object.entries(state.fieldworkFilters)) {
+      const trimmed = String(filterVal || '').trim().toLowerCase();
+      if (!trimmed) continue;
+      let matchCount = 0;
+      for (let i = 0; i < totalCount; i++) {
+        const fwRow = state.fieldwork.get(bldgs[i].batiment_groupe_id);
+        const cellVal = fwRow && fwRow[colName] != null ? String(fwRow[colName]).toLowerCase() : '';
+        if (cellVal.includes(trimmed)) matchCount++;
+      }
+      const removedCount = totalCount - matchCount;
+      if (removedCount > 0) {
+        effective.push({
+          id: `fieldwork_${colName}`,
+          label: `Enquête Terrain : ${colName}`,
+          categoryTitle: '📋 Enquête de Terrain (.xlsx)',
+          criterionText: `Contient « ${filterVal} »`,
+          desc: `Filtre appliqué sur la colonne personnalisée "${colName}" du fichier de terrain importé.`,
+          source: 'Fichier terrain (.xlsx)',
+          matchCount,
+          removedCount,
+          totalCount,
+          removedPct: ((removedCount / totalCount) * 100).toFixed(1),
+        });
+      }
+    }
+  }
+
+  return effective;
+}
+
 function updateExportTab() {
   const countEl = document.getElementById('export-tab-count');
-  if (countEl) countEl.textContent = state.filteredBuildings.length.toLocaleString();
+  const totalEl = document.getElementById('export-tab-total-count');
+  const ownersEl = document.getElementById('export-tab-owners-count');
+  const filtersEl = document.getElementById('export-tab-filters-count');
+
+  if (countEl) countEl.textContent = state.filteredBuildings.length.toLocaleString('fr-FR');
+  if (totalEl) totalEl.textContent = (state.buildings ? state.buildings.length : 0).toLocaleString('fr-FR');
+  if (ownersEl) {
+    const { grouped } = getGroupedLandlordsForSelection();
+    ownersEl.textContent = grouped.length.toLocaleString('fr-FR');
+  }
+  if (filtersEl) {
+    const eff = getEffectiveActiveFilters();
+    filtersEl.textContent = eff.length.toLocaleString('fr-FR');
+  }
 }
 
 function initExportTabControls() {
-  const btnZip = document.getElementById('btn-export-full-zip');
+  const btnMapPng = document.getElementById('btn-export-map-png');
   const btnBldgs = document.getElementById('btn-export-tab-bldgs');
   const btnOwners = document.getElementById('btn-export-tab-owners');
+  const btnWord = document.getElementById('btn-export-word-doc');
+  const btnZip = document.getElementById('btn-export-full-zip');
   const btnGeojson = document.getElementById('btn-export-tab-geojson');
 
-  if (btnZip) btnZip.addEventListener('click', exportFilteredFullZip);
+  if (btnMapPng) btnMapPng.addEventListener('click', exportMapPng);
   if (btnBldgs) btnBldgs.addEventListener('click', exportFilteredBuildingsExcel);
   if (btnOwners) btnOwners.addEventListener('click', exportFilteredOwnersExcel);
+  if (btnWord) btnWord.addEventListener('click', exportWordReport);
+  if (btnZip) btnZip.addEventListener('click', exportFilteredFullZip);
   if (btnGeojson) btnGeojson.addEventListener('click', exportFilteredGeoJSON);
+}
+
+function getMapStyleLegendEntries() {
+  if (state.mapStyleMode === 'overheating') {
+    return {
+      title: 'Risque Surchauffe Estivale',
+      entries: [
+        { color: '#991b1b', label: 'Critique' },
+        { color: '#ef4444', label: 'Élevé' },
+        { color: '#f59e0b', label: 'Modéré' },
+        { color: '#38bdf8', label: 'Faible' },
+        { color: '#64748b', label: 'Non renseigné' },
+      ],
+    };
+  }
+  if (state.mapStyleMode === 'concentration') {
+    return {
+      title: 'Concentration Foncière',
+      entries: [
+        { color: '#ef4444', label: '≥ 80%' },
+        { color: '#f59e0b', label: '50–80%' },
+        { color: '#38bdf8', label: '20–50%' },
+        { color: '#64748b', label: '< 20%' },
+      ],
+    };
+  }
+  if (state.mapStyleMode === 'fieldwork') {
+    return {
+      title: 'Enquête de Terrain',
+      entries: [
+        { color: '#a855f7', label: 'Visité / Enquêté' },
+        { color: '#94a3b8', label: 'Non visité' },
+      ],
+    };
+  }
+  return {
+    title: 'Diagnostic Énergétique (DPE)',
+    entries: ['A', 'B', 'C', 'D', 'E', 'F', 'G'].map(c => ({
+      color: DPE_COLORS[c],
+      label: `DPE ${c}`,
+    })),
+  };
+}
+
+function getActiveTerritoryLabel() {
+  const el = document.getElementById('sidebar-territory-name');
+  if (el && el.textContent.trim()) return el.textContent.trim();
+  const dep = state.activeTerritory?.dep || '69';
+  return DEP_DISPLAY[dep] || `Département ${dep}`;
+}
+
+async function captureMapWithOverlays() {
+  const paneMap = document.getElementById('pane-map');
+  const wasInactive = paneMap && !paneMap.classList.contains('active');
+  let prevStyle = '';
+
+  if (wasInactive && paneMap) {
+    prevStyle = paneMap.getAttribute('style') || '';
+    paneMap.style.display = 'flex';
+    paneMap.style.visibility = 'hidden';
+    paneMap.style.position = 'absolute';
+    paneMap.style.inset = '0';
+    paneMap.style.zIndex = '-1';
+  }
+
+  try {
+    if (state.map) {
+      state.map.resize();
+      state.map.triggerRepaint();
+      await new Promise(resolve => {
+        let done = false;
+        const finish = () => {
+          if (!done) {
+            done = true;
+            resolve();
+          }
+        };
+        state.map.once('render', finish);
+        setTimeout(finish, 250);
+      });
+    }
+
+    const glCanvas = state.map ? state.map.getCanvas() : null;
+    const width = (glCanvas && glCanvas.width > 100) ? glCanvas.width : 1280;
+    const height = (glCanvas && glCanvas.height > 100) ? glCanvas.height : 800;
+
+    const outCanvas = document.createElement('canvas');
+    outCanvas.width = width;
+    outCanvas.height = height;
+    const ctx = outCanvas.getContext('2d');
+
+    // 1. Background + WebGL map layer
+    ctx.fillStyle = '#f8fafc';
+    ctx.fillRect(0, 0, width, height);
+    if (glCanvas && glCanvas.width > 0 && glCanvas.height > 0) {
+      ctx.drawImage(glCanvas, 0, 0, width, height);
+    }
+
+    // 2. Top-Left Header Pill (Territory + Selection Count)
+    const territoryLabel = getActiveTerritoryLabel();
+    const selCount = state.filteredBuildings.length.toLocaleString('fr-FR');
+    const totCount = (state.buildings ? state.buildings.length : 0).toLocaleString('fr-FR');
+    const headerTitle = `TeZeLoMa — ${territoryLabel}`;
+    const headerSub = `Sélection active : ${selCount} / ${totCount} bâtiments`;
+
+    ctx.save();
+    ctx.font = 'bold 15px system-ui, -apple-system, sans-serif';
+    const w1 = ctx.measureText(headerTitle).width;
+    ctx.font = '13px system-ui, -apple-system, sans-serif';
+    const w2 = ctx.measureText(headerSub).width;
+    const boxW = Math.max(w1, w2) + 32;
+    const boxH = 54;
+
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.94)';
+    ctx.strokeStyle = '#cbd5e1';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    if (ctx.roundRect) ctx.roundRect(16, 16, boxW, boxH, 8);
+    else ctx.rect(16, 16, boxW, boxH);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.fillStyle = '#0f172a';
+    ctx.font = 'bold 15px system-ui, -apple-system, sans-serif';
+    ctx.fillText(headerTitle, 32, 38);
+    ctx.fillStyle = '#0284c7';
+    ctx.font = '600 13px system-ui, -apple-system, sans-serif';
+    ctx.fillText(headerSub, 32, 58);
+    ctx.restore();
+
+    // 3. Bottom-Left Legend Box
+    const legend = getMapStyleLegendEntries();
+    ctx.save();
+    ctx.font = 'bold 13px system-ui, -apple-system, sans-serif';
+    let maxLegW = ctx.measureText(legend.title).width + 28;
+    ctx.font = '12px system-ui, -apple-system, sans-serif';
+    for (const item of legend.entries) {
+      const iw = ctx.measureText(item.label).width + 48;
+      if (iw > maxLegW) maxLegW = iw;
+    }
+    const legRowH = 20;
+    const legH = 36 + legend.entries.length * legRowH + 10;
+    const legX = 16;
+    const legY = height - legH - 16;
+
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.94)';
+    ctx.strokeStyle = '#cbd5e1';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    if (ctx.roundRect) ctx.roundRect(legX, legY, maxLegW, legH, 8);
+    else ctx.rect(legX, legY, maxLegW, legH);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.fillStyle = '#0f172a';
+    ctx.font = 'bold 13px system-ui, -apple-system, sans-serif';
+    ctx.fillText(legend.title, legX + 14, legY + 24);
+
+    ctx.font = '12px system-ui, -apple-system, sans-serif';
+    legend.entries.forEach((item, idx) => {
+      const ry = legY + 38 + idx * legRowH;
+      ctx.fillStyle = item.color;
+      ctx.fillRect(legX + 14, ry - 10, 14, 12);
+      ctx.strokeStyle = 'rgba(15, 23, 42, 0.2)';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(legX + 14, ry - 10, 14, 12);
+      ctx.fillStyle = '#334155';
+      ctx.fillText(item.label, legX + 36, ry);
+    });
+    ctx.restore();
+
+    // 4. Bottom-Right Attribution
+    ctx.save();
+    const attrText = '© OpenStreetMap contributors • TeZeLoMa';
+    ctx.font = '11px system-ui, -apple-system, sans-serif';
+    const attrW = ctx.measureText(attrText).width + 18;
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
+    ctx.fillRect(width - attrW - 12, height - 28, attrW, 20);
+    ctx.fillStyle = '#475569';
+    ctx.fillText(attrText, width - attrW - 3, height - 14);
+    ctx.restore();
+
+    const dataUrl = outCanvas.toDataURL('image/png');
+    const base64 = dataUrl.split(',')[1];
+    const binaryStr = atob(base64);
+    const bytes = new Uint8Array(binaryStr.length);
+    for (let i = 0; i < binaryStr.length; i++) {
+      bytes[i] = binaryStr.charCodeAt(i);
+    }
+
+    return {
+      dataUrl,
+      bytes,
+      width,
+      height,
+    };
+  } finally {
+    if (wasInactive && paneMap) {
+      if (prevStyle) paneMap.setAttribute('style', prevStyle);
+      else paneMap.removeAttribute('style');
+    }
+  }
+}
+
+async function exportMapPng() {
+  showLoading('Capture de la carte en PNG...');
+  try {
+    const { bytes } = await captureMapWithOverlays();
+    const dateStr = new Date().toISOString().slice(0, 10);
+    const blob = new Blob([bytes], { type: 'image/png' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `tezeloma_carte_${dateStr}.png`;
+    a.click();
+    URL.revokeObjectURL(url);
+    closeAllModals();
+  } catch (err) {
+    console.error('Error exporting map PNG:', err);
+    alert(`Erreur lors de l'export PNG de la carte : ${err.message}`);
+  } finally {
+    hideLoading();
+  }
+}
+
+/* ==========================================================================
+   Word (.docx) 4-Page Report Generator via JSZip (OpenXML WordprocessingML)
+   Page 1: Active Filters (those that actually remove matches)
+   Page 2: Map PNG + Legend
+   Page 3: Bâtiments Table
+   Page 4: Bailleurs Table
+   ========================================================================== */
+function escapeXml(str) {
+  if (str === null || str === undefined) return '';
+  return String(str)
+    .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
+}
+
+function docxParagraph(text, opts = {}) {
+  const {
+    bold = false,
+    italic = false,
+    color = '0F172A',
+    sizeHalfPt = 20,
+    spaceBefore = 60,
+    spaceAfter = 100,
+    align = 'left',
+    shadingFill = null,
+  } = opts;
+  const pPr = [
+    `<w:spacing w:before="${spaceBefore}" w:after="${spaceAfter}"/>`,
+    align !== 'left' ? `<w:jc w:val="${align}"/>` : '',
+    shadingFill ? `<w:shd w:val="clear" w:color="auto" w:fill="${shadingFill}"/>` : '',
+  ].join('');
+  const rPr = [
+    bold ? '<w:b/>' : '',
+    italic ? '<w:i/>' : '',
+    color ? `<w:color w:val="${color}"/>` : '',
+    sizeHalfPt ? `<w:sz w:val="${sizeHalfPt}"/><w:szCs w:val="${sizeHalfPt}"/>` : '',
+  ].join('');
+  return `<w:p><w:pPr>${pPr}</w:pPr><w:r><w:rPr>${rPr}</w:rPr><w:t xml:space="preserve">${escapeXml(text)}</w:t></w:r></w:p>`;
+}
+
+function docxPageBreak() {
+  return `<w:p><w:r><w:br w:type="page"/></w:r></w:p>`;
+}
+
+function docxTable(headers, rows, colWidthsPct = null, fontSizeHalfPt = 16) {
+  const borderXml = `
+    <w:tblBorders>
+      <w:top w:val="single" w:sz="4" w:space="0" w:color="CBD5E1"/>
+      <w:left w:val="single" w:sz="4" w:space="0" w:color="CBD5E1"/>
+      <w:bottom w:val="single" w:sz="4" w:space="0" w:color="CBD5E1"/>
+      <w:right w:val="single" w:sz="4" w:space="0" w:color="CBD5E1"/>
+      <w:insideH w:val="single" w:sz="4" w:space="0" w:color="E2E8F0"/>
+      <w:insideV w:val="single" w:sz="4" w:space="0" w:color="E2E8F0"/>
+    </w:tblBorders>`;
+
+  let headerCells = '';
+  headers.forEach((h, i) => {
+    const wPct = colWidthsPct && colWidthsPct[i] ? `<w:tcW w:w="${Math.round(colWidthsPct[i] * 50)}" w:type="pct"/>` : '';
+    headerCells += `
+      <w:tc>
+        <w:tcPr>
+          ${wPct}
+          <w:shd w:val="clear" w:color="auto" w:fill="0F172A"/>
+          <w:tcMar>
+            <w:top w:w="80" w:type="dxa"/>
+            <w:bottom w:w="80" w:type="dxa"/>
+            <w:left w:w="100" w:type="dxa"/>
+            <w:right w:w="100" w:type="dxa"/>
+          </w:tcMar>
+        </w:tcPr>
+        <w:p>
+          <w:pPr><w:spacing w:before="20" w:after="20"/></w:pPr>
+          <w:r>
+            <w:rPr><w:b/><w:color w:val="FFFFFF"/><w:sz w:val="${fontSizeHalfPt}"/><w:szCs w:val="${fontSizeHalfPt}"/></w:rPr>
+            <w:t xml:space="preserve">${escapeXml(h)}</w:t>
+          </w:r>
+        </w:p>
+      </w:tc>`;
+  });
+
+  let bodyRowsXml = '';
+  rows.forEach((row, rIdx) => {
+    const fill = rIdx % 2 === 1 ? 'F8FAFC' : 'FFFFFF';
+    let cellsXml = '';
+    row.forEach((cellVal, cIdx) => {
+      const wPct = colWidthsPct && colWidthsPct[cIdx] ? `<w:tcW w:w="${Math.round(colWidthsPct[cIdx] * 50)}" w:type="pct"/>` : '';
+      cellsXml += `
+        <w:tc>
+          <w:tcPr>
+            ${wPct}
+            <w:shd w:val="clear" w:color="auto" w:fill="${fill}"/>
+            <w:tcMar>
+              <w:top w:w="65" w:type="dxa"/>
+              <w:bottom w:w="65" w:type="dxa"/>
+              <w:left w:w="90" w:type="dxa"/>
+              <w:right w:w="90" w:type="dxa"/>
+            </w:tcMar>
+          </w:tcPr>
+          <w:p>
+            <w:pPr><w:spacing w:before="15" w:after="15"/></w:pPr>
+            <w:r>
+              <w:rPr><w:color w:val="1E293B"/><w:sz w:val="${fontSizeHalfPt}"/><w:szCs w:val="${fontSizeHalfPt}"/></w:rPr>
+              <w:t xml:space="preserve">${escapeXml(cellVal)}</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>`;
+    });
+    bodyRowsXml += `<w:tr>${cellsXml}</w:tr>`;
+  });
+
+  return `
+    <w:tbl>
+      <w:tblPr>
+        <w:tblW w:w="5000" w:type="pct"/>
+        ${borderXml}
+      </w:tblPr>
+      <w:tr><w:trPr><w:tblHeader/></w:trPr>${headerCells}</w:tr>
+      ${bodyRowsXml}
+    </w:tbl>`;
+}
+
+function docxEmbeddedImage(rId, widthPx, heightPx) {
+  // Fit comfortably inside Landscape A4 page (max ~9.4in wide by ~5.0in tall)
+  const maxW = 9.4 * 914400;
+  const maxH = 5.0 * 914400;
+  const aspect = (widthPx > 0 && heightPx > 0) ? (widthPx / heightPx) : 1.6;
+  let cx = maxW;
+  let cy = Math.round(cx / aspect);
+  if (cy > maxH) {
+    cy = maxH;
+    cx = Math.round(cy * aspect);
+  }
+
+  return `
+    <w:p>
+      <w:pPr><w:jc w:val="center"/><w:spacing w:before="100" w:after="120"/></w:pPr>
+      <w:r>
+        <w:drawing>
+          <wp:inline distT="0" distB="0" distL="0" distR="0">
+            <wp:extent cx="${cx}" cy="${cy}"/>
+            <wp:docPr id="1" name="Carte TeZeLoMa"/>
+            <wp:cNvGraphicFramePr>
+              <a:graphicFrameLocks noChangeAspect="1"/>
+            </wp:cNvGraphicFramePr>
+            <a:graphic>
+              <a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture">
+                <pic:pic>
+                  <pic:nvPicPr>
+                    <pic:cNvPr id="0" name="map.png"/>
+                    <pic:cNvPicPr/>
+                  </pic:nvPicPr>
+                  <pic:blipFill>
+                    <a:blip r:embed="${rId}"/>
+                    <a:stretch><a:fillRect/></a:stretch>
+                  </pic:blipFill>
+                  <pic:spPr>
+                    <a:xfrm>
+                      <a:off x="0" y="0"/>
+                      <a:ext cx="${cx}" cy="${cy}"/>
+                    </a:xfrm>
+                    <a:prstGeom prst="rect"><a:avLst/></a:prstGeom>
+                  </pic:spPr>
+                </pic:pic>
+              </a:graphicData>
+            </a:graphic>
+          </wp:inline>
+        </w:drawing>
+      </w:r>
+    </w:p>`;
+}
+
+async function exportWordReport() {
+  if (state.filteredBuildings.length === 0) {
+    alert('Aucun bâtiment dans la sélection à exporter.');
+    return;
+  }
+  if (typeof JSZip === 'undefined') {
+    alert("La librairie JSZip n'est pas disponible.");
+    return;
+  }
+
+  showLoading('Génération du rapport Word (.docx) en 4 pages...');
+
+  try {
+    const dateStr = new Date().toISOString().slice(0, 10);
+    const nowFormatted = new Date().toLocaleString('fr-FR');
+    const territoryLabel = getActiveTerritoryLabel();
+    const totalLoaded = state.buildings ? state.buildings.length : 0;
+    const filteredCount = state.filteredBuildings.length;
+    const excludedTotal = Math.max(0, totalLoaded - filteredCount);
+
+    // Compute synthesis KPIs on active selection
+    let totalLogs = 0;
+    let totalFgLogs = 0;
+    let totalOverheat = 0;
+    for (const b of state.filteredBuildings) {
+      totalLogs += Number(b.nb_log || 0);
+      totalFgLogs += Number(b.nb_dpe_fg != null ? b.nb_dpe_fg : (b.dpe === 'F' || b.dpe === 'G' ? (b.nb_log || 1) : 0));
+      if (b.risque_surchauffe_ete === 'Élevé' || b.risque_surchauffe_ete === 'Critique') totalOverheat++;
+    }
+
+    const { grouped: groupedLandlords } = getGroupedLandlordsForSelection();
+    const effectiveFilters = getEffectiveActiveFilters();
+
+    // Capture Map PNG
+    const mapCapture = await captureMapWithOverlays();
+
+    // =========================================================================
+    // PAGE 1: Active Filters (those that actually remove matches)
+    // =========================================================================
+    const profObj = getAllProfiles().find(p => p.id === state.activeProfileId);
+    const profileLabel = profObj ? profObj.name : 'Sélection personnalisée';
+
+    const page1Parts = [
+      docxParagraph('TeZeLoMa — Rapport d\'Enquête Cartographique & Bailleurs', {
+        bold: true, sizeHalfPt: 32, color: '0284C7', spaceBefore: 0, spaceAfter: 80,
+      }),
+      docxParagraph('Page 1 / 4 — Synthèse de la sélection & Filtres actifs (excluant des bâtiments)', {
+        bold: true, sizeHalfPt: 24, color: '0F172A', spaceBefore: 20, spaceAfter: 140,
+      }),
+      docxParagraph(
+        `Date : ${nowFormatted}   |   Territoire : ${territoryLabel}   |   Profil : ${profileLabel}`,
+        { italic: true, sizeHalfPt: 18, color: '475569', spaceBefore: 0, spaceAfter: 160 }
+      ),
+      docxTable(
+        ['Bâtiments retenus', 'Bâtiments exclus', 'Logements (sélection)', 'Logements DPE F/G', 'Surchauffe Élevée/Crit.', 'Bailleurs PM identifiés'],
+        [[
+          `${filteredCount.toLocaleString('fr-FR')} / ${totalLoaded.toLocaleString('fr-FR')}`,
+          `${excludedTotal.toLocaleString('fr-FR')} (-${totalLoaded > 0 ? ((excludedTotal / totalLoaded) * 100).toFixed(1) : '0.0'}%)`,
+          totalLogs.toLocaleString('fr-FR'),
+          totalFgLogs.toLocaleString('fr-FR'),
+          totalOverheat.toLocaleString('fr-FR'),
+          groupedLandlords.length.toLocaleString('fr-FR'),
+        ]],
+        [18, 18, 16, 16, 16, 16],
+        17
+      ),
+      docxParagraph(
+        `Filtres actifs réduisant effectivement la sélection (${effectiveFilters.length} filtre${effectiveFilters.length > 1 ? 's' : ''}) :`,
+        { bold: true, sizeHalfPt: 22, color: '0F172A', spaceBefore: 220, spaceAfter: 80 }
+      ),
+      docxParagraph(
+        'Seuls les filtres actifs qui écartent effectivement au moins un bâtiment du territoire chargé sont listés ci-dessous avec leur impact mesuré :',
+        { italic: true, sizeHalfPt: 17, color: '475569', spaceBefore: 0, spaceAfter: 120 }
+      ),
+    ];
+
+    if (effectiveFilters.length === 0) {
+      page1Parts.push(
+        docxParagraph(
+          'Aucun filtre actif ne réduit la sélection sur ce territoire (100 % des bâtiments chargés sont conservés).',
+          { bold: true, sizeHalfPt: 19, color: '334155', spaceBefore: 80, spaceAfter: 120 }
+        )
+      );
+    } else {
+      const filterRows = effectiveFilters.map(ef => [
+        ef.label,
+        ef.categoryTitle.replace(/^[^\wÀ-ÿ]+/, '').trim(),
+        ef.criterionText,
+        `${ef.matchCount.toLocaleString('fr-FR')} / ${ef.totalCount.toLocaleString('fr-FR')} retenus (${ef.removedCount.toLocaleString('fr-FR')} exclus, -${ef.removedPct}%)`,
+        `${ef.desc} [Source : ${ef.source}]`,
+      ]);
+      page1Parts.push(
+        docxTable(
+          ['Filtre actif', 'Catégorie', 'Critère appliqué', 'Impact sur les bâtiments', 'Explication & Source'],
+          filterRows,
+          [20, 15, 17, 18, 30],
+          16
+        )
+      );
+    }
+
+    // =========================================================================
+    // PAGE 2: Map PNG + Legend
+    // =========================================================================
+    const legendInfo = getMapStyleLegendEntries();
+    const page2Parts = [
+      docxParagraph('Page 2 / 4 — Carte de la sélection', {
+        bold: true, sizeHalfPt: 24, color: '0F172A', spaceBefore: 0, spaceAfter: 60,
+      }),
+      docxParagraph(
+        `Territoire : ${territoryLabel}   |   Coloration : ${legendInfo.title}   |   ${filteredCount.toLocaleString('fr-FR')} bâtiments affichés`,
+        { italic: true, sizeHalfPt: 18, color: '475569', spaceBefore: 0, spaceAfter: 80 }
+      ),
+      docxEmbeddedImage('rIdMapImg', mapCapture.width, mapCapture.height),
+      docxParagraph(
+        `Légende active (${legendInfo.title}) : ${legendInfo.entries.map(e => e.label).join('  •  ')}`,
+        { bold: true, sizeHalfPt: 17, color: '334155', align: 'center', spaceBefore: 60, spaceAfter: 60 }
+      ),
+    ];
+
+    // =========================================================================
+    // PAGE 3: Bâtiments Table
+    // =========================================================================
+    const { rows: sortedBldgs } = getSortedBuildingsForExport();
+    const maxDocxBldgRows = 25;
+    const bldgSlice = sortedBldgs.slice(0, maxDocxBldgRows);
+    const bldgDocxCols = [
+      { label: 'ID BDNB', get: b => b.batiment_groupe_id || '' },
+      { label: 'Adresse', get: b => b.adr || 'Adresse inconnue' },
+      { label: 'CP', get: b => b.cp != null ? String(b.cp) : '' },
+      { label: 'Log.', get: b => b.nb_log != null ? String(b.nb_log) : '1' },
+      { label: 'DPE', get: b => b.dpe || 'NC' },
+      { label: '% F/G', get: b => b.pct_dpe_fg != null ? Math.round(Number(b.pct_dpe_fg)) + '%' : '0%' },
+      { label: 'Risque Été', get: b => b.risque_surchauffe_ete || 'Non renseigné' },
+      { label: 'Score', get: b => b.score_surchauffe_ete != null ? `${b.score_surchauffe_ete}/100` : '0/100' },
+      { label: 'Principal Bailleur', get: b => b.concentration_prop_max_denomination || '—' },
+      { label: 'SIREN', get: b => b.siren_principal || '—' },
+      { label: 'Conc. %', get: b => {
+        const val = b.concentration_prop_max_num != null ? b.concentration_prop_max_num : b.concentration_prop_max_pct;
+        return val != null && Number(val) > 0 ? Math.round(Number(val)) + '%' : '—';
+      }},
+      { label: 'Loyer Max T2', get: b => b.loyer_max_t2_non_meuble_m2 ? Number(b.loyer_max_t2_non_meuble_m2).toFixed(1) + ' €' : (b.zone_encadrement_loyers ? 'Zoné' : 'Non') },
+    ];
+
+    const bldgTableRows = bldgSlice.map(b => bldgDocxCols.map(c => c.get(b)));
+    const bldgTruncNote = sortedBldgs.length > maxDocxBldgRows
+      ? `Affichage des ${maxDocxBldgRows} premiers bâtiments selon le tri actif sur ${sortedBldgs.length.toLocaleString('fr-FR')} au total (voir l'export Excel Bâtiments pour la liste intégrale).`
+      : `Liste complète des ${sortedBldgs.length.toLocaleString('fr-FR')} bâtiment(s) de la sélection active.`;
+
+    const page3Parts = [
+      docxParagraph(`Page 3 / 4 — Tableau des Bâtiments (${sortedBldgs.length.toLocaleString('fr-FR')} bâtiments)`, {
+        bold: true, sizeHalfPt: 24, color: '0F172A', spaceBefore: 0, spaceAfter: 60,
+      }),
+      docxParagraph(bldgTruncNote, {
+        italic: true, sizeHalfPt: 17, color: '475569', spaceBefore: 0, spaceAfter: 100,
+      }),
+      docxTable(
+        bldgDocxCols.map(c => c.label),
+        bldgTableRows,
+        [10, 20, 5, 5, 5, 5, 9, 6, 15, 8, 6, 6],
+        14
+      ),
+    ];
+
+    // =========================================================================
+    // PAGE 4: Bailleurs Table
+    // =========================================================================
+    const maxDocxOwnerRows = 25;
+    const ownerSlice = groupedLandlords.slice(0, maxDocxOwnerRows);
+    const ownerTruncNote = groupedLandlords.length > maxDocxOwnerRows
+      ? `Affichage des ${maxDocxOwnerRows} premiers bailleurs personnes morales sur ${groupedLandlords.length.toLocaleString('fr-FR')} au total (voir l'export Excel Bailleurs pour la liste intégrale).`
+      : `Liste complète des ${groupedLandlords.length.toLocaleString('fr-FR')} bailleur(s) personne(s) morale(s) de la sélection active.`;
+
+    const page4Parts = [
+      docxParagraph(`Page 4 / 4 — Tableau des Bailleurs & SCI (${groupedLandlords.length.toLocaleString('fr-FR')} entités morales)`, {
+        bold: true, sizeHalfPt: 24, color: '0F172A', spaceBefore: 0, spaceAfter: 60,
+      }),
+      docxParagraph(ownerTruncNote, {
+        italic: true, sizeHalfPt: 17, color: '475569', spaceBefore: 0, spaceAfter: 100,
+      }),
+    ];
+
+    if (ownerSlice.length === 0) {
+      page4Parts.push(
+        docxParagraph('Aucun propriétaire personne morale identifié dans la sélection active.', {
+          italic: true, sizeHalfPt: 18, color: '64748B', spaceBefore: 80, spaceAfter: 80,
+        })
+      );
+    } else {
+      const ownerTableRows = ownerSlice.map(g => [
+        g.siren || 'NC',
+        g.denomination || '',
+        g.forme_juridique || '',
+        g.buildings.size.toLocaleString('fr-FR'),
+        g.locauxCount.toLocaleString('fr-FR'),
+        g.patrimoine_majic > 0 ? `${g.patrimoine_majic.toLocaleString('fr-FR')} loc.` : '—',
+        g.commune_siege || '—',
+      ]);
+      page4Parts.push(
+        docxTable(
+          ['SIREN', 'Dénomination', 'Forme Juridique', 'Bâtiments (sél.)', 'Locaux (sél.)', 'Patrimoine Total', 'Commune du Siège'],
+          ownerTableRows,
+          [11, 28, 16, 11, 11, 11, 12],
+          15
+        )
+      );
+    }
+
+    // Combine all 4 pages with explicit page breaks into word/document.xml
+    const documentXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"
+            xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"
+            xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing"
+            xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"
+            xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture">
+  <w:body>
+    ${page1Parts.join('\n')}
+    ${docxPageBreak()}
+    ${page2Parts.join('\n')}
+    ${docxPageBreak()}
+    ${page3Parts.join('\n')}
+    ${docxPageBreak()}
+    ${page4Parts.join('\n')}
+    <w:sectPr>
+      <w:pgSz w:w="16838" w:h="11906" w:orient="landscape"/>
+      <w:pgMar w:top="720" w:right="720" w:bottom="720" w:left="720" w:header="360" w:footer="360" w:gutter="0"/>
+    </w:sectPr>
+  </w:body>
+</w:document>`;
+
+    const contentTypesXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml" ContentType="application/xml"/>
+  <Default Extension="png" ContentType="image/png"/>
+  <Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
+  <Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/>
+</Types>`;
+
+    const rootRelsXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>
+</Relationships>`;
+
+    const docRelsXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rIdStyles" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>
+  <Relationship Id="rIdMapImg" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/map.png"/>
+</Relationships>`;
+
+    const stylesXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:docDefaults>
+    <w:rPrDefault>
+      <w:rPr>
+        <w:rFonts w:ascii="Calibri" w:hAnsi="Calibri" w:cs="Calibri"/>
+        <w:sz w:val="20"/>
+        <w:szCs w:val="20"/>
+        <w:lang w:val="fr-FR"/>
+      </w:rPr>
+    </w:rPrDefault>
+  </w:docDefaults>
+</w:styles>`;
+
+    const docxZip = new JSZip();
+    docxZip.file('[Content_Types].xml', contentTypesXml);
+    docxZip.file('_rels/.rels', rootRelsXml);
+    docxZip.file('word/document.xml', documentXml);
+    docxZip.file('word/_rels/document.xml.rels', docRelsXml);
+    docxZip.file('word/styles.xml', stylesXml);
+    docxZip.file('word/media/map.png', mapCapture.bytes);
+
+    const blob = await docxZip.generateAsync({
+      type: 'blob',
+      mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      compression: 'DEFLATE',
+      compressionOptions: { level: 6 },
+    });
+
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `tezeloma_rapport_export_${dateStr}.docx`;
+    a.click();
+    URL.revokeObjectURL(url);
+    closeAllModals();
+  } catch (err) {
+    console.error('Error generating Word report:', err);
+    alert(`Erreur lors de la génération du rapport Word : ${err.message}`);
+  } finally {
+    hideLoading();
+  }
 }
 
 async function exportFilteredFullZip() {
@@ -6241,24 +7301,12 @@ async function exportFilteredFullZip() {
     const dateStr = new Date().toISOString().slice(0, 10);
 
     // 1. Excel Bâtiments
-    const bldgRows = state.filteredBuildings.map(b => {
-      const copy = { ...b };
-      delete copy.geometry;
-      delete copy.render_color;
-      return copy;
-    });
-    const wsBldgs = XLSX.utils.json_to_sheet(bldgRows);
-    const wbBldgs = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wbBldgs, wsBldgs, 'Batiments_Filtres');
+    const wbBldgs = buildBuildingsWorkbook();
     const bldgArray = XLSX.write(wbBldgs, { bookType: 'xlsx', type: 'array' });
     zip.file('tableur_batiments_groupe.xlsx', bldgArray);
 
     // 2. Excel Bailleurs
-    const bIdSet = new Set(state.filteredBuildings.map(b => b.batiment_groupe_id));
-    const matchedOwners = state.owners.filter(o => bIdSet.has(o.batiment_groupe_id));
-    const wsOwners = XLSX.utils.json_to_sheet(matchedOwners);
-    const wbOwners = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wbOwners, wsOwners, 'Bailleurs_Filtres');
+    const wbOwners = buildOwnersWorkbook();
     const ownersArray = XLSX.write(wbOwners, { bookType: 'xlsx', type: 'array' });
     zip.file('tableur_proprietaires_detaille.xlsx', ownersArray);
 
@@ -6277,6 +7325,7 @@ async function exportFilteredFullZip() {
     zip.file('carte_batiments.geojson', JSON.stringify(geojson, null, 2));
 
     // 4. README.txt
+    const { matchedOwners } = getGroupedLandlordsForSelection();
     const readmeContent = [
       `========================================================================`,
       `TeZeLoMa — Enquête Cartographique Foncier, Climat & Bailleurs`,
@@ -6291,8 +7340,8 @@ async function exportFilteredFullZip() {
       `   Tableau complet des bâtiments sélectionnés avec diagnostic DPE, score et facteurs`,
       `   de surchauffe d'été, îlots de chaleur, encadrement des loyers, concentration foncière.`,
       `2. tableur_proprietaires_detaille.xlsx :`,
-      `   1 ligne par couple (bâtiment × propriétaire personne morale) avec SIREN, forme juridique`,
-      `   et locaux possédés.`,
+      `   Synthèse des propriétaires personnes morales et détail par bâtiment avec SIREN,`,
+      `   forme juridique et locaux possédés.`,
       `3. carte_batiments.geojson :`,
       `   Couche cartographique prête à être importée directement dans Framacarte, uMap ou QGIS.`,
       ``,
@@ -7390,30 +8439,620 @@ function renderSourcesTab() {
 }
 
 /* ==========================================================================
-   Address Geocoding Search (BAN API)
+   Address Geocoding Search (BAN API + Local Loaded Buildings + Low Ambiguity + Pin)
    ========================================================================== */
-function initAddressSearch() {
-  const input = document.getElementById('input-address-search');
-  let debounceTimeout = null;
+const GENERIC_ADDR_TOKENS = new Set([
+  'rue', 'r', 'avenue', 'av', 'boulevard', 'bd', 'bvd', 'place', 'pl',
+  'chemin', 'ch', 'impasse', 'imp', 'allee', 'all', 'cours', 'crs',
+  'quai', 'route', 'rte', 'passage', 'pass', 'square', 'sq', 'montee',
+  'qu', 'faubourg', 'fg', 'voie', 'cite', 'residence', 'res', 'lotissement',
+  'de', 'du', 'des', 'la', 'le', 'les', 'l', 'd', 'au', 'aux', 'en', 'sur', 'sous',
+  'bis', 'ter', 'quater'
+]);
 
-  input.addEventListener('input', (e) => {
-    clearTimeout(debounceTimeout);
-    const q = e.target.value.trim();
-    if (q.length < 4) return;
+const INCOMPLETE_TRAILING_TOKENS = new Set([
+  ...GENERIC_ADDR_TOKENS,
+  'saint', 'sainte', 'st', 'ste', 'general', 'gal', 'docteur', 'dr',
+  'professeur', 'pr', 'president', 'marechal', 'amiral', 'colonel', 'commandant',
+  'paul', 'jean', 'pierre', 'louis', 'charles', 'henri', 'jules', 'victor',
+  'claude', 'francois', 'georges', 'marie', 'joseph', 'camille', 'andre',
+  'marcel', 'edouard', 'etienne', 'antoine', 'gabriel', 'leon', 'albert',
+  'emile', 'felix', 'gustave', 'maurice', 'rene', 'robert', 'roger'
+]);
 
-    debounceTimeout = setTimeout(async () => {
-      try {
-        const res = await fetch(`https://api-adresse.data.gouv.fr/search/?q=${encodeURIComponent(q)}&limit=1`);
-        if (!res.ok) return;
+function normalizeAddrText(str) {
+  return String(str || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function addSearchedAddressPin({ lon, lat, label, context, batiment_groupe_id = null }) {
+  if (!state.map || typeof lon !== 'number' || typeof lat !== 'number' || Number.isNaN(lon) || Number.isNaN(lat)) {
+    return null;
+  }
+
+  if (!Array.isArray(state.searchedAddressMarkers)) {
+    state.searchedAddressMarkers = [];
+  }
+
+  // If a pin already exists at virtually the same location (~30m), update it in place
+  const existingIdx = state.searchedAddressMarkers.findIndex(
+    m => Math.hypot(m.lon - lon, m.lat - lat) < 0.00035
+  );
+  if (existingIdx !== -1) {
+    const existing = state.searchedAddressMarkers[existingIdx];
+    existing.lon = lon;
+    existing.lat = lat;
+    existing.label = label || existing.label;
+    existing.context = context || existing.context;
+    if (batiment_groupe_id) existing.batiment_groupe_id = batiment_groupe_id;
+    existing.marker.setLngLat([lon, lat]);
+    const textEl = existing.element?.querySelector('.address-pin-badge-text');
+    if (textEl) textEl.textContent = existing.label;
+    return existing;
+  }
+
+  const pinId = `pin_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+  const shortLabel = String(label || 'Adresse recherchée');
+
+  const pinEl = document.createElement('div');
+  pinEl.className = 'address-search-pin';
+  pinEl.dataset.pinId = pinId;
+  pinEl.title = context ? `${shortLabel} — ${context}` : shortLabel;
+
+  pinEl.innerHTML = `
+    <div class="address-pin-badge">
+      <span class="address-pin-badge-text">📍 ${escapeHtml(shortLabel)}</span>
+      <button type="button" class="address-pin-remove" title="Retirer ce repère" aria-label="Retirer ce repère">&times;</button>
+    </div>
+    <div class="address-pin-icon-wrap">
+      <div class="address-pin-pulse"></div>
+      <svg class="address-pin-svg" viewBox="0 0 32 38" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M16 36C16 36 29 23.4 29 14C29 6.8203 23.1797 1 16 1C8.8203 1 3 6.8203 3 14C3 23.4 16 36 16 36Z" fill="#2563eb" stroke="#ffffff" stroke-width="2.5"/>
+        <circle cx="16" cy="14" r="5.5" fill="#ffffff"/>
+      </svg>
+    </div>
+  `;
+
+  const marker = new maplibregl.Marker({ element: pinEl, anchor: 'bottom' })
+    .setLngLat([lon, lat])
+    .addTo(state.map);
+
+  const pinRecord = {
+    id: pinId,
+    lon,
+    lat,
+    label: shortLabel,
+    context: context || '',
+    batiment_groupe_id,
+    marker,
+    element: pinEl,
+  };
+
+  pinEl.querySelector('.address-pin-remove')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    removeSearchedAddressPin(pinId);
+  });
+
+  pinEl.addEventListener('click', (e) => {
+    if (e.target.closest('.address-pin-remove')) return;
+    e.stopPropagation();
+    state.map.flyTo({ center: [pinRecord.lon, pinRecord.lat], zoom: 17.5, essential: true });
+    if (pinRecord.batiment_groupe_id) {
+      inspectBuilding(pinRecord.batiment_groupe_id);
+    }
+  });
+
+  state.searchedAddressMarkers.push(pinRecord);
+  return pinRecord;
+}
+
+function removeSearchedAddressPin(pinId) {
+  if (!Array.isArray(state.searchedAddressMarkers)) return;
+  const idx = state.searchedAddressMarkers.findIndex(m => m.id === pinId);
+  if (idx !== -1) {
+    try {
+      state.searchedAddressMarkers[idx].marker.remove();
+    } catch (_) {}
+    state.searchedAddressMarkers.splice(idx, 1);
+  }
+}
+
+function clearSearchedAddressPins() {
+  if (!Array.isArray(state.searchedAddressMarkers)) return;
+  for (const m of state.searchedAddressMarkers) {
+    try {
+      m.marker.remove();
+    } catch (_) {}
+  }
+  state.searchedAddressMarkers = [];
+}
+
+function getActivePostalCodesSet() {
+  const cps = new Set();
+  if (state.buildings && state.buildings.length > 0) {
+    for (let i = 0; i < state.buildings.length; i++) {
+      if (state.buildings[i].cp) cps.add(Number(state.buildings[i].cp));
+    }
+  }
+  if (state.pendingSelectedChunks && state.manifest?.chunks) {
+    for (const c of state.manifest.chunks) {
+      if (state.pendingSelectedChunks.has(c.id)) cps.add(Number(c.cp));
+    }
+  }
+  return cps;
+}
+
+function tokenMatchesCandidateWord(qTok, cTok) {
+  if (qTok === cTok) return true;
+  if (/^\d+$/.test(qTok) || /^\d+$/.test(cTok)) {
+    return qTok === cTok;
+  }
+  if (qTok.length >= 5 && cTok.startsWith(qTok) && (qTok.length / cTok.length) >= 0.65) {
+    return true;
+  }
+  return false;
+}
+
+function searchLocalBuildingAddresses(query) {
+  if (!state.buildings || state.buildings.length === 0) return [];
+  const qNorm = normalizeAddrText(query);
+  const qTokens = qNorm.split(' ').filter(Boolean);
+  if (qTokens.length === 0) return [];
+
+  const matchesByAddrKey = new Map();
+
+  for (let i = 0; i < state.buildings.length; i++) {
+    const b = state.buildings[i];
+    if (!b.adr) continue;
+    const rawAddresses = String(b.adr).split(/\s*\|\s*|\s*;\s*/);
+    const cpStr = String(b.cp || '');
+    const communeStr = String(b.libelle_commune_insee || '');
+
+    for (const singleAdr of rawAddresses) {
+      const fullNorm = normalizeAddrText(`${singleAdr} ${cpStr} ${communeStr}`);
+      const fullWords = fullNorm.split(' ').filter(Boolean);
+
+      // Every query token must match a word in fullWords (exact for numbers, word/prefix for text)
+      const allMatched = qTokens.every((qTok, idx) => {
+        const isLast = idx === qTokens.length - 1;
+        return fullWords.some(w => {
+          if (/^\d+$/.test(qTok)) return w === qTok;
+          if (w === qTok) return true;
+          if (isLast && qTok.length >= 3 && w.startsWith(qTok)) return true;
+          if (qTok.length >= 5 && w.startsWith(qTok)) return true;
+          return false;
+        });
+      });
+
+      if (!allMatched) continue;
+
+      const cleanStreet = singleAdr.trim().replace(/\s+\d{5}$/, '').trim();
+      const adrNorm = normalizeAddrText(cleanStreet);
+      const key = `${adrNorm}|${cpStr}`;
+      if (!matchesByAddrKey.has(key)) {
+        const coords = getGeometryCenter(b.geometry);
+        if (!coords) continue;
+        matchesByAddrKey.set(key, {
+          label: `${cleanStreet}${cpStr ? `, ${cpStr}` : ''}${communeStr ? ` ${communeStr}` : ''}`,
+          streetName: cleanStreet,
+          postcode: cpStr,
+          city: communeStr,
+          context: `${cpStr} ${communeStr}`.trim(),
+          lon: coords[0],
+          lat: coords[1],
+          score: 0.95,
+          inActiveTerritory: true,
+          source: 'local',
+          batiment_groupe_id: b.batiment_groupe_id,
+        });
+        if (matchesByAddrKey.size >= 15) break;
+      }
+    }
+    if (matchesByAddrKey.size >= 15) break;
+  }
+
+  return Array.from(matchesByAddrKey.values());
+}
+
+async function fetchAddressCandidates(query, abortSignal, timeoutMs = 1200) {
+  const localCandidates = searchLocalBuildingAddresses(query);
+  const activeCps = getActivePostalCodesSet();
+  const banCandidates = [];
+
+  if (navigator.onLine) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    if (abortSignal) {
+      if (abortSignal.aborted) {
+        clearTimeout(timer);
+        controller.abort();
+      } else {
+        abortSignal.addEventListener('abort', () => {
+          clearTimeout(timer);
+          controller.abort();
+        }, { once: true });
+      }
+    }
+
+    try {
+      const res = await fetch(
+        `https://api-adresse.data.gouv.fr/search/?q=${encodeURIComponent(query)}&limit=8`,
+        { signal: controller.signal }
+      );
+      if (res.ok) {
         const data = await res.json();
-        if (data.features && data.features.length > 0) {
-          const [lon, lat] = data.features[0].geometry.coordinates;
-          state.map.flyTo({ center: [lon, lat], zoom: 17, essential: true });
+        for (const feat of data.features || []) {
+          const props = feat.properties || {};
+          const [lon, lat] = feat.geometry?.coordinates || [];
+          if (typeof lon !== 'number' || typeof lat !== 'number') continue;
+          const cpNum = parseInt(props.postcode, 10);
+          const inActive = activeCps.has(cpNum);
+          const streetName = (props.name || props.label || '').replace(/\s+\d{5}.*$/, '').trim();
+
+          // Link to local building if one matches this streetName + postcode
+          let matchedBuildingId = null;
+          const normStreet = normalizeAddrText(streetName);
+          const localMatch = localCandidates.find(
+            lc => normalizeAddrText(lc.streetName) === normStreet && String(lc.postcode) === String(props.postcode || '')
+          );
+          if (localMatch) {
+            matchedBuildingId = localMatch.batiment_groupe_id;
+          }
+
+          banCandidates.push({
+            label: props.label || `${streetName} ${props.postcode || ''} ${props.city || ''}`.trim(),
+            streetName,
+            postcode: props.postcode || '',
+            city: props.city || '',
+            context: `${props.postcode || ''} ${props.city || ''}`.trim(),
+            lon,
+            lat,
+            score: Number(props.score || 0),
+            inActiveTerritory: inActive,
+            source: matchedBuildingId ? 'local' : 'ban',
+            batiment_groupe_id: matchedBuildingId,
+          });
         }
-      } catch (err) {
+      }
+    } catch (err) {
+      if (err?.name !== 'AbortError') {
         console.warn('Geocoding error:', err);
       }
-    }, 400);
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  // Merge & deduplicate (preferring active territory matches first)
+  const merged = [];
+  const seenKeys = new Set();
+
+  for (const c of [...localCandidates, ...banCandidates]) {
+    const key = `${normalizeAddrText(c.streetName)}|${c.postcode}`;
+    if (!seenKeys.has(key)) {
+      seenKeys.add(key);
+      merged.push(c);
+    }
+  }
+
+  merged.sort((a, b) => {
+    if (a.inActiveTerritory !== b.inActiveTerritory) {
+      return a.inActiveTerritory ? -1 : 1;
+    }
+    return (b.score || 0) - (a.score || 0);
+  });
+
+  return merged;
+}
+
+function evaluateAddressAmbiguity(query, candidates) {
+  const trimmed = String(query || '').trim();
+  if (trimmed.length < 6) {
+    return { lowAmbiguity: false, reason: 'too_short' };
+  }
+
+  const qNorm = normalizeAddrText(trimmed);
+  const qTokens = qNorm.split(' ').filter(Boolean);
+  if (qTokens.length < 2) {
+    return { lowAmbiguity: false, reason: 'single_token' };
+  }
+
+  // Check if the user is still typing a trailing connector, generic word, or common first name
+  const lastToken = qTokens[qTokens.length - 1];
+  const isLastNumeric = /^\d+$/.test(lastToken);
+  if (!isLastNumeric && (lastToken.length < 3 || INCOMPLETE_TRAILING_TOKENS.has(lastToken))) {
+    return { lowAmbiguity: false, reason: 'incomplete_trailing_token' };
+  }
+
+  // Require at least one distinctive non-generic, non-numeric token of length >= 3
+  const distinctiveTokens = qTokens.filter(
+    t => !/^\d+$/.test(t) && !GENERIC_ADDR_TOKENS.has(t) && t.length >= 3
+  );
+  if (distinctiveTokens.length === 0) {
+    return { lowAmbiguity: false, reason: 'no_distinctive_token' };
+  }
+  if (distinctiveTokens.length === 1 && INCOMPLETE_TRAILING_TOKENS.has(distinctiveTokens[0])) {
+    return { lowAmbiguity: false, reason: 'only_common_prefix' };
+  }
+
+  if (!candidates || candidates.length === 0) {
+    return { lowAmbiguity: false, reason: 'no_candidates' };
+  }
+
+  // Filter candidates where:
+  // 1) All query tokens match the candidate's full label
+  // 2) All significant street-name words of the candidate are covered by the query tokens
+  const wellMatched = candidates.filter((cand) => {
+    const candFullWords = normalizeAddrText(`${cand.streetName} ${cand.postcode} ${cand.city}`)
+      .split(' ')
+      .filter(Boolean);
+    const candStreetWords = normalizeAddrText(cand.streetName)
+      .split(' ')
+      .filter(w => w && !/^\d+$/.test(w) && !GENERIC_ADDR_TOKENS.has(w) && w.length >= 3);
+
+    if (candStreetWords.length === 0) return false;
+
+    const allQueryTokensMatch = qTokens.every(qTok =>
+      candFullWords.some(cWord => tokenMatchesCandidateWord(qTok, cWord))
+    );
+    if (!allQueryTokensMatch) return false;
+
+    const allStreetWordsCovered = candStreetWords.every(sWord =>
+      qTokens.some(qTok => tokenMatchesCandidateWord(qTok, sWord))
+    );
+    return allStreetWordsCovered;
+  });
+
+  if (wellMatched.length === 0) {
+    return { lowAmbiguity: false, reason: 'no_complete_street_match' };
+  }
+
+  // Prefer matches within the active/loaded territory if any exist
+  const activePool = wellMatched.filter(c => c.inActiveTerritory);
+  const pool = activePool.length > 0 ? activePool : wellMatched;
+
+  const primary = pool[0];
+  const primaryStreetNorm = normalizeAddrText(primary.streetName);
+
+  // Check if all candidates in pool point to the same street & approximate location (~400m)
+  const allSamePlace = pool.every(
+    c =>
+      normalizeAddrText(c.streetName) === primaryStreetNorm &&
+      Math.hypot(c.lon - primary.lon, c.lat - primary.lat) < 0.004
+  );
+
+  if (allSamePlace) {
+    return { lowAmbiguity: true, bestCandidate: primary };
+  }
+
+  // If multiple cities/locations match in pool, check if user explicitly specified the city or postcode of primary
+  const primaryCityWords = normalizeAddrText(primary.city)
+    .split(' ')
+    .filter(w => w.length >= 3 && !GENERIC_ADDR_TOKENS.has(w) && w !== 'arrondissement');
+  const hasExplicitCityOrCp =
+    (primary.postcode && qTokens.includes(normalizeAddrText(primary.postcode))) ||
+    (primaryCityWords.length > 0 && primaryCityWords.some(cw => qTokens.some(qt => tokenMatchesCandidateWord(qt, cw))));
+
+  if (hasExplicitCityOrCp) {
+    const cityFiltered = pool.filter(c => normalizeAddrText(c.postcode) === normalizeAddrText(primary.postcode) || normalizeAddrText(c.city) === normalizeAddrText(primary.city));
+    const allCitySamePlace = cityFiltered.every(
+      c => Math.hypot(c.lon - primary.lon, c.lat - primary.lat) < 0.004
+    );
+    if (allCitySamePlace) {
+      return { lowAmbiguity: true, bestCandidate: primary };
+    }
+  }
+
+  // Or if primary score strongly dominates the runner-up
+  if ((primary.score || 0) >= 0.8 && ((primary.score || 0) - (pool[1]?.score || 0)) >= 0.14) {
+    return { lowAmbiguity: true, bestCandidate: primary };
+  }
+
+  return { lowAmbiguity: false, reason: 'ambiguous_multiple_matches' };
+}
+
+function initAddressSearch() {
+  const input = document.getElementById('input-address-search');
+  const clearBtn = document.getElementById('btn-clear-address-search');
+  const suggestionsEl = document.getElementById('address-search-suggestions');
+  if (!input) return;
+
+  let suggestDebounceTimer = null;
+  let autoMoveDebounceTimer = null;
+  let activeAbortController = null;
+  let latestCandidates = [];
+  let latestCandidatesQuery = '';
+  let lastAutoMovedKey = '';
+
+  const closeSuggestions = () => {
+    if (suggestionsEl) {
+      suggestionsEl.classList.remove('open');
+      suggestionsEl.innerHTML = '';
+    }
+  };
+
+  const navigateToCandidate = (cand, updateInput = false) => {
+    if (!cand || !state.map) return;
+    const key = `${cand.lon.toFixed(5)},${cand.lat.toFixed(5)}`;
+    lastAutoMovedKey = key;
+
+    if (updateInput && cand.label) {
+      input.value = cand.label;
+      if (clearBtn) clearBtn.style.display = 'flex';
+    }
+
+    closeSuggestions();
+    state.map.flyTo({ center: [cand.lon, cand.lat], zoom: 17, duration: 900, essential: true });
+    addSearchedAddressPin({
+      lon: cand.lon,
+      lat: cand.lat,
+      label: cand.streetName || cand.label,
+      context: cand.context || `${cand.postcode || ''} ${cand.city || ''}`.trim(),
+      batiment_groupe_id: cand.batiment_groupe_id || null,
+    });
+  };
+
+  const renderSuggestions = (candidates, ambiguityInfo) => {
+    if (!suggestionsEl) return;
+    if (!candidates || candidates.length === 0) {
+      closeSuggestions();
+      return;
+    }
+
+    const topList = candidates.slice(0, 6);
+    const itemsHtml = topList.map((c, idx) => {
+      const badgeClass = c.inActiveTerritory ? 'badge-local' : 'badge-ban';
+      const badgeText = c.inActiveTerritory ? '📍 Territoire actif' : '🇫🇷 France';
+      return `
+        <div class="map-search-suggestion-item" data-idx="${idx}">
+          <div class="map-search-suggestion-main">
+            <span class="map-search-suggestion-title">${escapeHtml(c.streetName || c.label)}</span>
+            <span class="map-search-suggestion-sub">${escapeHtml(c.context || c.label)}</span>
+          </div>
+          <span class="map-search-suggestion-badge ${badgeClass}">${badgeText}</span>
+        </div>
+      `;
+    }).join('');
+
+    const hintHtml = !ambiguityInfo?.lowAmbiguity
+      ? `<div class="map-search-hint-bar">💡 Précisez l'adresse ou cliquez sur une suggestion pour centrer la carte</div>`
+      : '';
+
+    suggestionsEl.innerHTML = itemsHtml + hintHtml;
+    suggestionsEl.classList.add('open');
+
+    suggestionsEl.querySelectorAll('.map-search-suggestion-item').forEach((el) => {
+      el.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const idx = parseInt(el.getAttribute('data-idx'), 10);
+        const chosen = topList[idx];
+        if (chosen) {
+          clearTimeout(autoMoveDebounceTimer);
+          navigateToCandidate(chosen, true);
+        }
+      });
+    });
+  };
+
+  input.addEventListener('input', (e) => {
+    clearTimeout(suggestDebounceTimer);
+    clearTimeout(autoMoveDebounceTimer);
+    if (activeAbortController) {
+      activeAbortController.abort();
+      activeAbortController = null;
+    }
+
+    const q = e.target.value.trim();
+    latestCandidates = [];
+    latestCandidatesQuery = '';
+
+    if (clearBtn) {
+      clearBtn.style.display = q.length > 0 ? 'flex' : 'none';
+    }
+
+    if (q.length < 3) {
+      lastAutoMovedKey = '';
+      closeSuggestions();
+      return;
+    }
+
+    // 1. Fetch & show suggestions after 350ms (does NOT move the map)
+    suggestDebounceTimer = setTimeout(async () => {
+      // Immediately show local building matches if available
+      const localFast = searchLocalBuildingAddresses(q);
+      if (localFast.length > 0 && input.value.trim() === q) {
+        latestCandidates = localFast;
+        latestCandidatesQuery = q;
+        renderSuggestions(localFast, evaluateAddressAmbiguity(q, localFast));
+      }
+
+      activeAbortController = new AbortController();
+      const candidates = await fetchAddressCandidates(q, activeAbortController.signal, 1000);
+      if (input.value.trim() !== q) return;
+      latestCandidates = candidates;
+      latestCandidatesQuery = q;
+      const ambiguity = evaluateAddressAmbiguity(q, candidates);
+      renderSuggestions(candidates, ambiguity);
+    }, 350);
+
+    // 2. Only auto-move the map after a longer debounce (850ms) AND when ambiguity is low
+    autoMoveDebounceTimer = setTimeout(async () => {
+      if (input.value.trim() !== q) return;
+
+      // First check instant local candidates or already resolved candidates for this exact query
+      let candidates = (latestCandidatesQuery === q && latestCandidates.length > 0)
+        ? latestCandidates
+        : searchLocalBuildingAddresses(q);
+
+      let ambiguity = evaluateAddressAmbiguity(q, candidates);
+
+      // If not yet resolved locally, fetch with BAN API
+      if (!ambiguity.lowAmbiguity && latestCandidatesQuery !== q) {
+        activeAbortController = new AbortController();
+        candidates = await fetchAddressCandidates(q, activeAbortController.signal, 1200);
+        if (input.value.trim() !== q) return;
+        latestCandidates = candidates;
+        latestCandidatesQuery = q;
+        ambiguity = evaluateAddressAmbiguity(q, candidates);
+      }
+
+      if (ambiguity.lowAmbiguity && ambiguity.bestCandidate) {
+        const target = ambiguity.bestCandidate;
+        const key = `${target.lon.toFixed(5)},${target.lat.toFixed(5)}`;
+        if (key !== lastAutoMovedKey) {
+          navigateToCandidate(target, false);
+        }
+      }
+    }, 850);
+  });
+
+  // Allow pressing Enter to immediately select the best candidate
+  input.addEventListener('keydown', async (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      clearTimeout(suggestDebounceTimer);
+      clearTimeout(autoMoveDebounceTimer);
+      const q = input.value.trim();
+      if (q.length < 3) return;
+      let candidates = latestCandidates;
+      if (!candidates || candidates.length === 0) {
+        activeAbortController = new AbortController();
+        candidates = await fetchAddressCandidates(q, activeAbortController.signal);
+        latestCandidates = candidates;
+      }
+      if (candidates && candidates.length > 0) {
+        navigateToCandidate(candidates[0], false);
+      }
+    } else if (e.key === 'Escape') {
+      closeSuggestions();
+    }
+  });
+
+  clearBtn?.addEventListener('click', () => {
+    clearTimeout(suggestDebounceTimer);
+    clearTimeout(autoMoveDebounceTimer);
+    if (activeAbortController) {
+      activeAbortController.abort();
+      activeAbortController = null;
+    }
+    input.value = '';
+    clearBtn.style.display = 'none';
+    latestCandidates = [];
+    lastAutoMovedKey = '';
+    closeSuggestions();
+    clearSearchedAddressPins();
+    input.focus();
+  });
+
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('#map-search-bar')) {
+      closeSuggestions();
+    }
   });
 }
 
@@ -7613,7 +9252,7 @@ function initEventListeners() {
 }
 
 function closeAllModals() {
-  document.querySelectorAll('.modal-overlay').forEach(m => m.classList.remove('open'));
+  document.querySelectorAll('.modal-overlay:not(.tool-dialog-overlay)').forEach(m => m.classList.remove('open'));
 }
 
 function showLoading(msg) {
