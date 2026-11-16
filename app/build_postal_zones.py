@@ -211,6 +211,43 @@ def main():
             "geometry": mapping(geom)
         })
 
+    # 4. Full departments added for Nantes (44), Rouen (76) and Montpellier (34): one zone per commune.
+    EXTRA_DEPS = {
+        "44": "Loire-Atlantique (44)",
+        "76": "Seine-Maritime (76)",
+        "34": "Hérault (34)",
+    }
+    for dep, dep_label in EXTRA_DEPS.items():
+        print(f"Fetching communes of {dep_label}...")
+        url = f"https://geo.api.gouv.fr/communes?codeDepartement={dep}&fields=nom,code,codesPostaux,population&format=geojson&geometry=contour"
+        for feat in fetch_json(url)["features"]:
+            code_insee = feat["properties"]["code"]
+            codes_postaux = feat["properties"].get("codesPostaux", [])
+            geom = shape(feat["geometry"]).simplify(0.0005, preserve_topology=True)
+            primary_cp = int(codes_postaux[0]) if codes_postaux else None
+            chunk = chunks_by_cp.get(primary_cp)
+            features.append({
+                "type": "Feature",
+                "properties": {
+                    "id": f"cp_{primary_cp}" if primary_cp else f"insee_{code_insee}",
+                    "cp": primary_cp,
+                    "codesPostaux": [int(p) for p in codes_postaux if p.isdigit()],
+                    "nom": feat["properties"]["nom"],
+                    "codeInsee": code_insee,
+                    "codeDepartement": dep,
+                    "departementLabel": dep_label,
+                    "status": "downloadable" if chunk else "requestable",
+                    "chunk_id": chunk["id"] if chunk else None,
+                    "buildings_count": chunk["buildings_count"] if chunk else None,
+                    "owners_count": chunk["owners_count"] if chunk else None,
+                    "total_size_bytes": chunk["total_size_bytes"] if chunk else None,
+                    "total_size_formatted": f"{chunk['total_size_bytes'] / 1048576:.1f} Mo" if chunk else None,
+                    "center": [round(geom.centroid.x, 6), round(geom.centroid.y, 6)],
+                    "bbox": [round(b, 6) for b in geom.bounds],
+                },
+                "geometry": mapping(geom),
+            })
+
     geojson = {
         "type": "FeatureCollection",
         "features": features

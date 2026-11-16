@@ -13,6 +13,9 @@ if (typeof BigInt !== 'undefined') {
 }
 
 // Application State
+const DEP_DISPLAY = { '69': '69 — Rhône (Lyon)', '38': '38 — Isère (Grenoble)', '44': '44 — Loire-Atlantique (Nantes)', '76': '76 — Seine-Maritime (Rouen)', '34': '34 — Hérault (Montpellier)' };
+const DEP_SHORT = { '69': 'Rhône (69)', '38': 'Isère (38)', '44': 'Loire-Atlantique (44)', '76': 'Seine-Maritime (76)', '34': 'Hérault (34)' };
+const DEP_CONTEXT = { '69': 'Rhône (Lyon & Métropole)', '38': 'Isère (Grenoble & Métropole)', '44': 'Loire-Atlantique (Nantes)', '76': 'Seine-Maritime (Rouen)', '34': 'Hérault (Montpellier)' };
 const state = {
   manifest: null,
   activeTerritory: { mode: 'chunks', chunkIds: [], dep: '69', cp: null, range: [69001, 69009] },
@@ -58,6 +61,7 @@ const state = {
   map: null,
   selectedBuildingId: null,
   activeTab: 'map',
+  openTool: null,
   dataBaseUrl: '../../data/chunks/', // Local default, can be switched to GitHub Releases URL
 };
 if (typeof window !== 'undefined') {
@@ -2193,7 +2197,7 @@ function restoreScreenStateFromSession(session) {
   }
 
   // 5. Active Tab
-  if (ss.activeTab && ss.activeTab !== 'map') {
+  if (ss.activeTab && ss.activeTab !== 'map' && ['buildings'].includes(ss.activeTab)) {
     switchTab(ss.activeTab);
   }
 
@@ -2431,14 +2435,12 @@ function buildFilterControlCard(f) {
   header.innerHTML = `
     <span class="dyn-filter-label" title="${escapeHtml(f.desc)} (${escapeHtml(f.source)})">${escapeHtml(f.label)}</span>
     ${valueBadgeHtml}
-    <button type="button" class="btn-remove-filter" title="Retirer ce filtre du panneau (et le réinitialiser)">&times;</button>
+    <button type="button" class="btn-remove-filter" title="Vider ce filtre (il reste dans le panneau ; le choix des filtres se fait dans le catalogue)">&times;</button>
   `;
 
   header.querySelector('.btn-remove-filter').addEventListener('click', () => {
+    // Empty the filter only; it stays in the panel (selection is managed in the catalog dialog)
     f.reset(state);
-    state.activeFilterIds.delete(f.id);
-    state.activeProfileId = 'custom_selection';
-    renderProfileButtons();
     renderSidebarFilterControls();
     applyFilters();
     saveSessionToStorage();
@@ -2767,7 +2769,7 @@ function updateLoadedDataButtonUI() {
   if (nameEl) {
     if (state.activeTerritory) {
       if (state.activeTerritory.mode === 'dep') {
-        const depName = state.activeTerritory.dep === '69' ? '69 — Rhône (Lyon)' : '38 — Isère (Grenoble)';
+        const depName = DEP_DISPLAY[state.activeTerritory.dep] || ('Département ' + state.activeTerritory.dep);
         nameEl.textContent = depName;
       } else if (state.activeTerritory.mode === 'chunks' && state.activeTerritory.chunkIds) {
         const chunkCount = state.activeTerritory.chunkIds.length;
@@ -3132,6 +3134,13 @@ function initMap(initialViewport = null) {
     maxZoom: 19,
   });
 
+  // Keep the canvas in sync with its container (fixes wrong size on first load)
+  const mapEl = document.getElementById('map');
+  if (mapEl && typeof ResizeObserver !== 'undefined') {
+    new ResizeObserver(() => state.map && state.map.resize()).observe(mapEl);
+  }
+  window.addEventListener('load', () => state.map && state.map.resize());
+
   // Discrete compact attribution and scale control on bottom right
   state.map.addControl(new maplibregl.AttributionControl({ compact: true }), 'bottom-right');
   state.map.addControl(new maplibregl.ScaleControl({ unit: 'metric' }), 'bottom-right');
@@ -3293,7 +3302,7 @@ function buildFallbackPostalZones() {
         cp: c.cp,
         nom: c.communes.join(', '),
         codeDepartement: c.departement,
-        departementLabel: c.departement === '69' ? 'Rhône (69)' : 'Isère (38)',
+        departementLabel: DEP_SHORT[c.departement] || ('Département ' + c.departement),
         status: 'downloadable',
         buildings_count: c.buildings_count,
         total_size_bytes: c.total_size_bytes,
@@ -3892,7 +3901,7 @@ async function performLocationSearch(query) {
         const isLocal = state.locallyCachedChunkIds.has(chunk.id);
         results.push({
           title: `${chunk.communes.slice(0, 2).join(', ')} (${chunk.cp})`,
-          context: chunk.departement === '69' ? 'Rhône (Lyon & Métropole)' : 'Isère (Grenoble & Métropole)',
+          context: DEP_CONTEXT[chunk.departement] || ('Département ' + chunk.departement),
           statusText: isLocal ? '💾 En cache' : '☁️ Prêt au téléchargement',
           statusClass: isLocal ? 'status-local' : 'status-dl',
           center: chunk.center,
@@ -4461,7 +4470,8 @@ function applyFilters() {
   // Synchronize active view
   if (state.activeTab === 'buildings') {
     renderBuildingsTable();
-  } else if (state.activeTab === 'landlords') {
+  }
+  if (state.openTool === 'landlords') {
     renderLandlordsTab();
   }
   updateExportTab();
@@ -4973,27 +4983,95 @@ function exportFilteredGeoJSON() {
 /* ==========================================================================
    Navigation Tabs Management
    ========================================================================== */
+const TOOL_TITLES = {
+  landlords: '🔍 Bailleurs & SCI',
+  export: '📦 Export ZIP',
+  sources: '📚 Sources de données',
+  potential: '🔭 Pistes de données',
+};
+
 function initTabs() {
-  document.querySelectorAll('.nav-tab').forEach(btn => {
+  document.querySelectorAll('.nav-tab[data-tab]').forEach(btn => {
     btn.addEventListener('click', () => {
       const tabId = btn.getAttribute('data-tab');
       switchTab(tabId);
     });
   });
 
+  // Wrap each tool pane into a modal dialog
+  document.querySelectorAll('.tool-pane').forEach(pane => {
+    const id = pane.getAttribute('data-tool-pane');
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay tool-dialog-overlay';
+    overlay.id = `tool-dialog-${id}`;
+    overlay.innerHTML = `
+      <div class="modal-content tool-dialog-content" role="dialog" aria-modal="true">
+        <div class="modal-header">
+          <h3 class="modal-title">${TOOL_TITLES[id] || id}</h3>
+          <button type="button" class="drawer-close tool-dialog-close" aria-label="Fermer">&times;</button>
+        </div>
+        <div class="tool-dialog-body"></div>
+      </div>`;
+    overlay.querySelector('.tool-dialog-body').appendChild(pane);
+    document.body.appendChild(overlay);
+    overlay.querySelector('.tool-dialog-close').addEventListener('click', closeTool);
+    overlay.addEventListener('mousedown', e => { if (e.target === overlay) closeTool(); });
+  });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && state.openTool) closeTool(); });
+
+  // Tools dropdown
+  const dd = document.getElementById('tools-dropdown');
+  const toggle = document.getElementById('btn-tools-toggle');
+  const setMenu = open => {
+    dd.classList.toggle('open', open);
+    toggle.setAttribute('aria-expanded', String(open));
+  };
+  toggle.addEventListener('click', e => { e.stopPropagation(); setMenu(!dd.classList.contains('open')); });
+  document.addEventListener('click', e => { if (!dd.contains(e.target)) setMenu(false); });
+  dd.querySelectorAll('[data-tool]').forEach(item => {
+    item.addEventListener('click', () => { setMenu(false); openTool(item.getAttribute('data-tool')); });
+  });
+
   const headerExportBtn = document.getElementById('btn-header-export');
   if (headerExportBtn) {
     headerExportBtn.addEventListener('click', () => {
-      switchTab('export');
+      openTool('export');
     });
   }
 }
 
+function openTool(toolId) {
+  if (!TOOL_TITLES[toolId]) return;
+  closeTool();
+  state.openTool = toolId;
+  document.getElementById(`tool-dialog-${toolId}`)?.classList.add('open');
+  document.getElementById('btn-tools-toggle')?.classList.add('active');
+  refreshOpenTool();
+}
+
+function closeTool() {
+  document.querySelectorAll('.tool-dialog-overlay.open').forEach(o => o.classList.remove('open'));
+  state.openTool = null;
+  document.getElementById('btn-tools-toggle')?.classList.remove('active');
+}
+
+function refreshOpenTool() {
+  if (state.openTool === 'landlords') renderLandlordsTab();
+  else if (state.openTool === 'export') updateExportTab();
+  else if (state.openTool === 'sources') renderSourcesTab();
+}
+
 function switchTab(tabId) {
+  const TOOL_IDS = ['landlords', 'export', 'sources', 'potential'];
+  if (TOOL_IDS.includes(tabId)) {
+    openTool(tabId);
+    return;
+  }
+  closeTool();
   state.activeTab = tabId;
 
   // Update navigation tab highlights
-  document.querySelectorAll('.nav-tab').forEach(b => {
+  document.querySelectorAll('.nav-tab[data-tab]').forEach(b => {
     b.classList.toggle('active', b.getAttribute('data-tab') === tabId);
   });
 
@@ -5009,12 +5087,6 @@ function switchTab(tabId) {
     }
   } else if (tabId === 'buildings') {
     renderBuildingsTable();
-  } else if (tabId === 'landlords') {
-    renderLandlordsTab();
-  } else if (tabId === 'export') {
-    updateExportTab();
-  } else if (tabId === 'sources') {
-    renderSourcesTab();
   }
   saveSessionToStorage();
 }
@@ -6299,7 +6371,7 @@ const SOURCE_METADATA_MAP = {
   'Score Composite TeZeLoMa': { file: 'Calcul composite (BDNB ADEME + WFS Grand Lyon / Cerema)', producer: 'Collectif TeZeLoMa', mode: 'etl', coverage: 'Lyon (69) & Grenoble (38)' },
   'Data Grand Lyon WFS': { file: 'ilots_chaleur_urbains.geojson & encadrement_loyers.geojson', producer: 'Métropole de Lyon (Data Grand Lyon)', mode: 'wfs', coverage: '69 — Métropole de Lyon' },
   'DGFiP MAJIC / RNE': { file: 'csv/proprietaire.csv + API recherche-entreprises.api.gouv.fr', producer: 'DGFiP MAJIC / DINUM RNE', mode: 'api', coverage: 'France entière' },
-  'DGFiP MAJIC': { file: 'csv/rel_batiment_groupe_proprietaire.csv + csv/proprietaire.csv', producer: 'DGFiP (Fichiers Fonciers MAJIC)', mode: 'csv', coverage: 'Départements 69 & 38' },
+  'DGFiP MAJIC': { file: 'csv/rel_batiment_groupe_proprietaire.csv + csv/proprietaire.csv', producer: 'DGFiP (Fichiers Fonciers MAJIC)', mode: 'csv', coverage: 'Départements 69, 38, 44, 76 & 34' },
   'DGFiP MAJIC / INSEE': { file: 'csv/proprietaire.csv', producer: 'DGFiP MAJIC / INSEE', mode: 'csv', coverage: 'France entière' },
   'ANCT / BDNB': { file: 'csv/batiment_groupe_qpv.csv', producer: 'ANCT (Politique de la Ville)', mode: 'csv', coverage: 'France entière' },
   'Ministère du Logement (RPLS)': { file: 'csv/batiment_groupe_rpls.csv', producer: 'Ministère du Logement (RPLS)', mode: 'csv', coverage: 'France entière' },
@@ -6541,7 +6613,7 @@ const EXTRA_DISPLAYABLE_VARIABLES = [
     sourceFile: 'csv/proprietaire.csv',
     producer: 'DGFiP (Fichiers Fonciers MAJIC)',
     retrievalMode: 'parquet',
-    coverage: 'Départements 69 & 38',
+    coverage: 'Départements 69, 38, 44, 76 & 34',
     isFilter: false,
     isDisplay: true,
     isLandlord: true,
@@ -6556,7 +6628,7 @@ const EXTRA_DISPLAYABLE_VARIABLES = [
     sourceFile: 'csv/rel_batiment_groupe_proprietaire.csv',
     producer: 'DGFiP (Fichiers Fonciers MAJIC)',
     retrievalMode: 'parquet',
-    coverage: 'Départements 69 & 38',
+    coverage: 'Départements 69, 38, 44, 76 & 34',
     isFilter: false,
     isDisplay: true,
     isLandlord: true,
@@ -6623,6 +6695,50 @@ const EXTRA_DISPLAYABLE_VARIABLES = [
     desc: 'Toutes les colonnes personnalisées de votre fichier Excel de suivi militant (notes, contacts locataires, dates d\'assemblée, litiges) fusionnées automatiquement grâce à l\'identifiant pivot batiment_groupe_id.',
   },
 ];
+
+/* Canonical file → producer catalogue: a given file always sits under ONE producer family,
+   whatever label the individual variables used for it. */
+const FILE_CATALOG = {
+  'batiment_groupe.csv': 'CSTB — BDNB (socle bâtiments)',
+  'batiment_groupe_synthese_propriete_usage.csv': 'CSTB — BDNB (socle bâtiments)',
+  'batiment_groupe_bdtopo_bat.csv': 'IGN — BD TOPO',
+  'adresse.csv': 'BAN — Base Adresse Nationale',
+  'batiment_groupe_adresse.csv': 'BAN — Base Adresse Nationale',
+  'rel_batiment_groupe_adresse.csv': 'BAN — Base Adresse Nationale',
+  'batiment_groupe_dpe_representatif_logement.csv': 'ADEME — DPE',
+  'batiment_groupe_dpe_statistique_logement.csv': 'ADEME — DPE',
+  'batiment_groupe_ffo_bat.csv': 'DGFiP — Fichiers Fonciers & MAJIC',
+  'rel_batiment_groupe_proprietaire.csv': 'DGFiP — Fichiers Fonciers & MAJIC',
+  'proprietaire.csv': 'DGFiP — Fichiers Fonciers & MAJIC',
+  'batiment_groupe_dvf_open_statistique.csv': 'DGFiP — DVF (transactions)',
+  'batiment_groupe_qpv.csv': 'ANCT — Politique de la Ville',
+  'batiment_groupe_rnc.csv': 'ANAH — Registre des copropriétés',
+  'batiment_groupe_rpls.csv': 'Ministère du Logement — RPLS',
+  'batiment_groupe_risques.csv': 'BRGM / IRSN — Risques naturels',
+  'batiment_groupe_urbanisme.csv': 'GPU — Urbanisme',
+  'batiment_groupe_indicateur_reseau_chaud_froid.csv': 'Cerema — Réseaux de chaleur',
+  'batiment_groupe_dle_elec_multimillesime.csv': 'Enedis / GRDF / SDES — Énergie',
+  'batiment_groupe_dle_gaz_multimillesime.csv': 'Enedis / GRDF / SDES — Énergie',
+  'ilots_chaleur_urbains.geojson': 'Métropole de Lyon — Data Grand Lyon',
+  'encadrement_loyers.geojson': 'Préfecture / Observatoires des loyers',
+  'Base_OP_2024_L3800.csv': 'Préfecture / Observatoires des loyers',
+  'API recherche-entreprises (RNE / Sirene)': 'DINUM / INSEE — API Entreprises',
+  'Score composite TeZeLoMa (calcul)': 'Collectif TeZeLoMa — calculs maison',
+  'Tableur militant (.xlsx)': 'Collectif TeZeLoMa — calculs maison',
+};
+
+function normalizeSourceFiles(sourceFile) {
+  const s = sourceFile || '';
+  if (/recherche-entreprises/i.test(s) && !/\.csv/.test(s)) return ['API recherche-entreprises (RNE / Sirene)'];
+  if (/Calcul composite|Score Composite/i.test(s)) return ['Score composite TeZeLoMa (calcul)'];
+  if (/\.xlsx|Excel/i.test(s)) return ['Tableur militant (.xlsx)'];
+  const files = [];
+  const re = /([A-Za-z0-9_]+\.(?:csv|geojson|shp))/g;
+  let m;
+  while ((m = re.exec(s)) !== null) if (!files.includes(m[1])) files.push(m[1]);
+  if (/recherche-entreprises/i.test(s)) files.push('API recherche-entreprises (RNE / Sirene)');
+  return files.length ? files : [s];
+}
 
 let DATA_SOURCES_DICTIONARY = [];
 
@@ -6697,6 +6813,14 @@ function buildDataSourcesDictionary() {
     });
   }
 
+  // 3. Harmonise producer by source file (same file => same producer family)
+  for (const it of dict) {
+    it.producerRaw = it.producer;
+    it.files = normalizeSourceFiles(it.sourceFile);
+    const fam = FILE_CATALOG[it.files[0]];
+    if (fam) it.producer = fam;
+  }
+
   DATA_SOURCES_DICTIONARY = dict;
   return DATA_SOURCES_DICTIONARY;
 }
@@ -6762,8 +6886,13 @@ function getFilteredSourcesList() {
     }
 
     // 2. Producer Filter
-    if (prod !== 'all' && item.producer !== prod) {
-      return false;
+    if (prod !== 'all') {
+      if (prod.startsWith('prod::')) {
+        const fam = prod.slice(6);
+        if (!(item.files || []).some(f => FILE_CATALOG[f] === fam) && item.producer !== fam) return false;
+      } else if (!(item.files || []).includes(prod)) {
+        return false;
+      }
     }
 
     // 3. Usage Filter
@@ -6772,6 +6901,7 @@ function getFilteredSourcesList() {
     if (usage === 'landlord' && !item.isLandlord) return false;
     if (usage === 'rhone' && !item.coverage.includes('69') && !item.coverage.includes('Lyon')) return false;
     if (usage === 'isere' && !item.coverage.includes('38') && !item.coverage.includes('Grenoble')) return false;
+    if (usage === 'ouest' && !/44|76|34|Nantes|Rouen|Montpellier/.test(item.coverage)) return false;
     if (usage === 'national' && !item.coverage.includes('France')) return false;
 
     // 4. Text Search Query
@@ -6876,7 +7006,11 @@ function renderSourcesDictTable() {
   // Update count pill in subnav
   const pillEl = document.getElementById('sources-count-pill');
   if (pillEl) {
-    pillEl.textContent = `${DATA_SOURCES_DICTIONARY.length} variables & colonnes sources répertoriées`;
+    if (filtered.length === DATA_SOURCES_DICTIONARY.length) {
+      pillEl.textContent = `${DATA_SOURCES_DICTIONARY.length} variables & colonnes sources répertoriées`;
+    } else {
+      pillEl.textContent = `${filtered.length} / ${DATA_SOURCES_DICTIONARY.length} variables affichées`;
+    }
   }
 
   if (filtered.length === 0) {
@@ -7172,13 +7306,33 @@ function initSourcesTabControls() {
   // Populate Producer select filter
   const selectProd = document.getElementById('sources-filter-producer');
   if (selectProd) {
-    const producers = Array.from(new Set(DATA_SOURCES_DICTIONARY.map(i => i.producer))).sort();
-    selectProd.innerHTML = '<option value="all">Tous les producteurs</option>';
-    for (const p of producers) {
-      const opt = document.createElement('option');
-      opt.value = p;
-      opt.textContent = p;
-      selectProd.appendChild(opt);
+    // Group by producer family (optgroup), then one option per source file
+    const fileCounts = {};
+    for (const it of DATA_SOURCES_DICTIONARY) {
+      for (const f of (it.files || [])) fileCounts[f] = (fileCounts[f] || 0) + 1;
+    }
+    const fams = {};
+    for (const f of Object.keys(fileCounts)) {
+      const fam = FILE_CATALOG[f] || 'Autres sources';
+      (fams[fam] = fams[fam] || []).push(f);
+    }
+    selectProd.innerHTML = '<option value="all">Tous les producteurs & fichiers</option>';
+    for (const fam of Object.keys(fams).sort((x, y) => x.localeCompare(y, 'fr'))) {
+      const grp = document.createElement('optgroup');
+      grp.label = fam;
+      const total = fams[fam].length > 1 ? document.createElement('option') : null;
+      if (total) {
+        total.value = 'prod::' + fam;
+        total.textContent = `Tous les fichiers — ${fam}`;
+        grp.appendChild(total);
+      }
+      for (const f of fams[fam].sort()) {
+        const opt = document.createElement('option');
+        opt.value = f;
+        opt.textContent = `${total ? '↳ ' : ''}${f} (${fileCounts[f]})`;
+        grp.appendChild(opt);
+      }
+      selectProd.appendChild(grp);
     }
     selectProd.addEventListener('change', () => {
       sourcesState.producerFilter = selectProd.value;

@@ -1847,48 +1847,74 @@ details.tz-geo-section > summary::-webkit-details-marker {
   display: none;
 }
 
+details.tz-geo-france {
+  border-color: #bfdbfe;
+}
 details.tz-geo-france > summary {
-  background: rgba(37, 99, 235, 0.18);
-  color: #93c5fd;
+  background: #eff6ff;
+  color: #1d4ed8;
   border-left: 5px solid #2563eb;
 }
 
+details.tz-geo-rhone {
+  border-color: #a7f3d0;
+}
 details.tz-geo-rhone > summary {
-  background: rgba(5, 150, 105, 0.18);
-  color: #6ee7b7;
+  background: #ecfdf5;
+  color: #047857;
   border-left: 5px solid #059669;
+}
+
+details.tz-geo-isere {
+  border-color: #bae6fd;
+}
+details.tz-geo-isere > summary {
+  background: #f0f9ff;
+  color: #0369a1;
+  border-left: 5px solid #0284c7;
+}
+
+details.tz-geo-ouest {
+  border-color: #c7d2fe;
+}
+details.tz-geo-ouest > summary {
+  background: #eef2ff;
+  color: #4338ca;
+  border-left: 5px solid #6366f1;
 }
 
 details.tz-geo-lyon {
   margin: 0.65rem 0 0.2rem 1.25rem;
-  border: 1px solid #d97706;
+  border: 1px solid #fde68a;
   border-left: 5px solid #d97706;
   border-radius: var(--radius-md);
-  background: rgba(217, 119, 6, 0.07);
+  background: rgba(217, 119, 6, 0.03);
   overflow: visible;
 }
 
 details.tz-geo-lyon > summary {
-  background: rgba(217, 119, 6, 0.22);
-  color: #fcd34d;
+  background: #fffbeb;
+  color: #92400e;
   padding: 0.5rem 0.85rem;
   font-size: 0.89rem;
 }
 
 .tz-geo-body {
-  padding: 0.65rem 0.85rem 0.75rem 0.85rem;
+  padding: 0.75rem 0.95rem 0.85rem 0.95rem;
   border-top: 1px solid var(--border-color);
   overflow: visible;
+  background: #ffffff;
 }
 
 .tz-geo-hint {
   font-size: 0.76rem;
-  font-weight: 500;
-  color: var(--text-secondary);
-  background: rgba(15, 23, 42, 0.7);
-  padding: 0.12rem 0.5rem;
+  font-weight: 600;
+  color: #334155;
+  background: #ffffff;
+  padding: 0.15rem 0.65rem;
   border-radius: 999px;
-  border: 1px solid var(--border-color);
+  border: 1px solid #cbd5e1;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
 .tz-src-grid {
@@ -3633,3 +3659,21 @@ details[open] .cat-fold-chevron {
   border-radius: 999px;
   white-space: nowrap;
 }
+
+/* Tools dropdown + tool dialogs */
+.tools-dropdown { position: relative; display: flex; align-items: stretch; }
+.tools-menu {
+  display: none; position: absolute; top: 100%; left: 0; min-width: 220px;
+  background: #fff; border: 1px solid var(--border-color); border-radius: var(--radius-lg, 10px);
+  box-shadow: var(--shadow-xl); padding: 0.35rem; z-index: 60; flex-direction: column;
+}
+.tools-dropdown.open .tools-menu { display: flex; }
+.tools-menu button {
+  background: transparent; border: none; text-align: left; padding: 0.55rem 0.75rem;
+  border-radius: 6px; font-size: 0.85rem; color: var(--text-primary); cursor: pointer;
+}
+.tools-menu button:hover { background: rgba(2, 132, 199, 0.08); color: var(--accent-primary); }
+.tabs-group { overflow: visible; }
+.tool-dialog-content { max-width: 1100px; width: 100%; height: 85vh; max-height: 85vh; }
+.tool-dialog-body { flex: 1; min-height: 0; display: flex; overflow: hidden; }
+.tool-dialog-body > .tool-pane { display: flex; flex: 1; width: 100%; height: 100%; }

@@ -39,6 +39,9 @@ DEFAULT_OUT_DIR = ROOT_DIR / "data" / "chunks"
 DEP_LABELS = {
     "69": "69 — Rhône",
     "38": "38 — Isère",
+    "44": "44 — Loire-Atlantique",
+    "76": "76 — Seine-Maritime",
+    "34": "34 — Hérault",
 }
 
 

@@ -1,5 +1,5 @@
 // Service Worker for TeZeLoMa Offline PWA
-const CACHE_NAME = 'tezeloma-shell-v1';
+const CACHE_NAME = 'tezeloma-shell-v2';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',

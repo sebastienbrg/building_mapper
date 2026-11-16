@@ -49,7 +49,33 @@ DEPT_CONFIGS = {
         "communes": None,
         "postal_codes": None,
     },
+    "44": {
+        "label": "44 — Loire-Atlantique (Nantes)",
+        "zip_path": ROOT_DIR / "data" / "bdnb_2025_07_a_dep44" / "open_data_millesime_2025-07-a_dep44_csv.zip",
+        "extract_dir": ROOT_DIR / "data" / "bdnb_2025_07_a_dep44" / "extracted_csv",
+        "communes": None,
+        "postal_codes": None,
+    },
+    "76": {
+        "label": "76 — Seine-Maritime (Rouen)",
+        "zip_path": ROOT_DIR / "data" / "bdnb_2025_07_a_dep76" / "open_data_millesime_2025-07-a_dep76_csv.zip",
+        "extract_dir": ROOT_DIR / "data" / "bdnb_2025_07_a_dep76" / "extracted_csv",
+        "communes": None,
+        "postal_codes": None,
+    },
+    "34": {
+        "label": "34 — Hérault (Montpellier)",
+        "zip_path": ROOT_DIR / "data" / "bdnb_2025_07_a_dep34" / "open_data_millesime_2025-07-a_dep34_csv.zip",
+        "extract_dir": ROOT_DIR / "data" / "bdnb_2025_07_a_dep34" / "extracted_csv",
+        "communes": None,
+        "postal_codes": None,
+    },
 }
+
+BDNB_URL = (
+    "https://open-data.s3.fr-par.scw.cloud/bdnb_millesime_2025-07-a/"
+    "millesime_2025-07-a_dep{dep}/open_data_millesime_2025-07-a_dep{dep}_csv.zip"
+)
 
 NEEDED_CSVS = [
     "csv/batiment_groupe.csv",
@@ -889,19 +915,64 @@ def process_department(dept_code: str, cfg: dict) -> tuple[gpd.GeoDataFrame, pd.
     return gdf_4326, df_owners
 
 
+def download_bdnb_zip(dept_code: str, zip_path: Path) -> bool:
+    """Download the BDNB open-data zip for a department if missing. Returns True on success."""
+    import urllib.request
+
+    if zip_path.exists():
+        return True
+    url = BDNB_URL.format(dep=dept_code)
+    zip_path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = zip_path.with_suffix(".part")
+    print(f"  -> Downloading {url} ...")
+    try:
+        urllib.request.urlretrieve(url, tmp)
+        tmp.rename(zip_path)
+        return True
+    except Exception as e:
+        print(f"  !! Download failed for dept {dept_code}: {e}")
+        return False
+
+
 def main() -> None:
+    import argparse
+
+    parser = argparse.ArgumentParser(description="TeZeLoMa ETL")
+    parser.add_argument(
+        "--only",
+        nargs="+",
+        metavar="DEP",
+        help="Process only these departments and merge them into the existing parquet files "
+        "(e.g. --only 44 76 34). Other departments are kept untouched.",
+    )
+    args = parser.parse_args()
+
     t0 = time.time()
     OUT_DIR.mkdir(parents=True, exist_ok=True)
 
     gdfs = []
     owner_dfs = []
-    for dept_code, cfg in DEPT_CONFIGS.items():
+    selected = {k: v for k, v in DEPT_CONFIGS.items() if not args.only or k in args.only}
+    for dept_code, cfg in selected.items():
+        download_bdnb_zip(dept_code, cfg["zip_path"])
         if cfg["zip_path"].exists():
             gdf_dep, df_own_dep = process_department(dept_code, cfg)
             gdfs.append(gdf_dep)
             owner_dfs.append(df_own_dep)
         else:
             print(f"WARNING: {cfg['zip_path']} not found, skipping dept {dept_code}")
+
+    if args.only:
+        old_b = OUT_DIR / "buildings.parquet"
+        old_o = OUT_DIR / "building_owners.parquet"
+        if old_b.exists() and old_o.exists():
+            print(f"Merging with existing parquet files (replacing depts {args.only})...")
+            prev_b = gpd.read_parquet(old_b)
+            prev_o = pd.read_parquet(old_o)
+            prev_b = prev_b[~prev_b["departement"].astype(str).isin(args.only)]
+            prev_o = prev_o[~prev_o["departement"].astype(str).isin(args.only)]
+            gdfs.insert(0, prev_b)
+            owner_dfs.insert(0, prev_o)
 
     gdf_all = gpd.GeoDataFrame(pd.concat(gdfs, ignore_index=True), crs="EPSG:4326")
     df_owners_all = pd.concat(owner_dfs, ignore_index=True)

@@ -50,10 +50,15 @@
     <div class="tabs-group" id="tabs-group">
       <button class="nav-tab active" data-tab="map">🗺️ Carte</button>
       <button class="nav-tab" data-tab="buildings">📊 Bâtiments</button>
-      <button class="nav-tab" data-tab="landlords">🔍 Bailleurs & SCI</button>
-      <button class="nav-tab" data-tab="export">📦 Export ZIP</button>
-      <button class="nav-tab" data-tab="sources">📚 Sources de données</button>
-      <button class="nav-tab" data-tab="potential">🔭 Pistes de données</button>
+      <div class="tools-dropdown" id="tools-dropdown">
+        <button class="nav-tab tools-toggle" id="btn-tools-toggle" type="button" aria-haspopup="true" aria-expanded="false">🧰 Outils ▾</button>
+        <div class="tools-menu" id="tools-menu" role="menu">
+          <button type="button" role="menuitem" data-tool="landlords">🔍 Bailleurs &amp; SCI</button>
+          <button type="button" role="menuitem" data-tool="export">📦 Export ZIP</button>
+          <button type="button" role="menuitem" data-tool="sources">📚 Sources de données</button>
+          <button type="button" role="menuitem" data-tool="potential">🔭 Pistes de données</button>
+        </div>
+      </div>
     </div>
 
     <!-- Live KPI Summary Strip -->
@@ -321,7 +326,7 @@
       </div>
 
       <!-- TAB 3: 🔍 BAILLEURS & SCI -->
-      <div class="tab-pane content-pane" id="pane-landlords">
+      <div class="tool-pane content-pane" id="pane-landlords" data-tool-pane="landlords">
         <div class="tz-table-header" style="padding: 0.45rem 0.85rem;">
           <span>🏛️ <strong>Top Propriétaires Personnes Morales dans la sélection active</strong></span>
           <span style="font-size: 0.78rem; color: var(--text-muted);">Classés par nombre de locaux détenus (cliquer sur une colonne pour trier)</span>
@@ -391,7 +396,7 @@
       </div>
 
       <!-- TAB 4: 📦 EXPORT ZIP -->
-      <div class="tab-pane content-pane" id="pane-export">
+      <div class="tool-pane content-pane" id="pane-export" data-tool-pane="export">
         <div class="card" style="max-width: 800px; margin: 0 auto; width: 100%;">
           <div class="card-title" style="font-size: 1.1rem; color: var(--accent-primary);">
             <span>📦</span> Export instantané de votre sélection (<span id="export-tab-count">0</span> bâtiments)
@@ -425,7 +430,7 @@
       </div>
 
       <!-- TAB 5: 📚 SOURCES DE DONNÉES -->
-      <div class="tab-pane content-pane" id="pane-sources">
+      <div class="tool-pane content-pane" id="pane-sources" data-tool-pane="sources">
         <!-- Subview Switcher: Info-oriented vs Dataset/Geo-oriented -->
         <div class="sources-subnav-bar">
           <div class="sources-subnav-buttons">
@@ -474,7 +479,7 @@
                 </select>
               </div>
               <div class="sources-filter-group">
-                <label for="sources-filter-producer" class="sources-filter-label">Producteur officiel :</label>
+                <label for="sources-filter-producer" class="sources-filter-label">Producteur &amp; fichier source :</label>
                 <select id="sources-filter-producer" class="form-select sources-select">
                   <option value="all">Tous les producteurs</option>
                 </select>
@@ -488,6 +493,7 @@
                   <option value="landlord">🏛️ Bailleurs & SCI</option>
                   <option value="rhone">🦁 Spécifique Lyon & Rhône (69)</option>
                   <option value="isere">⛰️ Spécifique Grenoble & Isère (38)</option>
+                  <option value="ouest">🌊 Nantes · Rouen · Montpellier (44 · 76 · 34)</option>
                   <option value="national">🇫🇷 Échelle France entière</option>
                 </select>
               </div>
@@ -569,8 +575,8 @@
             <span class="tz-geo-hint">6 tables départementales + 1 sous-section locale ▼</span>
           </summary>
           <div class="tz-geo-body">
-            <div style="margin-bottom:0.5rem;font-size:0.8rem;color:#6ee7b7;">
-              <b>📦 A. Sources à l'échelle de tout le Département du Rhône (69)</b> — Archive <code>open_data_millesime_2025-07-a_dep69_csv.zip</code> (CSTB BDNB, 505 Mo) compilée dans <code>buildings.parquet</code> (10,3 Mo) et <code>building_owners.parquet</code> (1,1 Mo) :
+            <div style="margin-bottom:0.65rem;font-size:0.82rem;color:var(--text-secondary);line-height:1.45;">
+              <b style="color:var(--text-primary);">📦 A. Sources à l'échelle de tout le Département du Rhône (69)</b> — Archive <code>open_data_millesime_2025-07-a_dep69_csv.zip</code> (CSTB BDNB, 505 Mo) intégrée dans <code>buildings.parquet</code> (313&nbsp;979 bâtiments) et <code>building_owners.parquet</code> (101&nbsp;905 liens propriétaires personnes morales) :
             </div>
             <div class="tz-src-grid-3">
               <div class="tz-src-card">
@@ -691,14 +697,14 @@
         </details>
 
         <!-- 3. DEPARTMENTAL SECTION: ISERE (38) WITH NESTED GRENOBLE SUBSECTION -->
-        <details class="tz-geo-section tz-geo-rhone" open>
+        <details class="tz-geo-section tz-geo-isere" open>
           <summary>
             <span>⛰️ Département de l'Isère (38) <span style="font-weight:400;font-size:0.82rem;color:var(--text-muted);">(Sources départementales 38 + sous-section imbriquée Ville de Grenoble)</span></span>
             <span class="tz-geo-hint">6 tables départementales + 1 sous-section locale ▼</span>
           </summary>
           <div class="tz-geo-body">
-            <div style="margin-bottom:0.5rem;font-size:0.8rem;color:#6ee7b7;">
-              <b>📦 A. Sources à l'échelle du Département de l'Isère (38)</b> — Archive <code>open_data_millesime_2025-07-a_dep38_csv.zip</code> (CSTB BDNB, 611 Mo, SHA-256 vérifié) compilée dans <code>buildings.parquet</code> (31 610 bâtiments) et <code>building_owners.parquet</code> (23 183 liens propriétaires personnes morales) :
+            <div style="margin-bottom:0.65rem;font-size:0.82rem;color:var(--text-secondary);line-height:1.45;">
+              <b style="color:var(--text-primary);">📦 A. Sources à l'échelle du Département de l'Isère (38)</b> — Archive <code>open_data_millesime_2025-07-a_dep38_csv.zip</code> (CSTB BDNB, 611 Mo) intégrée dans <code>buildings.parquet</code> (371&nbsp;148 bâtiments) et <code>building_owners.parquet</code> (70&nbsp;056 liens propriétaires personnes morales) :
             </div>
             <div class="tz-src-grid-3">
               <div class="tz-src-card">
@@ -778,11 +784,63 @@
             </details>
           </div>
         </details>
+
+        <!-- 4. DEPARTMENTS ADDED: NANTES (44), ROUEN (76), MONTPELLIER (34) -->
+        <details class="tz-geo-section tz-geo-ouest" open>
+          <summary>
+            <span>🌊 Départements ajoutés : Loire-Atlantique (44), Seine-Maritime (76), Hérault (34) <span style="font-weight:400;font-size:0.82rem;color:var(--text-muted);">(Nantes · Rouen · Montpellier — départements entiers)</span></span>
+            <span class="tz-geo-hint">3 départements complets, sources BDNB uniquement ▼</span>
+          </summary>
+          <div class="tz-geo-body">
+            <div style="margin-bottom:0.65rem;font-size:0.82rem;color:var(--text-secondary);line-height:1.45;">
+              <b style="color:var(--text-primary);">📦 Ce qui a été importé</b> — Archives <code>open_data_millesime_2025-07-a_dep44|76|34_csv.zip</code> (CSTB BDNB, millésime 2025-07-a, téléchargées automatiquement depuis le stockage Open Data BDNB) traitées <b>en entier, sans filtre de commune</b> :
+              <b>44 (Loire-Atlantique / Nantes)</b> — 515&nbsp;411 bâtiments / 67&nbsp;449 liens propriétaires (83 codes postaux) ·
+              <b>76 (Seine-Maritime / Rouen)</b> — 399&nbsp;918 bâtiments / 63&nbsp;887 liens (91 codes postaux) ·
+              <b>34 (Hérault / Montpellier)</b> — 386&nbsp;030 bâtiments / 68&nbsp;414 liens (81 codes postaux).
+              Fusionnés dans <code>buildings.parquet</code> et <code>building_owners.parquet</code> (total national consolidé : 1&nbsp;986&nbsp;486 bâtiments et 371&nbsp;711 liens) sans altérer Rhône et Isère, puis découpés en 444 chunks par code postal (+ 5 bundles départementaux) et cartographiés dans <code>postal_zones.geojson</code> (2&nbsp;042 zones communales).
+            </div>
+            <div class="tz-src-grid-3">
+              <div class="tz-src-card">
+                <div class="tz-src-card-title">🏢 1. Bâtiments &amp; Emprises GPS (44 · 76 · 34)</div>
+                <div class="tz-src-tags">
+                  <span class="tz-tag tz-tag-csv">📦 Archive de tables brutes (CSV Open Data)</span>
+                  <span class="tz-tag tz-tag-etl">⚙️ Build ETL (<code>build_dataset.py --only 44 76 34</code>)</span>
+                  <span class="tz-tag tz-tag-parquet">🗄️ GeoParquet local</span>
+                </div>
+                <div class="tz-src-meta"><b>Tables :</b> <code>batiment_groupe.csv</code> + <code>_bdtopo_bat.csv</code> (IGN)</div>
+                <div class="tz-src-meta"><b>Champs :</b> <code>batiment_groupe_id</code>, <code>geom_groupe</code>, <code>hauteur_mean</code></div>
+              </div>
+              <div class="tz-src-card">
+                <div class="tz-src-card-title">🏛️ 2. Propriétaires &amp; Patrimoine (MAJIC)</div>
+                <div class="tz-src-tags">
+                  <span class="tz-tag tz-tag-csv">📦 Archive de tables brutes (CSV Open Data)</span>
+                  <span class="tz-tag tz-tag-etl">⚙️ Build ETL (<code>build_dataset.py --only 44 76 34</code>)</span>
+                  <span class="tz-tag tz-tag-parquet">🗄️ GeoParquet local</span>
+                </div>
+                <div class="tz-src-meta"><b>Tables :</b> <code>rel_batiment_groupe_proprietaire.csv</code> + <code>proprietaire.csv</code></div>
+                <div class="tz-src-meta"><b>Champs :</b> <code>siren</code>, <code>denomination</code>, <code>forme_juridique</code>, <code>nb_locaux_open_dans_MAJIC</code></div>
+              </div>
+              <div class="tz-src-card">
+                <div class="tz-src-card-title">🌡️ 3. DPE, Enveloppe, Énergie, Copropriétés (44 · 76 · 34)</div>
+                <div class="tz-src-tags">
+                  <span class="tz-tag tz-tag-csv">📦 Archive de tables brutes (CSV Open Data)</span>
+                  <span class="tz-tag tz-tag-etl">⚙️ Build ETL (<code>build_dataset.py --only 44 76 34</code>)</span>
+                  <span class="tz-tag tz-tag-parquet">🗄️ GeoParquet local</span>
+                </div>
+                <div class="tz-src-meta"><b>Tables :</b> <code>_dpe_representatif_logement.csv</code>, <code>_dpe_statistique_logement.csv</code>, <code>_ffo_bat.csv</code>, <code>_rnc.csv</code>, <code>_rpls.csv</code>, <code>_qpv.csv</code>, <code>_dvf_open_statistique.csv</code>…</div>
+                <div class="tz-src-meta"><b>Champs :</b> DPE A–G, isolation, chauffage, conso. énergie, copropriétés, logement social, QPV, prix DVF</div>
+              </div>
+            </div>
+            <div style="margin-top:0.65rem;font-size:0.82rem;color:#92400e;background:#fffbeb;border:1px solid #fde68a;border-radius:6px;padding:0.5rem 0.75rem;line-height:1.45;">
+              <b style="color:#b45309;">⚠️ Spécificités &amp; limites actuelles :</b> pour ces trois départements, les couches locales spécifiques d'îlots de chaleur urbains (LCZ/ICU) et d'encadrement des loyers (qui existent à ce stade pour la Métropole de Lyon et Grenoble) ne sont pas encore intégrées. Les champs <code>icu_*</code>, <code>zone_encadrement_loyers</code> et <code>loyer_*</code> restent donc non renseignés et le score de surchauffe estivale TeZeLoMa est calculé sur les caractéristiques d'enveloppe du bâtiment (BDNB/DPE). L'intégralité des données brutes départementales a été préservée sans exclusion.
+            </div>
+          </div>
+        </details>
         </div><!-- /#sources-subview-dataset -->
       </div>
 
       <!-- TAB 6: 🔭 PISTES DE DONNÉES -->
-      <div class="tab-pane content-pane" id="pane-potential">
+      <div class="tool-pane content-pane" id="pane-potential" data-tool-pane="potential">
         <details class="tz-geo-section" open>
           <summary>
             <span>🗺️ 1. Villes et Métropoles où répliquer TeZeLoMa</span>
