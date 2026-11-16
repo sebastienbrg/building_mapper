@@ -1432,7 +1432,7 @@ body.territory-selection-active .map-bottom-center-stack,
   visibility: hidden;
   pointer-events: none;
   transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), visibility 0.25s;
-  z-index: 15;
+  z-index: 40;
   display: flex;
   flex-direction: column;
 }
@@ -1441,6 +1441,19 @@ body.territory-selection-active .map-bottom-center-stack,
   transform: translateX(0);
   visibility: visible;
   pointer-events: auto;
+}
+
+/* Shift address search bar and bottom-right map controls left when building drawer is open */
+body.building-drawer-open .map-search-bar,
+.main-container:has(#building-drawer.open) .map-search-bar {
+  right: calc(var(--drawer-width) + 1rem);
+  transition: right 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+body.building-drawer-open .maplibregl-ctrl-bottom-right,
+.main-container:has(#building-drawer.open) .maplibregl-ctrl-bottom-right {
+  right: calc(var(--drawer-width) + 0.75rem);
+  transition: right 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .drawer-header {

@@ -50,13 +50,12 @@
     <div class="tabs-group" id="tabs-group">
       <button class="nav-tab active" data-tab="map">🗺️ Carte</button>
       <button class="nav-tab" data-tab="buildings">📊 Bâtiments</button>
+      <button class="nav-tab" data-tab="landlords">🔍 Bailleurs &amp; SCI</button>
       <div class="tools-dropdown" id="tools-dropdown">
         <button class="nav-tab tools-toggle" id="btn-tools-toggle" type="button" aria-haspopup="true" aria-expanded="false">🧰 Outils ▾</button>
         <div class="tools-menu" id="tools-menu" role="menu">
-          <button type="button" role="menuitem" data-tool="landlords">🔍 Bailleurs &amp; SCI</button>
           <button type="button" role="menuitem" data-tool="export">📥 Exporter</button>
           <button type="button" role="menuitem" data-tool="sources">📚 Sources de données</button>
-          <button type="button" role="menuitem" data-tool="potential">🔭 Pistes de données</button>
         </div>
       </div>
     </div>
@@ -134,8 +133,8 @@
       <div class="sidebar-header-bar">
         <div style="display: flex; align-items: center; gap: 0.45rem;">
           <span class="sidebar-header-title">Filtres actifs</span>
-          <span class="status-badge status-online" id="active-filters-count-badge" title="Nombre de critères filtrant activement les bâtiments">1 actif</span>
-          <button type="button" class="btn-clear-active-badge" id="btn-clear-all-filters" title="Effacer tous les filtres" aria-label="Effacer tous les filtres">&times;</button>
+          <span class="status-badge" id="active-filters-count-badge" title="Aucun filtre actif">0 actif</span>
+          <button type="button" class="btn-clear-active-badge" id="btn-clear-all-filters" title="Effacer tous les filtres" aria-label="Effacer tous les filtres" style="display: none;">&times;</button>
         </div>
         <div style="display: flex; gap: 0.35rem;">
           <button class="btn btn-secondary btn-sm" id="btn-reset-filters" title="Réinitialiser toutes les valeurs de filtres" style="font-size: 0.72rem; padding: 0.2rem 0.55rem;">
@@ -328,7 +327,7 @@
       </div>
 
       <!-- TAB 3: 🔍 BAILLEURS & SCI -->
-      <div class="tool-pane content-pane" id="pane-landlords" data-tool-pane="landlords">
+      <div class="tab-pane content-pane" id="pane-landlords">
         <div class="tz-table-header" style="padding: 0.45rem 0.85rem;">
           <span>🏛️ <strong>Top Propriétaires Personnes Morales dans la sélection active</strong></span>
           <span style="font-size: 0.78rem; color: var(--text-muted);">Classés par nombre de locaux détenus (cliquer sur une colonne pour trier)</span>
@@ -906,75 +905,6 @@
           </div>
         </details>
         </div><!-- /#sources-subview-dataset -->
-      </div>
-
-      <!-- TAB 6: 🔭 PISTES DE DONNÉES -->
-      <div class="tool-pane content-pane" id="pane-potential" data-tool-pane="potential">
-        <details class="tz-geo-section" open>
-          <summary>
-            <span>🗺️ 1. Villes et Métropoles où répliquer TeZeLoMa</span>
-            <span class="accordion-chevron">▶</span>
-          </summary>
-          <div class="tz-src-grid-3">
-            <div class="tz-src-card" style="border-left: 3px solid #059669;">
-              <div class="tz-src-card-title">🦁 Reste de la Métropole de Lyon (69)</div>
-              <div class="tz-src-meta">Vénissieux, Vaulx-en-Velin, Bron, Saint-Priest, Caluire, Oullins... Déjà présents dans l'archive <code>dep69_csv.zip</code> et couverts par le WFS Îlots de Chaleur !</div>
-            </div>
-            <div class="tz-src-card" style="border-left: 3px solid #059669; background: rgba(5, 150, 105, 0.08);">
-              <div class="tz-src-card-title">⛰️ Grenoble Alpes Métropole (38) — ✅ ACTIF</div>
-              <div class="tz-src-meta">Intégré dans l'application (31 610 bâtiments / 23 183 propriétaires moraux) avec LCZ Cerema et encadrement des loyers.</div>
-            </div>
-            <div class="tz-src-card" style="border-left: 3px solid #2563eb;">
-              <div class="tz-src-card-title">🗼 Paris (75) & Seine-Saint-Denis (93)</div>
-              <div class="tz-src-meta">BDNB 75/93 + Encadrement DRIHL + Cartographie ICU de l'APUR et de l'Institut Paris Région.</div>
-            </div>
-            <div class="tz-src-card" style="border-left: 3px solid #2563eb;">
-              <div class="tz-src-card-title">🧱 Lille & Métropole Européenne (59)</div>
-              <div class="tz-src-meta">BDNB 59 (Lille, Roubaix, Tourcoing) + Encadrement des loyers MEL + Carte LCZ open data.</div>
-            </div>
-            <div class="tz-src-card" style="border-left: 3px solid #2563eb;">
-              <div class="tz-src-card-title">🍷 Bordeaux (33) & Montpellier (34)</div>
-              <div class="tz-src-meta">BDNB 33/34 + Zonages loyers Bordeaux Métropole & Montpellier 3M + Thermographies a'urba.</div>
-            </div>
-            <div class="tz-src-card" style="border-left: 3px solid #2563eb;">
-              <div class="tz-src-card-title">🌊 Pays Basque (64), Marseille (13), Toulouse (31)</div>
-              <div class="tz-src-meta">Encadrement actif au Pays Basque (24 communes) + Cartographie nationale LCZ Cerema (85 aires urbaines).</div>
-            </div>
-          </div>
-        </details>
-
-        <details class="tz-geo-section" open>
-          <summary>
-            <span>💡 2. Nouveaux jeux de données à croiser pour les enquêtes</span>
-            <span class="accordion-chevron">▶</span>
-          </summary>
-          <div class="tz-src-grid-3">
-            <div class="tz-src-card" style="border-top: 3px solid #dc2626;">
-              <div class="tz-src-card-title">🏖️ 1. Meublés Touristiques (Airbnb) & Fuite des Passoires G</div>
-              <div class="tz-src-meta">InsideAirbnb + Registre des numéros d'enregistrement pour démasquer les multipropriétaires qui basculent leurs passoires interdites à la location en meublés touristiques.</div>
-            </div>
-            <div class="tz-src-card" style="border-top: 3px solid #d97706;">
-              <div class="tz-src-card-title">🏚️ 2. Logements Vacants Longue Durée (Base LOVAC) & Péril</div>
-              <div class="tz-src-meta">Base LOVAC (DGFiP / Cerema) + Arrêtés de péril pour repérer la rétention spéculative et le cumul d'insalubrité.</div>
-            </div>
-            <div class="tz-src-card" style="border-top: 3px solid #7c3aed;">
-              <div class="tz-src-card-title">💶 3. Prix d'Achat & Spéculation Immobilière (DVF / DVF+)</div>
-              <div class="tz-src-meta">Ventes immobilières DGFiP depuis 2014 pour savoir quand et à quel prix une foncière a racheté un immeuble de passoires F/G.</div>
-            </div>
-            <div class="tz-src-card" style="border-top: 3px solid #0284c7;">
-              <div class="tz-src-card-title">🔊 4. Bruit Nocturne & Pollution de l'Air (Double peine d'été)</div>
-              <div class="tz-src-meta">Cartes de bruit stratégiques (> 65 dB la nuit) croisées avec la surchauffe : ouvrir les fenêtres la nuit devient impossible.</div>
-            </div>
-            <div class="tz-src-card" style="border-top: 3px solid #059669;">
-              <div class="tz-src-card-title">🌳 5. Refuges Climatiques & Carroyage Social INSEE (200m)</div>
-              <div class="tz-src-meta">Carreaux Filosofi (taux de pauvreté, personnes âgées isolées) pour prioriser le porte-à-porte militant en période de canicule.</div>
-            </div>
-            <div class="tz-src-card" style="border-top: 3px solid #4f46e5;">
-              <div class="tz-src-card-title">🕵️ 6. Bénéficiaires Effectifs (Holdings) & Aides ANAH</div>
-              <div class="tz-src-meta">Registre des bénéficiaires effectifs (INPI RBE) pour remonter les sociétés écrans et vérifier les aides perçues.</div>
-            </div>
-          </div>
-        </details>
       </div>
 
     </main>

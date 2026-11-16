@@ -30,9 +30,9 @@ const state = {
   filteredBuildings: [],// Currently active filtered subset
   mapStyleMode: 'dpe',  // 'dpe' | 'overheating' | 'concentration' | 'fieldwork'
   legalMode: 'inclusif',// 'inclusif' | 'exclusif'
-  selectedDpes: new Set(['F', 'G']),
-  selectedOverheating: new Set(['Critique', 'Élevé', 'Modéré', 'Faible', 'Non renseigné']),
-  selectedLegal: new Set(['SCI', 'Bailleur social', 'Société commerciale', 'Personne physique']),
+  selectedDpes: new Set(),
+  selectedOverheating: new Set(),
+  selectedLegal: new Set(),
   minPctFg: 0,
   minConcentration: 0,
   minLog: 1,
@@ -239,11 +239,15 @@ const FILTER_DEFINITIONS = [
     desc: 'Classe de performance énergétique représentative (A à G). Loi Climat & Résilience : interdiction de louer les G en 2025, F en 2028, E en 2034.',
     controlType: 'dpe_pills',
     options: ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'Inconnu'],
-    isActive: (s) => s.selectedDpes.size < 8,
-    reset: (s) => { s.selectedDpes = new Set(['A', 'B', 'C', 'D', 'E', 'F', 'G', 'Inconnu']); },
+    isActive: (s) => s.selectedDpes.size > 0 && s.selectedDpes.size < 8,
+    reset: (s) => { s.selectedDpes = new Set(); },
     getValue: (s) => Array.from(s.selectedDpes),
-    setValue: (s, v) => { if (Array.isArray(v)) s.selectedDpes = new Set(v); },
-    matches: (s, b) => s.selectedDpes.has(b.dpe || 'Inconnu'),
+    setValue: (s, v) => {
+      if (Array.isArray(v)) {
+        s.selectedDpes = v.length >= 8 ? new Set() : new Set(v);
+      }
+    },
+    matches: (s, b) => (s.selectedDpes.size === 0 || s.selectedDpes.size >= 8) ? true : s.selectedDpes.has(b.dpe || 'Inconnu'),
   },
   {
     id: 'pct_dpe_fg',
@@ -523,11 +527,16 @@ const FILTER_DEFINITIONS = [
     desc: 'Catégorie de vulnérabilité aux canicules (Critique, Élevé, Modéré, Faible, Non renseigné).',
     controlType: 'overheating_pills',
     options: ['Critique', 'Élevé', 'Modéré', 'Faible', 'Non renseigné'],
-    isActive: (s) => s.selectedOverheating.size < 5,
-    reset: (s) => { s.selectedOverheating = new Set(['Critique', 'Élevé', 'Modéré', 'Faible', 'Non renseigné']); },
+    isActive: (s) => s.selectedOverheating.size > 0 && s.selectedOverheating.size < 5,
+    reset: (s) => { s.selectedOverheating = new Set(); },
     getValue: (s) => Array.from(s.selectedOverheating),
-    setValue: (s, v) => { if (Array.isArray(v)) s.selectedOverheating = new Set(v); },
+    setValue: (s, v) => {
+      if (Array.isArray(v)) {
+        s.selectedOverheating = v.length >= 5 ? new Set() : new Set(v);
+      }
+    },
     matches: (s, b) => {
+      if (s.selectedOverheating.size === 0 || s.selectedOverheating.size >= 5) return true;
       const rawRisk = b.risque_surchauffe_ete;
       const risk = (!rawRisk || rawRisk === 'NC' || rawRisk === 'Inconnu') ? 'Non renseigné' : rawRisk;
       return s.selectedOverheating.has(risk);
@@ -863,18 +872,20 @@ const FILTER_DEFINITIONS = [
     desc: 'Filtrer selon le statut des propriétaires de l\'immeuble (avec bascule Mode Inclusif / Mode Exclusif).',
     controlType: 'legal_pills',
     options: ['SCI', 'Bailleur social', 'Société commerciale', 'Personne physique'],
-    isActive: (s) => s.selectedLegal.size < 4,
+    isActive: (s) => s.selectedLegal.size > 0 && s.selectedLegal.size < 4,
     reset: (s) => {
-      s.selectedLegal = new Set(['SCI', 'Bailleur social', 'Société commerciale', 'Personne physique']);
+      s.selectedLegal = new Set();
       s.legalMode = 'inclusif';
     },
     getValue: (s) => ({ selected: Array.from(s.selectedLegal), mode: s.legalMode }),
     setValue: (s, v) => {
-      if (v && Array.isArray(v.selected)) s.selectedLegal = new Set(v.selected);
+      if (v && Array.isArray(v.selected)) {
+        s.selectedLegal = v.selected.length >= 4 ? new Set() : new Set(v.selected);
+      }
       if (v && v.mode) s.legalMode = v.mode;
     },
     matches: (s, b) => {
-      if (s.selectedLegal.size >= 4) return true;
+      if (s.selectedLegal.size === 0 || s.selectedLegal.size >= 4) return true;
       const bLegals = String(b.formes_juridiques || '');
       if (s.legalMode === 'exclusif') {
         const parts = bLegals.split(',').map(x => x.trim()).filter(Boolean);
@@ -2199,7 +2210,7 @@ function restoreScreenStateFromSession(session) {
   }
 
   // 5. Active Tab
-  if (ss.activeTab && ss.activeTab !== 'map' && ['buildings'].includes(ss.activeTab)) {
+  if (ss.activeTab && ss.activeTab !== 'map' && ['buildings', 'landlords'].includes(ss.activeTab)) {
     switchTab(ss.activeTab);
   }
 
@@ -2231,15 +2242,13 @@ function applyProfile(profileId) {
   state.activeProfileId = prof.id;
   state.activeFilterIds = new Set(prof.filterIds);
 
-  // Clear unselected filters so they never filter data or linger in state
-  clearUnselectedFilters();
+  // Reset all filters so selected filters arrive inactive
+  for (const f of FILTER_DEFINITIONS) {
+    f.reset(state);
+  }
 
   // If custom profile has saved filter values, restore them
   if (prof.savedValues && typeof prof.savedValues === 'object') {
-    for (const f of FILTER_DEFINITIONS) {
-      f.reset(state);
-    }
-    // Keep default F/G unless savedValues overrides dpe
     for (const [fId, val] of Object.entries(prof.savedValues)) {
       const fDef = FILTER_DEFINITIONS.find(f => f.id === fId);
       if (fDef && fDef.setValue) {
@@ -2670,8 +2679,6 @@ function clearAllFilters() {
   for (const f of FILTER_DEFINITIONS) {
     f.reset(state);
   }
-  // Reset DPE pills to select all 8 options so that NO DPE filter is active
-  state.selectedDpes = new Set(['A', 'B', 'C', 'D', 'E', 'F', 'G', 'Inconnu']);
   state.fieldworkFilters = {};
   clearUnselectedFilters();
   renderSidebarFilterControls();
@@ -2945,6 +2952,7 @@ function renderCatalogCategoriesGrid() {
         }
         const chk = item.querySelector('.catalog-filter-checkbox');
         if (chk.checked) {
+          f.reset(state);
           state.activeFilterIds.add(f.id);
           item.classList.add('selected');
         } else {
@@ -4512,8 +4520,7 @@ function applyFilters() {
   // Synchronize active view
   if (state.activeTab === 'buildings') {
     renderBuildingsTable();
-  }
-  if (state.openTool === 'landlords') {
+  } else if (state.activeTab === 'landlords') {
     renderLandlordsTab();
   }
   updateExportTab();
@@ -4819,6 +4826,7 @@ function inspectBuilding(batimentGroupeId) {
 
   // Open Drawer
   document.getElementById('building-drawer').classList.add('open');
+  document.body.classList.add('building-drawer-open');
   saveSessionToStorage();
 }
 
@@ -5208,10 +5216,8 @@ function exportFilteredGeoJSON() {
    Navigation Tabs Management
    ========================================================================== */
 const TOOL_TITLES = {
-  landlords: '🔍 Bailleurs & SCI',
   export: '📥 Exporter la sélection',
   sources: '📚 Sources de données',
-  potential: '🔭 Pistes de données',
 };
 
 function initTabs() {
@@ -5280,13 +5286,12 @@ function closeTool() {
 }
 
 function refreshOpenTool() {
-  if (state.openTool === 'landlords') renderLandlordsTab();
-  else if (state.openTool === 'export') updateExportTab();
+  if (state.openTool === 'export') updateExportTab();
   else if (state.openTool === 'sources') renderSourcesTab();
 }
 
 function switchTab(tabId) {
-  const TOOL_IDS = ['landlords', 'export', 'sources', 'potential'];
+  const TOOL_IDS = ['export', 'sources'];
   if (TOOL_IDS.includes(tabId)) {
     openTool(tabId);
     return;
@@ -5311,6 +5316,8 @@ function switchTab(tabId) {
     }
   } else if (tabId === 'buildings') {
     renderBuildingsTable();
+  } else if (tabId === 'landlords') {
+    renderLandlordsTab();
   }
   saveSessionToStorage();
 }
@@ -9155,6 +9162,7 @@ function initEventListeners() {
   document.getElementById('btn-close-drawer')?.addEventListener('click', () => {
     state.selectedBuildingId = null;
     document.getElementById('building-drawer').classList.remove('open');
+    document.body.classList.remove('building-drawer-open');
     if (state.map) {
       state.map.setFilter('buildings-selected', ['==', ['get', 'batiment_groupe_id'], '']);
     }
