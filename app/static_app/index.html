@@ -21,6 +21,13 @@
 
   <!-- Main Navigation & Application Bar (Unified Header & Tabs) -->
   <nav class="app-tabs-nav" id="app-tabs-nav">
+    <!-- Sidebar Collapse / Expand Toggle -->
+    <button type="button" class="sidebar-toggle-btn" id="btn-toggle-sidebar" title="Afficher / Masquer le panneau de filtres" aria-label="Afficher ou masquer le panneau de filtres" aria-expanded="true" aria-controls="app-sidebar">
+      <span class="sidebar-toggle-icon" aria-hidden="true">☰</span>
+      <span class="sidebar-toggle-label">Filtres</span>
+      <span class="sidebar-toggle-badge" id="sidebar-toggle-badge" style="display: none;">0</span>
+    </button>
+
     <!-- Brand Logo with Hover Information Widget -->
     <div class="brand-logo-container" id="brand-logo-container" tabindex="0" role="banner" aria-label="TeZeLoMa - Zéro Logement Malade">
       <a href="https://www.zerologementmalade.org/" target="_blank" rel="noopener noreferrer" class="brand-logo-link" title="Zéro Territoire Logement Malade — Visiter zerologementmalade.org">
@@ -54,6 +61,7 @@
       <div class="tools-dropdown" id="tools-dropdown">
         <button class="nav-tab tools-toggle" id="btn-tools-toggle" type="button" aria-haspopup="true" aria-expanded="false">🧰 Outils ▾</button>
         <div class="tools-menu" id="tools-menu" role="menu">
+          <button type="button" role="menuitem" data-tool="fieldwork">📋 Enquête de Terrain (.xlsx)</button>
           <button type="button" role="menuitem" data-tool="export">📥 Exporter</button>
           <button type="button" role="menuitem" data-tool="sources">📚 Sources de données</button>
         </div>
@@ -70,14 +78,6 @@
         <span class="kpi-label">Logements</span>
         <span class="kpi-value" id="kpi-dwellings">—</span>
       </div>
-      <div class="kpi-badge">
-        <span class="kpi-label">Passoires F/G</span>
-        <span class="kpi-value" id="kpi-slums" style="color: #ef4444;">—</span>
-      </div>
-      <div class="kpi-badge">
-        <span class="kpi-label">Surchauffe Élevée</span>
-        <span class="kpi-value" id="kpi-overheating" style="color: #f97316;">—</span>
-      </div>
     </div>
   </nav>
 
@@ -85,7 +85,12 @@
   <div class="main-container">
     
     <!-- Sidebar: Folding Categorical Controls -->
-    <aside class="app-sidebar">
+    <aside class="app-sidebar" id="app-sidebar">
+      <!-- Mobile Drawer Header (hidden on desktop) -->
+      <div class="sidebar-mobile-header">
+        <span class="sidebar-mobile-title">🎛️ Filtres &amp; Territoire</span>
+        <button type="button" class="sidebar-mobile-close" id="btn-close-sidebar" aria-label="Fermer le panneau de filtres" title="Fermer">&times;</button>
+      </div>
 
       <!-- Top Tools Section: 2 Big Prominent Action Cards -->
       <div class="sidebar-top-section">
@@ -148,39 +153,10 @@
         <!-- Dynamic Sociological Filter Categories Container (populated & toggled via app.js) -->
         <div id="sociological-filters-container" class="sociological-filters-stack"></div>
 
-        <!-- Expander: Terrain (.xlsx) -->
-        <details class="accordion-item" id="acc-fieldwork">
-          <summary class="accordion-header">
-            <span class="accordion-title-wrap">
-              <span>📋</span> Enquête de Terrain (.xlsx)
-            </span>
-            <span class="status-badge" id="fieldwork-badge" style="display: none;">0 liés</span>
-            <span class="accordion-chevron">▶</span>
-          </summary>
-          <div class="accordion-body">
-            <div class="dropzone" id="fieldwork-dropzone">
-              <div class="dropzone-icon">📋</div>
-              <div class="dropzone-text">
-                <strong>Déposer un fichier .xlsx de terrain</strong><br>
-                (clé : <code>batiment_groupe_id</code>)
-              </div>
-              <input type="file" id="fieldwork-file-input" accept=".xlsx,.xls,.csv" style="display: none;">
-            </div>
-
-            <div id="fieldwork-info" style="display: none; margin-top: 0.5rem; font-size: 0.78rem;">
-              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.4rem;">
-                <strong id="fieldwork-filename" style="color: var(--accent-primary);">fichier.xlsx</strong>
-                <button class="btn btn-secondary btn-sm" id="btn-clear-fieldwork" style="font-size: 0.68rem; padding: 0.15rem 0.35rem;">Retirer</button>
-              </div>
-              <p id="fieldwork-stats" style="color: var(--text-secondary);"></p>
-              <div id="fieldwork-dynamic-filters" style="margin-top: 0.5rem; display: flex; flex-direction: column; gap: 0.45rem;"></div>
-            </div>
-          </div>
-        </details>
-
       </div>
 
     </aside>
+    <div class="sidebar-backdrop" id="sidebar-backdrop" aria-hidden="true"></div>
 
     <!-- Main Content Area with 6 Tabs -->
     <main id="main-content-area">
@@ -293,9 +269,9 @@
       <!-- TAB 2: 📊 BÂTIMENTS -->
       <div class="tab-pane content-pane" id="pane-buildings">
         <!-- Search bar & Mode -->
-        <div style="display: flex; gap: 0.75rem; align-items: center;">
-          <input type="text" id="table-search-query" placeholder="🔎 Rechercher par adresse, ID BDNB, bailleur, SIREN, copropriété, facteur de surchauffe..." style="flex: 1; padding: 0.6rem 0.85rem; font-size: 0.85rem;">
-          <select id="table-search-mode" style="width: 220px; font-size: 0.82rem;">
+        <div class="buildings-toolbar">
+          <input type="text" id="table-search-query" placeholder="🔎 Rechercher par adresse, ID BDNB, bailleur, SIREN, copropriété, facteur de surchauffe...">
+          <select id="table-search-mode">
             <option value="filter">Filtrer les lignes</option>
             <option value="highlight">Surligner les lignes</option>
           </select>
@@ -334,7 +310,7 @@
         </div>
 
         <!-- Top Landlords Table -->
-        <div class="data-table-container" style="max-height: 225px; flex-shrink: 0;">
+        <div class="data-table-container landlords-top-table-wrap">
           <table class="tz-data-table" id="table-top-landlords">
             <thead>
               <tr>
@@ -374,17 +350,22 @@
         </div>
 
         <!-- Live API Lookup Results -->
-        <div id="landlord-api-results" style="display: none; flex-direction: column; gap: 0.6rem; flex: 1; min-height: 0;">
+        <div id="landlord-api-results" style="display: none;">
+          <div class="landlord-results-header">
+            <span class="landlord-results-title">🔍 Détail du bailleur &amp; SCI</span>
+            <button type="button" class="btn btn-secondary btn-sm landlord-results-close" id="btn-close-landlord-results" title="Fermer le détail du bailleur" aria-label="Fermer le détail du bailleur">&times; Fermer</button>
+          </div>
+
           <div class="landlord-meta-grid">
             <div id="landlord-company-info"></div>
             <div id="landlord-dirigeants-info"></div>
           </div>
           
-          <div style="display: flex; flex-direction: column; flex: 1; min-height: 180px;">
+          <div class="landlord-buildings-section">
             <strong style="font-size: 0.8rem; color: var(--text-secondary); display: block; margin-bottom: 0.35rem;">
               🏢 Immeubles détenus par cette entité sur le territoire actif :
             </strong>
-            <div class="data-table-container" style="flex: 1; min-height: 190px; max-height: 340px;">
+            <div class="data-table-container landlords-buildings-table-wrap">
               <table class="tz-data-table" id="table-landlord-buildings">
                 <thead id="table-landlord-buildings-head">
                   <!-- Populated dynamically via app.js -->
@@ -392,6 +373,57 @@
                 <tbody id="table-landlord-buildings-body"></tbody>
               </table>
             </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TOOL: 📋 ENQUÊTE DE TERRAIN (.xlsx) -->
+      <div class="tool-pane content-pane" id="pane-fieldwork" data-tool-pane="fieldwork">
+        <div class="fieldwork-tool-wrapper">
+          <div class="fieldwork-header-row">
+            <div class="fieldwork-header-left">
+              <span class="fieldwork-header-title">Importer un fichier de terrain (.xlsx, .xls, .csv)</span>
+              <span class="status-badge" id="fieldwork-badge" style="display: none;">0 liés</span>
+            </div>
+            <button type="button" class="btn-fieldwork-help" id="btn-fieldwork-help" aria-expanded="false" aria-controls="fieldwork-help-box" title="Format attendu et utilisation des données importées">?</button>
+          </div>
+
+          <div class="fieldwork-help-box" id="fieldwork-help-box" style="display: none;">
+            <div class="fieldwork-help-section">
+              <strong>📄 Format attendu</strong>
+              <ul>
+                <li>Tableur <code>.xlsx</code>, <code>.xls</code> ou <code>.csv</code> (seule la première feuille est lue).</li>
+                <li><strong>Colonne obligatoire :</strong> <code>batiment_groupe_id</code> (ou <code>id</code>) contenant l'identifiant BDNB de chaque bâtiment (ex : <code>bdnb-bg-TFWK-UCSM-BVQ2</code>).</li>
+                <li><em>Astuce :</em> exportez d'abord le tableau Bâtiments depuis <strong>Outils ▸ Exporter</strong> pour récupérer la colonne <code>batiment_groupe_id</code> exacte.</li>
+                <li><strong>Colonnes libres :</strong> toutes vos autres colonnes (ex : <code>statut</code>, <code>notes</code>, <code>priorite</code>) sont importées automatiquement.</li>
+              </ul>
+            </div>
+            <div class="fieldwork-help-section">
+              <strong>🧭 Comment utiliser les données importées</strong>
+              <ul>
+                <li><strong>Carte :</strong> sélectionnez <em>📋 Enquête de Terrain</em> dans le sélecteur de coloration en bas à gauche pour distinguer les bâtiments enquêtés.</li>
+                <li><strong>Filtres :</strong> utilisez le filtre <em>Enquête de Terrain</em> dans le catalogue pour ne garder que les bâtiments présents (ou absents) de votre fichier.</li>
+                <li><strong>Tableau &amp; Export :</strong> vos colonnes personnalisées s'ajoutent automatiquement au tableau <em>Bâtiments</em> et aux exports Excel.</li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="dropzone fieldwork-tool-dropzone" id="fieldwork-dropzone">
+            <div class="dropzone-icon">📋</div>
+            <div class="dropzone-text">
+              <strong>Cliquer ou déposer un fichier de terrain (.xlsx, .xls, .csv)</strong><br>
+              <span>Clé de jointure requise : <code>batiment_groupe_id</code></span>
+            </div>
+            <input type="file" id="fieldwork-file-input" accept=".xlsx,.xls,.csv" style="display: none;">
+          </div>
+
+          <div id="fieldwork-info" class="fieldwork-info-card" style="display: none;">
+            <div class="fieldwork-info-top">
+              <strong id="fieldwork-filename" style="color: var(--accent-primary);">fichier.xlsx</strong>
+              <button type="button" class="btn btn-secondary btn-sm" id="btn-clear-fieldwork" style="font-size: 0.74rem; padding: 0.2rem 0.55rem;">Retirer le fichier</button>
+            </div>
+            <p id="fieldwork-stats" style="color: var(--text-secondary); margin: 0.25rem 0 0;"></p>
+            <div id="fieldwork-dynamic-filters" style="margin-top: 0.6rem; display: flex; flex-direction: column; gap: 0.45rem;"></div>
           </div>
         </div>
       </div>

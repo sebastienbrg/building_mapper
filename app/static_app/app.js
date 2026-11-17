@@ -2708,6 +2708,12 @@ function updateFilterCountsUI() {
     clearBtn.style.display = activeCount > 0 ? 'inline-flex' : 'none';
   }
 
+  const sidebarToggleBadge = document.getElementById('sidebar-toggle-badge');
+  if (sidebarToggleBadge) {
+    sidebarToggleBadge.textContent = String(activeCount);
+    sidebarToggleBadge.style.display = activeCount > 0 ? 'inline-flex' : 'none';
+  }
+
   const selCountEl = document.getElementById('selected-controls-count');
   if (selCountEl) selCountEl.textContent = String(state.activeFilterIds.size);
 
@@ -2996,6 +3002,110 @@ function renderCatalogCategoriesGrid() {
   }
 }
 
+function closeMobileSidebar() {
+  document.body.classList.remove('sidebar-mobile-open');
+  const toggleBtn = document.getElementById('btn-toggle-sidebar');
+  if (toggleBtn && window.innerWidth <= 900) {
+    toggleBtn.setAttribute('aria-expanded', 'false');
+  }
+}
+
+function initSidebarToggle() {
+  const MOBILE_BREAKPOINT = 900;
+  const STORAGE_KEY = 'tz_sidebar_collapsed';
+  const toggleBtn = document.getElementById('btn-toggle-sidebar');
+  const closeBtn = document.getElementById('btn-close-sidebar');
+  const backdrop = document.getElementById('sidebar-backdrop');
+  const sidebar = document.getElementById('app-sidebar');
+  const donneesBtn = document.getElementById('btn-sidebar-donnees-chargees');
+  if (!toggleBtn || !sidebar) return;
+
+  const isMobile = () => window.innerWidth <= MOBILE_BREAKPOINT;
+
+  const syncAriaAndState = () => {
+    if (isMobile()) {
+      const open = document.body.classList.contains('sidebar-mobile-open');
+      toggleBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
+      toggleBtn.classList.toggle('active', open);
+      sidebar.setAttribute('aria-hidden', open ? 'false' : 'true');
+    } else {
+      document.body.classList.remove('sidebar-mobile-open');
+      const collapsed = document.body.classList.contains('sidebar-collapsed');
+      toggleBtn.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+      toggleBtn.classList.toggle('active', !collapsed);
+      sidebar.setAttribute('aria-hidden', collapsed ? 'true' : 'false');
+    }
+  };
+
+  // Restore desktop collapsed preference
+  try {
+    if (!isMobile() && localStorage.getItem(STORAGE_KEY) === '1') {
+      document.body.classList.add('sidebar-collapsed');
+    }
+  } catch (e) { /* ignore storage errors */ }
+
+  syncAriaAndState();
+
+  toggleBtn.addEventListener('click', () => {
+    if (isMobile()) {
+      document.body.classList.toggle('sidebar-mobile-open');
+    } else {
+      const nextCollapsed = !document.body.classList.contains('sidebar-collapsed');
+      document.body.classList.toggle('sidebar-collapsed', nextCollapsed);
+      try {
+        localStorage.setItem(STORAGE_KEY, nextCollapsed ? '1' : '0');
+      } catch (e) { /* ignore */ }
+      setTimeout(() => {
+        if (state.map) state.map.resize();
+      }, 280);
+    }
+    syncAriaAndState();
+  });
+
+  if (closeBtn) {
+    closeBtn.addEventListener('click', () => {
+      closeMobileSidebar();
+      syncAriaAndState();
+    });
+  }
+
+  if (backdrop) {
+    backdrop.addEventListener('click', () => {
+      closeMobileSidebar();
+      syncAriaAndState();
+    });
+  }
+
+  if (donneesBtn) {
+    donneesBtn.addEventListener('click', () => {
+      if (isMobile()) {
+        closeMobileSidebar();
+        syncAriaAndState();
+      }
+    });
+  }
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && isMobile() && document.body.classList.contains('sidebar-mobile-open')) {
+      closeMobileSidebar();
+      syncAriaAndState();
+    }
+  });
+
+  let lastMobile = isMobile();
+  window.addEventListener('resize', () => {
+    const nowMobile = isMobile();
+    if (nowMobile !== lastMobile) {
+      lastMobile = nowMobile;
+      if (!nowMobile) {
+        document.body.classList.remove('sidebar-mobile-open');
+      }
+      syncAriaAndState();
+      if (state.map) state.map.resize();
+    }
+  });
+}
+
 /* ==========================================================================
    Initialization
    ========================================================================== */
@@ -3024,6 +3134,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   initSociologicalFilterSystem();
+  initSidebarToggle();
   initMap(savedSession?.screenState?.mapViewport);
   initTabs();
   initBuildingsTableControls();
@@ -4868,6 +4979,18 @@ async function lookupSiren(siren) {
 function initFieldworkDropzone() {
   const dropzone = document.getElementById('fieldwork-dropzone');
   const fileInput = document.getElementById('fieldwork-file-input');
+  const helpBtn = document.getElementById('btn-fieldwork-help');
+  const helpBox = document.getElementById('fieldwork-help-box');
+  if (!dropzone || !fileInput) return;
+
+  if (helpBtn && helpBox) {
+    helpBtn.addEventListener('click', () => {
+      const isOpen = helpBox.style.display !== 'none';
+      helpBox.style.display = isOpen ? 'none' : 'flex';
+      helpBtn.setAttribute('aria-expanded', isOpen ? 'false' : 'true');
+      helpBtn.classList.toggle('active', !isOpen);
+    });
+  }
 
   dropzone.addEventListener('click', () => fileInput.click());
 
@@ -4892,14 +5015,20 @@ function initFieldworkDropzone() {
     }
   });
 
-  document.getElementById('btn-clear-fieldwork').addEventListener('click', () => {
-    state.fieldwork.clear();
-    document.getElementById('fieldwork-info').style.display = 'none';
-    document.getElementById('fieldwork-badge').style.display = 'none';
-    document.getElementById('btn-style-fieldwork').style.display = 'none';
-    fileInput.value = '';
-    applyFilters();
-  });
+  const clearBtn = document.getElementById('btn-clear-fieldwork');
+  if (clearBtn) {
+    clearBtn.addEventListener('click', () => {
+      state.fieldwork.clear();
+      const fwInfo = document.getElementById('fieldwork-info');
+      const fwBadge = document.getElementById('fieldwork-badge');
+      const btnStyleFw = document.getElementById('btn-style-fieldwork');
+      if (fwInfo) fwInfo.style.display = 'none';
+      if (fwBadge) fwBadge.style.display = 'none';
+      if (btnStyleFw) btnStyleFw.style.display = 'none';
+      fileInput.value = '';
+      applyFilters();
+    });
+  }
 }
 
 async function handleFieldworkFile(file) {
@@ -4946,8 +5075,9 @@ async function handleFieldworkFile(file) {
     badge.style.display = 'inline-block';
     badge.className = 'status-badge status-cached';
 
-    // Reveal fieldwork style switcher
-    document.getElementById('btn-style-fieldwork').style.display = 'inline-block';
+    // Reveal fieldwork style switcher if present
+    const btnStyleFw = document.getElementById('btn-style-fieldwork');
+    if (btnStyleFw) btnStyleFw.style.display = 'inline-block';
 
     applyFilters();
   } catch (err) {
@@ -5216,6 +5346,7 @@ function exportFilteredGeoJSON() {
    Navigation Tabs Management
    ========================================================================== */
 const TOOL_TITLES = {
+  fieldwork: '📋 Enquête de Terrain (.xlsx)',
   export: '📥 Exporter la sélection',
   sources: '📚 Sources de données',
 };
@@ -5332,6 +5463,15 @@ let currentBuildingsDisplayRows = [];
 let currentBuildingsMatchingSet = new Set();
 let currentBuildingsColumns = [];
 
+function renderSummerRiskBadge(riskVal) {
+  const risk = riskVal || 'Non renseigné';
+  if (risk === 'Critique') {
+    return `<span class="badge-risk" style="background: #fee2e2; color: #991b1b; border: 1px solid #f87171; font-weight: 700;">🔥 Critique</span>`;
+  }
+  const riskColor = OVERHEATING_COLORS[risk] || '#64748b';
+  return `<span class="badge-risk" style="background: ${riskColor}22; color: ${riskColor}; border: 1px solid ${riskColor}55;">${escapeHtml(risk)}</span>`;
+}
+
 const BASE_BUILDINGS_TABLE_COLUMNS = [
   {
     key: 'batiment_groupe_id',
@@ -5383,14 +5523,7 @@ const BASE_BUILDINGS_TABLE_COLUMNS = [
     key: 'risque_surchauffe_ete',
     label: 'Risque Été',
     type: 'risk',
-    render: (b) => {
-      const risk = b.risque_surchauffe_ete || 'Non renseigné';
-      if (risk === 'Critique') {
-        return `<span class="badge-risk" style="background: rgba(153, 27, 27, 0.45); color: #fca5a5; border: 1px solid #ef4444;">🔥 Critique</span>`;
-      }
-      const riskColor = OVERHEATING_COLORS[risk] || '#64748b';
-      return `<span class="badge-risk" style="background: ${riskColor}22; color: ${riskColor}; border: 1px solid ${riskColor}55;">${escapeHtml(risk)}</span>`;
-    },
+    render: (b) => renderSummerRiskBadge(b.risque_surchauffe_ete),
   },
   {
     key: 'score_surchauffe_ete',
@@ -5565,7 +5698,7 @@ function getAllBuildingsColumns() {
       </button>
     `,
   };
-  return [...BASE_BUILDINGS_TABLE_COLUMNS, ...extraSocCols, ...fwCols, actionCol];
+  return [actionCol, ...BASE_BUILDINGS_TABLE_COLUMNS, ...extraSocCols, ...fwCols];
 }
 
 function getBuildingSortValue(b, col) {
@@ -6003,14 +6136,7 @@ const LANDLORD_BUILDINGS_COLUMNS = [
     key: 'risque_surchauffe_ete',
     label: 'Risque Été',
     type: 'risk',
-    render: (b) => {
-      const risk = b.risque_surchauffe_ete || 'Non renseigné';
-      if (risk === 'Critique') {
-        return `<span class="badge-risk" style="background: rgba(153, 27, 27, 0.45); color: #fca5a5; border: 1px solid #ef4444;">🔥 Critique</span>`;
-      }
-      const riskColor = OVERHEATING_COLORS[risk] || '#64748b';
-      return `<span class="badge-risk" style="background: ${riskColor}22; color: ${riskColor}; border: 1px solid ${riskColor}55;">${escapeHtml(risk)}</span>`;
-    },
+    render: (b) => renderSummerRiskBadge(b.risque_surchauffe_ete),
   },
   {
     key: 'score_surchauffe_ete',
@@ -6122,8 +6248,17 @@ function renderTopLandlordsTableRows() {
   }
 
   const fragment = document.createDocumentFragment();
+  const activeTarget = (lastInspectedLandlordTarget || '').trim().toUpperCase();
   for (const g of list.slice(0, 100)) {
     const tr = document.createElement('tr');
+    const target = (g.siren || g.denomination || '').trim();
+    tr.className = 'landlord-row-clickable';
+    if (target) {
+      tr.setAttribute('data-target', target);
+      if (activeTarget && target.toUpperCase() === activeTarget) {
+        tr.classList.add('landlord-row-selected');
+      }
+    }
     let rowHtml = '';
     for (const col of TOP_LANDLORDS_COLUMNS) {
       rowHtml += `<td>${col.render(g)}</td>`;
@@ -6133,15 +6268,30 @@ function renderTopLandlordsTableRows() {
   }
   tbody.appendChild(fragment);
 
-  // Wire Row Buttons
+  const inspectFromRow = (target) => {
+    if (!target) return;
+    const select = document.getElementById('select-landlord-to-inspect');
+    const inputManual = document.getElementById('input-manual-siren');
+    if (inputManual) inputManual.value = '';
+    if (select) select.value = target;
+    inspectLandlordTarget(target);
+  };
+
+  // Click anywhere on a row in the top table to inspect
+  tbody.querySelectorAll('tr.landlord-row-clickable').forEach(tr => {
+    tr.addEventListener('click', (e) => {
+      if (e.target.closest('a')) return;
+      const target = tr.getAttribute('data-target');
+      inspectFromRow(target);
+    });
+  });
+
+  // Wire Row Inspect Buttons
   tbody.querySelectorAll('.btn-inspect-row').forEach(btn => {
-    btn.addEventListener('click', () => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
       const target = btn.getAttribute('data-siren') || btn.getAttribute('data-denom');
-      const select = document.getElementById('select-landlord-to-inspect');
-      const inputManual = document.getElementById('input-manual-siren');
-      if (inputManual) inputManual.value = '';
-      if (select) select.value = target;
-      inspectLandlordTarget(target);
+      inspectFromRow(target);
     });
   });
 }
@@ -6188,37 +6338,54 @@ function renderLandlordsTab() {
 
   // Populate Select Dropdown
   if (select) {
-    select.innerHTML = '';
+    select.innerHTML = '<option value="">Sélectionner un bailleur du tableau ci-dessus...</option>';
     for (const g of currentLandlordsGrouped.slice(0, 150)) {
       const opt = document.createElement('option');
       opt.value = g.siren || g.denomination;
       opt.textContent = `${g.denomination} (SIREN: ${g.siren || 'N/A'} — ${g.buildings.size} bât. / ${g.locauxCount} locaux)`;
       select.appendChild(opt);
     }
+    if (lastInspectedLandlordTarget) {
+      select.value = lastInspectedLandlordTarget;
+    }
   }
 
-  // Determine auto-lookup target
-  let autoTarget = null;
+  // Only inspect if user already entered a manual query or had an active inspected target
   const manualVal = (inputManual?.value || '').trim();
-  if (manualVal) {
-    autoTarget = manualVal;
-  } else if (select && select.value) {
-    autoTarget = select.value;
-  } else if (currentLandlordsGrouped.length > 0) {
-    const first = currentLandlordsGrouped[0];
-    autoTarget = first.siren || first.denomination;
-    if (select) select.value = autoTarget;
+  const activeTarget = manualVal || lastInspectedLandlordTarget;
+  if (activeTarget) {
+    inspectLandlordTarget(activeTarget);
+  } else {
+    const resultsDiv = document.getElementById('landlord-api-results');
+    const pane = document.getElementById('pane-landlords');
+    if (resultsDiv) resultsDiv.style.display = 'none';
+    if (pane) pane.classList.remove('landlord-results-open');
   }
+}
 
-  if (autoTarget && autoTarget !== lastInspectedLandlordTarget) {
-    inspectLandlordTarget(autoTarget);
-  }
+function closeLandlordDetails() {
+  const resultsDiv = document.getElementById('landlord-api-results');
+  const pane = document.getElementById('pane-landlords');
+  const select = document.getElementById('select-landlord-to-inspect');
+  if (resultsDiv) resultsDiv.style.display = 'none';
+  if (pane) pane.classList.remove('landlord-results-open');
+  if (select) select.value = '';
+  lastInspectedLandlordTarget = '';
+  document.querySelectorAll('#table-landlords-body tr.landlord-row-selected').forEach(tr => {
+    tr.classList.remove('landlord-row-selected');
+  });
+  scheduleSaveSession();
 }
 
 function initLandlordsTabControls() {
   const select = document.getElementById('select-landlord-to-inspect');
   const inputManual = document.getElementById('input-manual-siren');
   const btnInspect = document.getElementById('btn-inspect-landlord');
+  const btnClose = document.getElementById('btn-close-landlord-results');
+
+  if (btnClose) {
+    btnClose.addEventListener('click', closeLandlordDetails);
+  }
 
   if (select) {
     select.addEventListener('change', () => {
@@ -6353,7 +6520,14 @@ async function inspectLandlordTarget(target) {
 
   if (!resultsDiv) return;
   resultsDiv.style.display = 'flex';
+  const pane = document.getElementById('pane-landlords');
+  if (pane) pane.classList.add('landlord-results-open');
   lastInspectedLandlordTarget = query;
+  const upperQuery = query.toUpperCase();
+  document.querySelectorAll('#table-landlords-body tr.landlord-row-clickable').forEach(tr => {
+    const rowTarget = (tr.getAttribute('data-target') || '').toUpperCase();
+    tr.classList.toggle('landlord-row-selected', Boolean(rowTarget && rowTarget === upperQuery));
+  });
   scheduleSaveSession();
 
   renderLandlordBuildingsTableHeaders();
@@ -8086,7 +8260,7 @@ function renderSourcesDictTable() {
     }
 
     tdInfo.innerHTML = `
-      <div class="sources-info-name">
+      <div class="sources-info-name" title="${escapeHtml(item.label)}">
         <span>${item.categoryIcon}</span>
         <span>${escapeHtml(item.label)}</span>
       </div>
@@ -8098,7 +8272,7 @@ function renderSourcesDictTable() {
     // 2. Colonne brute d'origine
     const tdCol = document.createElement('td');
     tdCol.innerHTML = `
-      <div class="sources-col-box" data-col="${escapeHtml(item.rawColumn)}" title="Cliquer pour copier le nom de la colonne brute">
+      <div class="sources-col-box" data-col="${escapeHtml(item.rawColumn)}" title="${escapeHtml(item.rawColumn)} — Cliquer pour copier">
         <code>${escapeHtml(item.rawColumn)}</code>
         <span class="btn-copy-col">📋</span>
       </div>
@@ -8110,7 +8284,7 @@ function renderSourcesDictTable() {
     const isPinned = sourcesState.pinnedRowId === item.id;
 
     tdDesc.innerHTML = `
-      <div class="sources-desc-cell${isPinned ? ' pinned' : ''}" data-id="${item.id}" title="Cliquer pour épingler/fermer l'explication complète">
+      <div class="sources-desc-cell${isPinned ? ' pinned' : ''}" data-id="${item.id}" title="${escapeHtml(item.desc)}">
         <div class="sources-desc-preview">
           ${escapeHtml(item.desc)}
         </div>
@@ -8147,7 +8321,7 @@ function renderSourcesDictTable() {
       <div class="sources-file-name" title="${escapeHtml(item.sourceFile)}">${escapeHtml(item.sourceFile)}</div>
       <div class="sources-file-meta">
         <span class="tz-tag ${tagClass}" style="font-size:0.68rem; padding: 1px 6px;">${modeLabel}</span>
-        <span class="badge-coverage">${escapeHtml(item.coverage)}</span>
+        <span class="badge-coverage" title="${escapeHtml(item.coverage)}">${escapeHtml(item.coverage)}</span>
       </div>
     `;
 
@@ -8155,13 +8329,13 @@ function renderSourcesDictTable() {
     const tdProd = document.createElement('td');
     tdProd.className = 'sources-producer-cell';
     tdProd.innerHTML = `
-      <span class="badge-producer">🏛️ ${escapeHtml(item.producer)}</span>
+      <span class="badge-producer" title="${escapeHtml(item.producer)}">🏛️ ${escapeHtml(item.producer)}</span>
     `;
 
     // 6. Catégorie / Thématique
     const tdCat = document.createElement('td');
     tdCat.innerHTML = `
-      <span class="badge-category badge-cat-${item.category}">
+      <span class="badge-category badge-cat-${item.category}" title="${escapeHtml(item.categoryLabel)}">
         <span>${item.categoryIcon}</span>
         <span>${escapeHtml(item.categoryLabel)}</span>
       </span>
