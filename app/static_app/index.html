@@ -223,7 +223,7 @@
                 <option value="dpe">🎨 Diagnostic Énergétique (DPE)</option>
                 <option value="overheating">☀️ Risque Surchauffe Estivale</option>
                 <option value="concentration">🏢 Concentration Foncière</option>
-                <option value="fieldwork" id="opt-color-fieldwork" style="display: none;">📋 Enquête de Terrain</option>
+                <option value="fieldwork" id="opt-color-fieldwork" hidden disabled>📋 Enquête de Terrain (Visité / Non visité)</option>
               </select>
             </div>
             <div class="legend-title" id="legend-title" style="display: none;">Diagnostic Énergétique (DPE)</div>
@@ -393,16 +393,16 @@
               <strong>📄 Format attendu</strong>
               <ul>
                 <li>Tableur <code>.xlsx</code>, <code>.xls</code> ou <code>.csv</code> (seule la première feuille est lue).</li>
-                <li><strong>Colonne obligatoire :</strong> <code>batiment_groupe_id</code> (ou <code>id</code>) contenant l'identifiant BDNB de chaque bâtiment (ex : <code>bdnb-bg-TFWK-UCSM-BVQ2</code>).</li>
-                <li><em>Astuce :</em> exportez d'abord le tableau Bâtiments depuis <strong>Outils ▸ Exporter</strong> pour récupérer la colonne <code>batiment_groupe_id</code> exacte.</li>
-                <li><strong>Colonnes libres :</strong> toutes vos autres colonnes (ex : <code>statut</code>, <code>notes</code>, <code>priorite</code>) sont importées automatiquement.</li>
+                <li><strong>Colonne obligatoire :</strong> <code>ID BDNB</code> ou <code>batiment_groupe_id</code> (ou <code>id</code>) contenant l'identifiant BDNB du bâtiment (ex : <code>bdnb-bg-TFWK-UCSM-BVQ2</code>).</li>
+                <li><em>Astuce :</em> exportez d'abord le tableau Bâtiments depuis <strong>Outils ▸ Exporter</strong> — la colonne <code>ID BDNB</code> exportée est directement reconnue à l'import.</li>
+                <li><strong>Colonnes libres :</strong> toutes vos autres colonnes (ex : <code>statut</code>, <code>notes</code>, <code>priorite</code>) deviennent automatiquement des filtres dans la catégorie <em>Enquête de Terrain</em>.</li>
               </ul>
             </div>
             <div class="fieldwork-help-section">
               <strong>🧭 Comment utiliser les données importées</strong>
               <ul>
-                <li><strong>Carte :</strong> sélectionnez <em>📋 Enquête de Terrain</em> dans le sélecteur de coloration en bas à gauche pour distinguer les bâtiments enquêtés.</li>
-                <li><strong>Filtres :</strong> utilisez le filtre <em>Enquête de Terrain</em> dans le catalogue pour ne garder que les bâtiments présents (ou absents) de votre fichier.</li>
+                <li><strong>Carte :</strong> sélectionnez <em>📋 Enquête de Terrain</em> ou l'une de vos colonnes catégorielles / numériques dans le sélecteur de coloration en bas à gauche.</li>
+                <li><strong>Filtres :</strong> ouvrez la catégorie <em>8. Enquête de Terrain</em> dans le menu latéral pour filtrer par statut de visite ou sur vos colonnes importées.</li>
                 <li><strong>Tableau &amp; Export :</strong> vos colonnes personnalisées s'ajoutent automatiquement au tableau <em>Bâtiments</em> et aux exports Excel.</li>
               </ul>
             </div>
@@ -412,7 +412,7 @@
             <div class="dropzone-icon">📋</div>
             <div class="dropzone-text">
               <strong>Cliquer ou déposer un fichier de terrain (.xlsx, .xls, .csv)</strong><br>
-              <span>Clé de jointure requise : <code>batiment_groupe_id</code></span>
+              <span>Clé de jointure requise : <code>ID BDNB</code> ou <code>batiment_groupe_id</code></span>
             </div>
             <input type="file" id="fieldwork-file-input" accept=".xlsx,.xls,.csv" style="display: none;">
           </div>

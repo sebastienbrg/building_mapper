@@ -27,6 +27,7 @@ const state = {
   owners: [],           // Corporate owner records
   ownersByBuilding: new Map(), // batiment_groupe_id -> Array<Owner>
   fieldwork: new Map(), // batiment_groupe_id -> fieldwork row object
+  fieldworkColumns: [], // Array of { colName, kind: 'numeric'|'categorical'|'text', min, max, values, colorMap }
   filteredBuildings: [],// Currently active filtered subset
   mapStyleMode: 'dpe',  // 'dpe' | 'overheating' | 'concentration' | 'fieldwork'
   legalMode: 'inclusif',// 'inclusif' | 'exclusif'
@@ -140,9 +141,16 @@ const SOCIOLOGICAL_CATEGORIES = [
   {
     id: 'geography',
     icon: '📍',
-    shortLabel: '7. Géographie Fine & Terrain (.xlsx)',
-    title: '7. Géographie Fine, Quartiers IRIS & Enquête de Terrain (.xlsx)',
-    desc: 'Filtrer par commune/arrondissement, îlot statistique INSEE (IRIS), nom de rue, ou statut de visite dans votre tableur militant (.xlsx).',
+    shortLabel: '7. Géographie Fine & IRIS',
+    title: '7. Géographie Fine & Quartiers IRIS',
+    desc: 'Filtrer par commune/arrondissement, îlot statistique INSEE (IRIS) ou nom de rue.',
+  },
+  {
+    id: 'fieldwork',
+    icon: '📋',
+    shortLabel: '8. Enquête de Terrain',
+    title: '8. Enquête de Terrain (.xlsx importé)',
+    desc: 'Filtrer par statut de visite et par les colonnes personnalisées importées depuis votre tableur de terrain.',
   },
 ];
 
@@ -1788,16 +1796,16 @@ const FILTER_DEFINITIONS = [
   },
   {
     id: 'fieldwork_status',
-    category: 'geography',
-    label: 'Statut dans l\'enquête de terrain (.xlsx importé)',
+    category: 'fieldwork',
+    label: 'Présence dans le fichier importé (.xlsx)',
     column: 'batiment_groupe_id',
     source: 'Tableur militant (.xlsx)',
-    desc: 'Afficher uniquement les immeubles déjà visités (présents dans votre fichier .xlsx) ou ceux restant à enquêter.',
+    desc: 'Filtrer selon que le bâtiment apparaît ou non dans le fichier d\'enquête importé.',
     controlType: 'select',
     options: [
-      { value: '', label: 'Tous les immeubles (visités ou non)' },
-      { value: 'visited', label: '📋 Déjà enquêtés / présents dans le tableur .xlsx' },
-      { value: 'unvisited', label: '🧭 Restant à visiter (absents du tableur .xlsx)' },
+      { value: '', label: 'Tous (présents et absents)' },
+      { value: 'visited', label: '✅ Présent dans le fichier importé' },
+      { value: 'unvisited', label: '⬜ Absent du fichier importé' },
     ],
     isActive: (s) => Boolean(s.dynFilters.fieldwork_status),
     reset: (s) => { delete s.dynFilters.fieldwork_status; },
@@ -2557,6 +2565,31 @@ function buildFilterControlCard(f) {
           state.selectedLegal.add(opt);
           btn.classList.add('active');
         }
+        refreshFilterCardActiveState(card, f);
+        applyFilters();
+      });
+      pillsDiv.appendChild(btn);
+    }
+    ctrlWrap.appendChild(pillsDiv);
+  } else if (f.controlType === 'multi_pills') {
+    const pillsDiv = document.createElement('div');
+    pillsDiv.className = 'pill-group';
+    const currentSet = new Set(Array.isArray(f.getValue(state)) ? f.getValue(state) : []);
+    for (const opt of f.options) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = `pill-btn${currentSet.has(opt) ? ' active' : ''}`;
+      btn.setAttribute('data-val', opt);
+      btn.textContent = opt;
+      btn.addEventListener('click', () => {
+        if (currentSet.has(opt)) {
+          currentSet.delete(opt);
+          btn.classList.remove('active');
+        } else {
+          currentSet.add(opt);
+          btn.classList.add('active');
+        }
+        f.setValue(state, Array.from(currentSet));
         refreshFilterCardActiveState(card, f);
         applyFilters();
       });
@@ -4585,6 +4618,10 @@ function applyFilters() {
   const { fieldwork, maxPolygons } = state;
   const filtered = [];
 
+  const activeFwColMeta = (state.mapStyleMode && state.mapStyleMode.startsWith('fieldwork_col:'))
+    ? (state.fieldworkColumns || []).find(c => c.colName === state.mapStyleMode.slice('fieldwork_col:'.length))
+    : null;
+
   for (let i = 0; i < state.buildings.length; i++) {
     const b = state.buildings[i];
 
@@ -4611,6 +4648,9 @@ function applyFilters() {
     } else if (state.mapStyleMode === 'fieldwork') {
       const isField = fieldwork.has(b.batiment_groupe_id);
       renderColor = isField ? '#a855f7' : 'rgba(100, 116, 139, 0.4)';
+    } else if (activeFwColMeta) {
+      const fwRow = fieldwork.get(b.batiment_groupe_id);
+      renderColor = getFieldworkColumnColor(fwRow, activeFwColMeta);
     }
 
     b.render_color = renderColor;
@@ -4787,14 +4827,9 @@ function updateLegend() {
   // Normal mode: Show select dropdown at the top of the legend
   if (selectWrap) selectWrap.style.display = 'block';
   if (title) title.style.display = 'none';
+  syncFieldworkColorOptions();
   if (colorSelect && colorSelect.value !== state.mapStyleMode) {
     colorSelect.value = state.mapStyleMode;
-  }
-
-  // Fieldwork option visibility
-  const optFieldwork = document.getElementById('opt-color-fieldwork');
-  if (optFieldwork) {
-    optFieldwork.style.display = (state.fieldwork && state.fieldwork.size > 0) ? 'block' : 'none';
   }
 
   if (state.mapStyleMode === 'dpe') {
@@ -4827,6 +4862,32 @@ function updateLegend() {
       <div class="legend-item"><span class="legend-color" style="background: #a855f7;"></span><span>Visité / Enquêté</span></div>
       <div class="legend-item"><span class="legend-color" style="background: rgba(100, 116, 139, 0.4);"></span><span>Non visité</span></div>
     `;
+  } else if (state.mapStyleMode && state.mapStyleMode.startsWith('fieldwork_col:')) {
+    const colName = state.mapStyleMode.slice('fieldwork_col:'.length);
+    const meta = (state.fieldworkColumns || []).find(c => c.colName === colName);
+    if (meta && meta.kind === 'numeric') {
+      items.innerHTML = `
+        <div class="legend-item" style="width: 100%; flex-direction: column; align-items: stretch; gap: 0.25rem;">
+          <div style="height: 10px; border-radius: 999px; background: linear-gradient(90deg, #2563eb 0%, #eab308 50%, #dc2626 100%);"></div>
+          <div style="display: flex; justify-content: space-between; font-size: 0.7rem; color: var(--text-secondary);">
+            <span>${meta.min.toLocaleString('fr-FR')}</span>
+            <span>${meta.max.toLocaleString('fr-FR')}</span>
+          </div>
+        </div>
+        <div class="legend-item"><span class="legend-color" style="background: rgba(148, 163, 184, 0.45);"></span><span>Non renseigné</span></div>
+      `;
+    } else if (meta && meta.kind === 'categorical') {
+      for (const val of meta.values) {
+        const c = meta.colorMap.get(val) || '#94a3b8';
+        items.innerHTML += `
+          <div class="legend-item">
+            <span class="legend-color" style="background: ${c};"></span>
+            <span>${escapeHtml(val)}</span>
+          </div>
+        `;
+      }
+      items.innerHTML += `<div class="legend-item"><span class="legend-color" style="background: rgba(148, 163, 184, 0.45);"></span><span>Non renseigné</span></div>`;
+    }
   }
 }
 
@@ -5019,6 +5080,8 @@ function initFieldworkDropzone() {
   if (clearBtn) {
     clearBtn.addEventListener('click', () => {
       state.fieldwork.clear();
+      state.fieldworkColumns = [];
+      clearDynamicFieldworkFilters();
       const fwInfo = document.getElementById('fieldwork-info');
       const fwBadge = document.getElementById('fieldwork-badge');
       const btnStyleFw = document.getElementById('btn-style-fieldwork');
@@ -5026,8 +5089,310 @@ function initFieldworkDropzone() {
       if (fwBadge) fwBadge.style.display = 'none';
       if (btnStyleFw) btnStyleFw.style.display = 'none';
       fileInput.value = '';
+      if (state.mapStyleMode === 'fieldwork' || (state.mapStyleMode && state.mapStyleMode.startsWith('fieldwork_col:'))) {
+        state.mapStyleMode = 'dpe';
+      }
+      syncFieldworkColorOptions();
+      renderSidebarFilterControls();
+      renderCatalogModalContent();
+      updateFilterCountsUI();
+      updateLegend();
       applyFilters();
     });
+  }
+}
+
+const FIELDWORK_CAT_PALETTE = [
+  '#2563eb', '#16a34a', '#d97706', '#9333ea', '#0891b2',
+  '#db2777', '#65a30d', '#ea580c', '#4f46e5',
+];
+
+function parseFieldworkNumber(v) {
+  if (v === null || v === undefined || typeof v === 'boolean') return NaN;
+  if (typeof v === 'number') return Number.isFinite(v) ? v : NaN;
+  const s = String(v).trim().replace(/\s+/g, '').replace(',', '.');
+  if (!s) return NaN;
+  const n = Number(s);
+  return Number.isFinite(n) ? n : NaN;
+}
+
+function interpolateBlueToRed(t) {
+  const clamped = Math.max(0, Math.min(1, t));
+  // Blue (#2563eb) -> Yellow (#eab308) -> Red (#dc2626)
+  let r, g, b;
+  if (clamped < 0.5) {
+    const u = clamped * 2;
+    r = Math.round(37 + (234 - 37) * u);
+    g = Math.round(99 + (179 - 99) * u);
+    b = Math.round(235 + (8 - 235) * u);
+  } else {
+    const u = (clamped - 0.5) * 2;
+    r = Math.round(234 + (220 - 234) * u);
+    g = Math.round(179 + (38 - 179) * u);
+    b = Math.round(8 + (38 - 8) * u);
+  }
+  return `rgb(${r}, ${g}, ${b})`;
+}
+
+function getFieldworkColumnColor(fwRow, meta) {
+  const missingColor = 'rgba(148, 163, 184, 0.4)';
+  if (!fwRow || !meta) return missingColor;
+  const raw = fwRow[meta.colName];
+  if (raw === null || raw === undefined || String(raw).trim() === '') return missingColor;
+  if (meta.kind === 'numeric') {
+    const num = parseFieldworkNumber(raw);
+    if (Number.isNaN(num)) return missingColor;
+    const span = meta.max - meta.min;
+    const t = span > 0 ? (num - meta.min) / span : 0.5;
+    return interpolateBlueToRed(t);
+  }
+  if (meta.kind === 'categorical') {
+    return meta.colorMap.get(String(raw).trim()) || missingColor;
+  }
+  return '#a855f7';
+}
+
+function findFieldworkIdColumn(sample) {
+  if (!sample) return null;
+  const keys = Object.keys(sample);
+  const normalize = (k) => k.trim().toLowerCase().replace(/[\s_-]+/g, '');
+  // 1. Exact match priority: batiment_groupe_id, id bdnb, id
+  const exactTargets = ['batimentgroupeid', 'idbdnb', 'id'];
+  for (const target of exactTargets) {
+    const found = keys.find(k => normalize(k) === target);
+    if (found) return found;
+  }
+  // 2. Substring fallback
+  return keys.find(k => {
+    const norm = normalize(k);
+    return norm.includes('batimentgroupeid') || norm.includes('idbdnb');
+  }) || null;
+}
+
+function clearDynamicFieldworkFilters() {
+  for (let i = FILTER_DEFINITIONS.length - 1; i >= 0; i--) {
+    if (FILTER_DEFINITIONS[i].id.startsWith('fw_col_')) {
+      const id = FILTER_DEFINITIONS[i].id;
+      state.activeFilterIds.delete(id);
+      FILTER_DEFINITIONS.splice(i, 1);
+    }
+  }
+  for (const key of Object.keys(state.dynFilters || {})) {
+    if (key.startsWith('fw_col_')) delete state.dynFilters[key];
+  }
+}
+
+const FIELDWORK_EMPTY_OPTION = '(Vide)';
+
+function normalizeFieldworkColKey(k) {
+  return String(k || '')
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[\s_-]+/g, '');
+}
+
+function getExistingDatasetColumnKeys() {
+  const existing = new Set(['action', 'batimentgroupeid', 'idbdnb', 'id']);
+  if (typeof BASE_BUILDINGS_TABLE_COLUMNS !== 'undefined') {
+    for (const col of BASE_BUILDINGS_TABLE_COLUMNS) {
+      if (col.key) existing.add(normalizeFieldworkColKey(col.key));
+      if (col.label) existing.add(normalizeFieldworkColKey(col.label));
+    }
+  }
+  for (const f of FILTER_DEFINITIONS) {
+    if (f.id && f.id.startsWith('fw_col_')) continue;
+    if (f.column) existing.add(normalizeFieldworkColKey(f.column));
+    if (f.label) existing.add(normalizeFieldworkColKey(f.label));
+  }
+  if (state.buildings && state.buildings.length > 0) {
+    for (const k of Object.keys(state.buildings[0])) {
+      existing.add(normalizeFieldworkColKey(k));
+    }
+  }
+  return existing;
+}
+
+function buildDynamicFieldworkFiltersAndColors(jsonRows, idKey) {
+  clearDynamicFieldworkFilters();
+  state.fieldworkColumns = [];
+  if (!jsonRows || jsonRows.length === 0) return;
+
+  const existingKeys = getExistingDatasetColumnKeys();
+  const colNames = Object.keys(jsonRows[0]).filter(
+    k => k !== idKey && !existingKeys.has(normalizeFieldworkColKey(k))
+  );
+  const newFilterIds = [];
+
+  colNames.forEach((colName, idx) => {
+    const nonEmpty = [];
+    for (const row of jsonRows) {
+      const v = row[colName];
+      if (v !== null && v !== undefined && String(v).trim() !== '') {
+        nonEmpty.push(v);
+      }
+    }
+    if (nonEmpty.length === 0) return;
+
+    const filterId = `fw_col_${idx}_${colName.replace(/[^a-zA-Z0-9]+/g, '_').toLowerCase()}`;
+    const allNumeric = nonEmpty.every(v => !Number.isNaN(parseFieldworkNumber(v)));
+
+    if (allNumeric) {
+      let min = Infinity;
+      let max = -Infinity;
+      for (const v of nonEmpty) {
+        const n = parseFieldworkNumber(v);
+        if (n < min) min = n;
+        if (n > max) max = n;
+      }
+      state.fieldworkColumns.push({ colName, kind: 'numeric', min, max });
+
+      const minKey = `${filterId}_min`;
+      const maxKey = `${filterId}_max`;
+      FILTER_DEFINITIONS.push({
+        id: filterId,
+        category: 'fieldwork',
+        label: colName,
+        column: colName,
+        source: 'Enquête de terrain (.xlsx)',
+        desc: `Plage numérique sur la colonne importée « ${colName} » (${min} à ${max}).`,
+        controlType: 'range_min_max',
+        minPlaceholder: `Min (${min})`,
+        maxPlaceholder: `Max (${max})`,
+        isActive: (s) => Boolean(s.dynFilters[minKey] !== undefined && s.dynFilters[minKey] !== '' || s.dynFilters[maxKey] !== undefined && s.dynFilters[maxKey] !== ''),
+        reset: (s) => { delete s.dynFilters[minKey]; delete s.dynFilters[maxKey]; },
+        getValue: (s) => ({ min: s.dynFilters[minKey] ?? '', max: s.dynFilters[maxKey] ?? '' }),
+        setValue: (s, v) => {
+          if (v) {
+            s.dynFilters[minKey] = v.min ?? '';
+            s.dynFilters[maxKey] = v.max ?? '';
+          }
+        },
+        matches: (s, b) => {
+          const rawMin = s.dynFilters[minKey];
+          const rawMax = s.dynFilters[maxKey];
+          const hasMin = rawMin !== undefined && rawMin !== '';
+          const hasMax = rawMax !== undefined && rawMax !== '';
+          if (!hasMin && !hasMax) return true;
+          const row = s.fieldwork && s.fieldwork.get(b.batiment_groupe_id);
+          if (!row) return false;
+          const num = parseFieldworkNumber(row[colName]);
+          if (Number.isNaN(num)) return false;
+          if (hasMin && num < Number(rawMin)) return false;
+          if (hasMax && num > Number(rawMax)) return false;
+          return true;
+        },
+      });
+      newFilterIds.push(filterId);
+    } else {
+      const distinctSet = new Set(nonEmpty.map(v => String(v).trim()));
+      const values = Array.from(distinctSet).sort((a, b) => a.localeCompare(b, 'fr', { numeric: true, sensitivity: 'base' }));
+
+      if (values.length < 10) {
+        const colorMap = new Map();
+        values.forEach((val, vIdx) => {
+          colorMap.set(val, FIELDWORK_CAT_PALETTE[vIdx % FIELDWORK_CAT_PALETTE.length]);
+        });
+        state.fieldworkColumns.push({ colName, kind: 'categorical', values, colorMap });
+
+        FILTER_DEFINITIONS.push({
+          id: filterId,
+          category: 'fieldwork',
+          label: colName,
+          column: colName,
+          source: 'Enquête de terrain (.xlsx)',
+          desc: `Sélection multiple sur la colonne importée « ${colName} » (${values.length} valeur(s)).`,
+          controlType: 'multi_pills',
+          options: [...values, FIELDWORK_EMPTY_OPTION],
+          isActive: (s) => Array.isArray(s.dynFilters[filterId]) && s.dynFilters[filterId].length > 0,
+          reset: (s) => { delete s.dynFilters[filterId]; },
+          getValue: (s) => Array.isArray(s.dynFilters[filterId]) ? s.dynFilters[filterId] : [],
+          setValue: (s, v) => {
+            s.dynFilters[filterId] = Array.isArray(v) ? v : [];
+          },
+          matches: (s, b) => {
+            const selected = s.dynFilters[filterId];
+            if (!Array.isArray(selected) || selected.length === 0) return true;
+            const row = s.fieldwork && s.fieldwork.get(b.batiment_groupe_id);
+            if (!row) return false;
+            const val = row[colName] !== undefined && row[colName] !== null ? String(row[colName]).trim() : '';
+            if (val === '') return selected.includes(FIELDWORK_EMPTY_OPTION);
+            return selected.includes(val);
+          },
+        });
+        newFilterIds.push(filterId);
+      } else {
+        state.fieldworkColumns.push({ colName, kind: 'text' });
+
+        FILTER_DEFINITIONS.push({
+          id: filterId,
+          category: 'fieldwork',
+          label: colName,
+          column: colName,
+          source: 'Enquête de terrain (.xlsx)',
+          desc: `Recherche texte (joker *) sur la colonne importée « ${colName} ».`,
+          controlType: 'text',
+          placeholder: `Rechercher dans ${colName} (ex: *mot*)...`,
+          isActive: (s) => Boolean(s.dynFilters[filterId] && String(s.dynFilters[filterId]).trim()),
+          reset: (s) => { delete s.dynFilters[filterId]; },
+          getValue: (s) => s.dynFilters[filterId] || '',
+          setValue: (s, v) => { s.dynFilters[filterId] = v || ''; },
+          matches: (s, b) => {
+            const rawQ = String(s.dynFilters[filterId] || '').trim();
+            if (!rawQ) return true;
+            const row = s.fieldwork && s.fieldwork.get(b.batiment_groupe_id);
+            if (!row) return false;
+            const cell = String(row[colName] ?? '').toLowerCase();
+            if (rawQ.includes('*')) {
+              const escaped = rawQ.toLowerCase().replace(/[.+?^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*');
+              return new RegExp(escaped).test(cell);
+            }
+            return cell.includes(rawQ.toLowerCase());
+          },
+        });
+        newFilterIds.push(filterId);
+      }
+    }
+  });
+
+  // Activate fieldwork_status + all imported column filters in the Enquête de Terrain category
+  state.activeFilterIds.add('fieldwork_status');
+  for (const fid of newFilterIds) {
+    state.activeFilterIds.add(fid);
+  }
+}
+
+function syncFieldworkColorOptions() {
+  const colorSelect = document.getElementById('select-color-mode');
+  if (!colorSelect) return;
+
+  const hasFw = Boolean(state.fieldwork && state.fieldwork.size > 0);
+  const optFieldwork = document.getElementById('opt-color-fieldwork');
+  if (optFieldwork) {
+    optFieldwork.hidden = !hasFw;
+    optFieldwork.disabled = !hasFw;
+  }
+
+  let group = document.getElementById('opt-group-fieldwork-cols');
+  if (group) group.remove();
+
+  const colorableCols = (state.fieldworkColumns || []).filter(c => c.kind === 'numeric' || c.kind === 'categorical');
+  if (hasFw && colorableCols.length > 0) {
+    group = document.createElement('optgroup');
+    group.id = 'opt-group-fieldwork-cols';
+    group.label = '📋 Colonnes Enquête de Terrain';
+    for (const col of colorableCols) {
+      const opt = document.createElement('option');
+      opt.value = `fieldwork_col:${col.colName}`;
+      opt.textContent = col.kind === 'numeric' ? `📊 ${col.colName} (Bleu → Rouge)` : `🏷️ ${col.colName}`;
+      group.appendChild(opt);
+    }
+    colorSelect.appendChild(group);
+  }
+
+  if (colorSelect.value !== state.mapStyleMode) {
+    colorSelect.value = state.mapStyleMode;
   }
 }
 
@@ -5046,11 +5411,11 @@ async function handleFieldworkFile(file) {
       return;
     }
 
-    // Look for batiment_groupe_id column
+    // Look for ID BDNB / batiment_groupe_id / id column
     const sample = jsonRows[0];
-    const idKey = Object.keys(sample).find(k => k.toLowerCase().includes('batiment_groupe_id') || k.toLowerCase() === 'id');
+    const idKey = findFieldworkIdColumn(sample);
     if (!idKey) {
-      alert("Colonne 'batiment_groupe_id' introuvable dans le fichier Excel.");
+      alert("Colonne d'identifiant introuvable ('ID BDNB', 'batiment_groupe_id' ou 'id').");
       hideLoading();
       return;
     }
@@ -5060,25 +5425,39 @@ async function handleFieldworkFile(file) {
     const buildingIds = new Set(state.buildings.map(b => b.batiment_groupe_id));
 
     for (const row of jsonRows) {
-      const bId = String(row[idKey]);
+      const bId = String(row[idKey] ?? '').trim();
+      if (!bId) continue;
       state.fieldwork.set(bId, row);
       if (buildingIds.has(bId)) matchCount++;
     }
 
-    document.getElementById('fieldwork-info').style.display = 'block';
-    document.getElementById('fieldwork-filename').textContent = file.name;
-    document.getElementById('fieldwork-stats').textContent = 
-      `${jsonRows.length.toLocaleString()} lignes lues — ${matchCount.toLocaleString()} bâtiments correspondants sur le territoire chargé.`;
+    buildDynamicFieldworkFiltersAndColors(jsonRows, idKey);
+
+    const fwInfo = document.getElementById('fieldwork-info');
+    const fwName = document.getElementById('fieldwork-filename');
+    const fwStats = document.getElementById('fieldwork-stats');
+    if (fwInfo) fwInfo.style.display = 'block';
+    if (fwName) fwName.textContent = file.name;
+    if (fwStats) {
+      fwStats.textContent = `${jsonRows.length.toLocaleString()} lignes lues — ${matchCount.toLocaleString()} bâtiments correspondants sur le territoire chargé.`;
+    }
 
     const badge = document.getElementById('fieldwork-badge');
-    badge.textContent = `${matchCount} liés`;
-    badge.style.display = 'inline-block';
-    badge.className = 'status-badge status-cached';
+    if (badge) {
+      badge.textContent = `${matchCount} liés`;
+      badge.style.display = 'inline-block';
+      badge.className = 'status-badge status-cached';
+    }
 
     // Reveal fieldwork style switcher if present
     const btnStyleFw = document.getElementById('btn-style-fieldwork');
     if (btnStyleFw) btnStyleFw.style.display = 'inline-block';
 
+    syncFieldworkColorOptions();
+    renderSidebarFilterControls();
+    renderCatalogModalContent();
+    updateFilterCountsUI();
+    updateLegend();
     applyFilters();
   } catch (err) {
     console.error('Error parsing fieldwork file:', err);
@@ -5639,11 +6018,11 @@ const BASE_BUILDINGS_TABLE_COLUMNS = [
 
 function getFieldworkColumns() {
   if (!state.fieldwork || state.fieldwork.size === 0) return [];
+  const existingKeys = getExistingDatasetColumnKeys();
   const keys = new Set();
   for (const row of state.fieldwork.values()) {
     for (const k of Object.keys(row)) {
-      const lower = k.toLowerCase();
-      if (lower !== 'batiment_groupe_id' && lower !== 'id') {
+      if (!existingKeys.has(normalizeFieldworkColKey(k))) {
         keys.add(k);
       }
     }
@@ -6650,6 +7029,10 @@ function formatFilterActiveCriterion(f) {
     const arr = val && Array.isArray(val.selected) ? val.selected : Array.from(state.selectedLegal || []);
     const mode = (val && val.mode) || state.legalMode || 'inclusif';
     return `${arr.join(', ')} (mode ${mode})`;
+  }
+  if (f.controlType === 'multi_pills') {
+    const arr = Array.isArray(val) ? val : [];
+    return arr.length > 0 ? `Valeurs retenues : ${arr.join(', ')}` : 'Toutes';
   }
   if (f.controlType === 'slider' || f.controlType === 'number_min') {
     return `Seuil minimum : ≥ ${val}${f.unit || ''}`;
