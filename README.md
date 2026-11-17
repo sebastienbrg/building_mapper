@@ -8,8 +8,7 @@
 ## 🚀 Présentation de l'Application Autonome
 
 L'application fonctionne désormais de façon **100% autonome et côté client** (zéro serveur Python ou Streamlit à l'exécution) :
-- **Web App Statique (SPA / PWA)** : hébergeable gratuitement sur GitHub Pages ou Cloudflare Pages ($0/mois).
-- **Application Desktop Native (Tauri)** : exécutable autonome sans installation (portable) ou installeur standard (`.exe`, `.deb`, `.dmg`).
+- **Web App Statique & PWA Installable (TezeloMap)** : hébergeable gratuitement sur GitHub Pages ou Cloudflare Pages ($0/mois), et installable comme application de bureau (Windows, Linux, macOS) ou mobile via navigateur compatible PWA.
 - **Cartographie Vectorielle fluide (MapLibre GL JS)** : rendu fluide de dizaines de milliers de bâtiments avec zoom, sélection et infobulles instantanées.
 - **Décodage Parquet In-Browser (hyparquet)** : chargement à la demande par code postal ou département avec cache local (IndexedDB / Cache API).
 - **Inspection SCI & Dirigeants (API data.gouv.fr)** : recherche directe des dirigeants et actionnaires en un clic.
@@ -34,11 +33,8 @@ L'application fonctionne désormais de façon **100% autonome et côté client**
 │   ├── release_data.sh       # Script de publication des données sur GitHub Releases
 │   ├── requirements.txt      # Dépendances Python pour l'ETL et les tests Playwright
 │   └── test_all_tabs.py      # Suite de tests Playwright couvrant tous les onglets
-├── src-tauri/                # Configuration Tauri pour packaging desktop natif
 ├── data/                     # Données brutes, traitées et chunks par code postal
-├── USER_MANUAL.md            # Manuel utilisateur complet (interface, profils, outils, exports)
-├── ASSESSMENT_AND_PLAN.md    # Analyse technique initiale et historique du projet
-└── STANDALONE_ARCHITECTURE.md # Architecture détaillée de l'application autonome
+└── USER_MANUAL.md            # Manuel utilisateur complet (interface, profils, outils, exports, PWA)
 ```
 
 ---
@@ -85,3 +81,12 @@ python3 app/test_all_tabs.py
 - **GitHub Pages** : Déploiement automatique configuré via `.github/workflows/deploy-pages.yml` lors de chaque push sur la branche `master`.
 - **GitHub Releases** : Hébergement des chunks de données par code postal via `./app/release_data.sh v1.0-data`.
 - **Desktop Tauri** : Compilation multiplateforme automatisée (Windows, Linux, macOS) via `.github/workflows/build-desktop.yml`.
+
+---
+
+## 📄 Licence
+
+Le code source de cette application est distribué sous licence **MIT** — voir le fichier [LICENSE](LICENSE) pour plus de détails.
+
+Les bibliothèques tierces embarquées dans `app/static_app/vendor/` et les jeux de données ouverts utilisés (BDNB, OpenStreetMap, données locales) restent soumis à leurs licences respectives.
+

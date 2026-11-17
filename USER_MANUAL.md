@@ -16,7 +16,8 @@
 7. [Menu 🧰 Outils (Terrain, Exports, Sources)](#7-menu--outils-terrain-exports-sources)
 8. [Fonctionnement hors-ligne et sauvegarde sur cet ordinateur](#8-fonctionnement-hors-ligne-et-sauvegarde-sur-cet-ordinateur)
 9. [Dépannage et gestion de la mémoire](#9-dépannage-et-gestion-de-la-mémoire)
-10. [Régénérer les captures et GIFs du manuel](#10-régénérer-les-captures-et-gifs-du-manuel)
+10. [Installer TezeloMap comme une application](#10-installer-tezelomap-comme-une-application)
+11. [Régénérer les captures et GIFs du manuel](#11-régénérer-les-captures-et-gifs-du-manuel)
 
 ---
 
@@ -155,7 +156,22 @@ L'export porte toujours sur votre **sélection active filtrée** :
 
 ---
 
-## 10. Régénérer les captures et GIFs du manuel
+## 10. Installer TezeloMap comme une application
+
+**TezeloMap** est une **Progressive Web App (PWA)** : vous pouvez l'installer sur votre ordinateur ou votre téléphone pour l'ouvrir dans sa propre fenêtre dédiée (avec l'icône **TZLM** dans votre menu d'applications ou barre des tâches), sans barre d'adresse.
+
+- **Windows & Linux (Chrome, Edge, Brave) :** cliquez sur l'icône d'installation dans la barre d'adresse (à droite de l'URL), sur le bouton **📲 Installer** en haut de l'application lorsqu'il apparaît, ou via le menu du navigateur (*⋮ ▸ Caster, enregistrer et partager ▸ Installer TezeloMap…*).
+- **macOS :** via Chrome, Edge ou Brave comme ci-dessus, ou dans Safari via *Fichier ▸ Ajouter au Dock…*.
+- **Mobile (Android / iOS) :** sur Android (Chrome), utilisez *⋮ ▸ Ajouter à l'écran d'accueil / Installer l'application* ; sur iOS (Safari), appuyez sur *Partager ▸ Sur l'écran d'accueil*.
+
+> **Limites à connaître :**
+> - L'installation nécessite que le site soit servi en **HTTPS** (ou sur `http://localhost` en local) ; elle n'est pas proposée en ouvrant directement un fichier `file://`.
+> - **Firefox sur ordinateur** ne prend pas en charge nativement l'installation des PWA : utilisez Chrome, Edge ou Brave pour créer l'application de bureau.
+> - L'application installée réutilise le cache local du navigateur (`Cache API` / `localStorage`) ; les tuiles de carte en ligne et l'interrogation en direct des dirigeants (`recherche-entreprises.api.gouv.fr`) nécessitent toujours une connexion Internet.
+
+---
+
+## 11. Régénérer les captures et GIFs du manuel
 
 Ce manuel est intégré directement dans l'application via **❓ Aide** (ou **🧰 Outils ▸ 📖 Manuel Utilisateur**).  
 Pour mettre à jour automatiquement toutes les captures PNG et animations GIF après une évolution de l'interface :

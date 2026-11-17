@@ -3379,9 +3379,64 @@ function initSidebarToggle() {
 }
 
 /* ==========================================================================
+   PWA Registration & Install Prompt
+   ========================================================================== */
+function initPWA() {
+  if ('serviceWorker' in navigator && (window.location.protocol === 'https:' || window.location.protocol === 'http:')) {
+    navigator.serviceWorker.register('./sw.js').catch((err) => {
+      console.warn('Service Worker registration failed:', err);
+    });
+  }
+
+  let deferredInstallPrompt = null;
+  const installBtns = [
+    document.getElementById('btn-install-app'),
+    document.getElementById('btn-manual-install-app')
+  ].filter(Boolean);
+
+  const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+
+  const setInstallVisible = (visible) => {
+    installBtns.forEach((btn) => {
+      btn.style.display = visible ? '' : 'none';
+    });
+  };
+
+  if (isStandalone) {
+    setInstallVisible(false);
+    return;
+  }
+
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredInstallPrompt = e;
+    setInstallVisible(true);
+  });
+
+  installBtns.forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      if (!deferredInstallPrompt) return;
+      deferredInstallPrompt.prompt();
+      try {
+        await deferredInstallPrompt.userChoice;
+      } finally {
+        deferredInstallPrompt = null;
+        setInstallVisible(false);
+      }
+    });
+  });
+
+  window.addEventListener('appinstalled', () => {
+    deferredInstallPrompt = null;
+    setInstallVisible(false);
+  });
+}
+
+/* ==========================================================================
    Initialization
    ========================================================================== */
 document.addEventListener('DOMContentLoaded', async () => {
+  initPWA();
   if (typeof window !== 'undefined' && window.location.hostname.endsWith('github.io')) {
     const pathParts = window.location.pathname.split('/').filter(Boolean);
     const repoName = pathParts[0] || 'building_mapper';

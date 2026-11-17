@@ -5,6 +5,7 @@ __pycache__/
 node_modules/
 package-lock.json
 package.json
-src-tauri/target/
 *.png
 !app/static_app/logo.png
+!app/static_app/icon-192.png
+!app/static_app/icon-512.png
