@@ -1,5 +1,5 @@
 // Service Worker for TezeloMap Offline PWA
-const CACHE_NAME = 'tezelomap-shell-v3';
+const CACHE_NAME = 'tezelomap-shell-v4';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
@@ -45,10 +45,39 @@ self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
   if (url.origin !== self.location.origin) return;
 
-  // Cache-first for app shell; data chunks are cached in app.js
+  const isStaticAsset =
+    url.pathname.includes('/vendor/') ||
+    /\.(png|svg|ico|geojson|woff2?)$/i.test(url.pathname);
+
+  if (isStaticAsset) {
+    // Cache-first for heavy/immutable static assets
+    event.respondWith(
+      caches.match(event.request).then((cachedResponse) => {
+        return cachedResponse || fetch(event.request);
+      })
+    );
+    return;
+  }
+
+  // Network-first for HTML, JS, CSS, manifest so Ctrl+R always gets fresh updates when online,
+  // while still falling back to cache when offline.
   event.respondWith(
-    caches.match(event.request).then((cachedResponse) => {
-      return cachedResponse || fetch(event.request);
-    })
+    fetch(event.request)
+      .then((networkResponse) => {
+        if (networkResponse && networkResponse.status === 200 && networkResponse.type === 'basic') {
+          const responseToCache = networkResponse.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, responseToCache));
+        }
+        return networkResponse;
+      })
+      .catch(() => {
+        return caches.match(event.request).then((cached) => {
+          if (cached) return cached;
+          if (event.request.mode === 'navigate') {
+            return caches.match('./index.html');
+          }
+          return undefined;
+        });
+      })
   );
 });
