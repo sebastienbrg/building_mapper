@@ -114,19 +114,19 @@
           <span class="sidebar-big-btn-chevron">➔</span>
         </button>
 
-        <!-- 2. Second Big Button: Choisir les filtres -->
-        <button class="sidebar-big-btn btn-choisir-filtres" id="btn-open-filter-catalog" type="button" title="Choisir les filtres dans le catalogue sociologique et profils">
-          <div class="sidebar-big-btn-icon">🎛️</div>
+        <!-- 2. Second Big Button: Choisir Profil -->
+        <button class="sidebar-big-btn btn-choisir-filtres" id="btn-open-filter-catalog" type="button" title="Choisir ou personnaliser un profil d'enquête">
+          <div class="sidebar-big-btn-icon">🎭</div>
           <div class="sidebar-big-btn-body">
             <div class="sidebar-big-btn-row-1">
-              <span class="sidebar-big-btn-title">Choisir les filtres</span>
+              <span class="sidebar-big-btn-title">Choisir Profil</span>
               <span class="filter-count-badge" id="selected-controls-badge">
-                <strong id="selected-controls-count">8</strong> / <span id="total-controls-count">55</span>
+                <strong id="selected-controls-count">12</strong> / <span id="total-controls-count">55</span>
               </span>
             </div>
             <div class="sidebar-big-btn-row-2">
               <span class="filter-profile-prefix">Profil :</span>
-              <span class="filter-profile-name" id="sidebar-active-profile-name">🎯 Passoires G & Bailleurs</span>
+              <span class="filter-profile-name" id="sidebar-active-profile-name">🗺️ Cartographie TeZeLoMa (Site)</span>
             </div>
           </div>
           <span class="sidebar-big-btn-chevron">➔</span>
@@ -245,9 +245,9 @@
               <div class="map-overlay-row">
                 <label for="slider-bg-dim" class="map-overlay-label">
                   <span>Fond blanc</span>
-                  <strong id="label-bg-dim">20%</strong>
+                  <strong id="label-bg-dim">35%</strong>
                 </label>
-                <input type="range" id="slider-bg-dim" min="0" max="100" step="5" value="20" class="map-overlay-slider">
+                <input type="range" id="slider-bg-dim" min="0" max="100" step="5" value="35" class="map-overlay-slider">
               </div>
               <div class="map-overlay-row">
                 <label for="select-max-polygons" class="map-overlay-label">
@@ -380,50 +380,74 @@
       <!-- TOOL: 📋 ENQUÊTE DE TERRAIN (.xlsx) -->
       <div class="tool-pane content-pane" id="pane-fieldwork" data-tool-pane="fieldwork">
         <div class="fieldwork-tool-wrapper">
-          <div class="fieldwork-header-row">
-            <div class="fieldwork-header-left">
-              <span class="fieldwork-header-title">Importer un fichier de terrain (.xlsx, .xls, .csv)</span>
-              <span class="status-badge" id="fieldwork-badge" style="display: none;">0 liés</span>
+          <div class="fieldwork-top-area">
+            <div class="fieldwork-header-row">
+              <div class="fieldwork-header-left">
+                <span class="fieldwork-header-title">Nouvelle enquête ou mise à jour (.xlsx, .xls, .csv)</span>
+                <span class="status-badge" id="fieldwork-badge" style="display: none;">0 liés</span>
+              </div>
+              <button type="button" class="btn-fieldwork-help" id="btn-fieldwork-help" aria-expanded="false" aria-controls="fieldwork-help-box" title="Format attendu et utilisation des données importées">?</button>
             </div>
-            <button type="button" class="btn-fieldwork-help" id="btn-fieldwork-help" aria-expanded="false" aria-controls="fieldwork-help-box" title="Format attendu et utilisation des données importées">?</button>
+
+            <div class="fieldwork-help-box" id="fieldwork-help-box" style="display: none;">
+              <div class="fieldwork-help-section">
+                <strong>📄 Format attendu</strong>
+                <ul>
+                  <li>Tableur <code>.xlsx</code>, <code>.xls</code> ou <code>.csv</code> (seule la première feuille est lue).</li>
+                  <li><strong>Colonne obligatoire :</strong> <code>ID BDNB</code> ou <code>batiment_groupe_id</code> (ou <code>id</code>) contenant l'identifiant BDNB du bâtiment (ex : <code>bdnb-bg-TFWK-UCSM-BVQ2</code>).</li>
+                  <li><em>Astuce :</em> exportez d'abord le tableau Bâtiments depuis <strong>Outils ▸ Exporter</strong> — la colonne <code>ID BDNB</code> exportée est directement reconnue à l'import.</li>
+                  <li><strong>Colonnes libres :</strong> toutes vos nouvelles colonnes (ex : <code>statut</code>, <code>notes</code>, <code>priorite</code>) deviennent automatiquement des filtres dans la catégorie <em>Enquête de Terrain</em> et sont sauvegardées localement.</li>
+                </ul>
+              </div>
+              <div class="fieldwork-help-section">
+                <strong>🧭 Comment utiliser les données importées</strong>
+                <ul>
+                  <li><strong>Carte :</strong> sélectionnez <em>📋 Enquête de Terrain</em> ou l'une de vos colonnes catégorielles / numériques dans le sélecteur de coloration en bas à gauche.</li>
+                  <li><strong>Filtres :</strong> ouvrez la catégorie <em>Enquête de Terrain</em> en haut du menu latéral pour filtrer par présence dans le fichier ou sur vos colonnes importées.</li>
+                  <li><strong>Tableau &amp; Export :</strong> vos colonnes personnalisées s'ajoutent automatiquement au tableau <em>Bâtiments</em> et aux exports Excel.</li>
+                </ul>
+              </div>
+            </div>
+
+            <div class="fieldwork-name-row">
+              <label for="fieldwork-enquiry-name" class="fieldwork-name-label">Nom de l'enquête :</label>
+              <div class="fieldwork-name-input-wrap">
+                <input type="text" id="fieldwork-enquiry-name" list="fieldwork-enquiry-datalist" placeholder="Saisir un nom ou choisir une enquête existante..." autocomplete="off">
+                <datalist id="fieldwork-enquiry-datalist"></datalist>
+                <span class="fieldwork-name-hint" id="fieldwork-name-hint">Veuillez saisir un nom pour l'enquête</span>
+              </div>
+            </div>
+
+            <div class="dropzone fieldwork-tool-dropzone" id="fieldwork-dropzone">
+              <div class="dropzone-icon" id="fieldwork-dropzone-icon">📋</div>
+              <div class="dropzone-text" id="fieldwork-dropzone-text">
+                <strong>Cliquer ou déposer un fichier de terrain (.xlsx, .xls, .csv)</strong><br>
+                <span>Clé de jointure requise : <code>ID BDNB</code> ou <code>batiment_groupe_id</code></span>
+              </div>
+              <input type="file" id="fieldwork-file-input" accept=".xlsx,.xls,.csv" style="display: none;">
+            </div>
+
+            <div class="fieldwork-submit-row">
+              <button type="button" class="btn btn-primary fieldwork-submit-btn" id="btn-fieldwork-create-submit" disabled>✨ Créer l'enquête</button>
+            </div>
+
+            <div id="fieldwork-info" class="fieldwork-info-card" style="display: none;">
+              <div class="fieldwork-info-top">
+                <strong id="fieldwork-filename" style="color: var(--accent-primary);">fichier.xlsx</strong>
+                <button type="button" class="btn btn-secondary btn-sm" id="btn-clear-fieldwork" style="font-size: 0.74rem; padding: 0.2rem 0.55rem;">Désactiver</button>
+              </div>
+              <p id="fieldwork-stats" style="color: var(--text-secondary); margin: 0.2rem 0 0;"></p>
+            </div>
           </div>
 
-          <div class="fieldwork-help-box" id="fieldwork-help-box" style="display: none;">
-            <div class="fieldwork-help-section">
-              <strong>📄 Format attendu</strong>
-              <ul>
-                <li>Tableur <code>.xlsx</code>, <code>.xls</code> ou <code>.csv</code> (seule la première feuille est lue).</li>
-                <li><strong>Colonne obligatoire :</strong> <code>ID BDNB</code> ou <code>batiment_groupe_id</code> (ou <code>id</code>) contenant l'identifiant BDNB du bâtiment (ex : <code>bdnb-bg-TFWK-UCSM-BVQ2</code>).</li>
-                <li><em>Astuce :</em> exportez d'abord le tableau Bâtiments depuis <strong>Outils ▸ Exporter</strong> — la colonne <code>ID BDNB</code> exportée est directement reconnue à l'import.</li>
-                <li><strong>Colonnes libres :</strong> toutes vos autres colonnes (ex : <code>statut</code>, <code>notes</code>, <code>priorite</code>) deviennent automatiquement des filtres dans la catégorie <em>Enquête de Terrain</em>.</li>
-              </ul>
+          <div class="fieldwork-saved-section" id="fieldwork-saved-section">
+            <div class="fieldwork-saved-header">
+              <span>📚 Enquêtes enregistrées localement (<strong id="fieldwork-saved-count">0</strong>)</span>
+              <span class="fieldwork-saved-sub">Persistées dans votre navigateur</span>
             </div>
-            <div class="fieldwork-help-section">
-              <strong>🧭 Comment utiliser les données importées</strong>
-              <ul>
-                <li><strong>Carte :</strong> sélectionnez <em>📋 Enquête de Terrain</em> ou l'une de vos colonnes catégorielles / numériques dans le sélecteur de coloration en bas à gauche.</li>
-                <li><strong>Filtres :</strong> ouvrez la catégorie <em>8. Enquête de Terrain</em> dans le menu latéral pour filtrer par statut de visite ou sur vos colonnes importées.</li>
-                <li><strong>Tableau &amp; Export :</strong> vos colonnes personnalisées s'ajoutent automatiquement au tableau <em>Bâtiments</em> et aux exports Excel.</li>
-              </ul>
+            <div class="fieldwork-saved-list" id="fieldwork-saved-list">
+              <div class="fieldwork-saved-empty">Aucune enquête enregistrée pour le moment.</div>
             </div>
-          </div>
-
-          <div class="dropzone fieldwork-tool-dropzone" id="fieldwork-dropzone">
-            <div class="dropzone-icon">📋</div>
-            <div class="dropzone-text">
-              <strong>Cliquer ou déposer un fichier de terrain (.xlsx, .xls, .csv)</strong><br>
-              <span>Clé de jointure requise : <code>ID BDNB</code> ou <code>batiment_groupe_id</code></span>
-            </div>
-            <input type="file" id="fieldwork-file-input" accept=".xlsx,.xls,.csv" style="display: none;">
-          </div>
-
-          <div id="fieldwork-info" class="fieldwork-info-card" style="display: none;">
-            <div class="fieldwork-info-top">
-              <strong id="fieldwork-filename" style="color: var(--accent-primary);">fichier.xlsx</strong>
-              <button type="button" class="btn btn-secondary btn-sm" id="btn-clear-fieldwork" style="font-size: 0.74rem; padding: 0.2rem 0.55rem;">Retirer le fichier</button>
-            </div>
-            <p id="fieldwork-stats" style="color: var(--text-secondary); margin: 0.25rem 0 0;"></p>
-            <div id="fieldwork-dynamic-filters" style="margin-top: 0.6rem; display: flex; flex-direction: column; gap: 0.45rem;"></div>
           </div>
         </div>
       </div>
@@ -503,15 +527,15 @@
                 <span class="export-card-icon">📝</span>
                 <div>
                   <h4 class="export-card-title">Rapport Complet Word (.docx)</h4>
-                  <span class="export-card-badge export-card-badge-word">Document 4 pages</span>
+                  <span class="export-card-badge export-card-badge-word">Sections au choix</span>
                 </div>
               </div>
               <p class="export-card-desc">
-                Rapport synthétique prêt à partager comprenant :
-                <br>• <b>Page 1 :</b> Filtres actifs (ceux qui excluent effectivement des bâtiments)
-                <br>• <b>Page 2 :</b> Carte de la sélection &amp; légende
-                <br>• <b>Page 3 :</b> Tableau des Bâtiments
-                <br>• <b>Page 4 :</b> Tableau des Bailleurs
+                Rapport synthétique prêt à partager (sections configurables) :
+                <br>• <b>Contexte :</b> Synthèse &amp; filtres actifs
+                <br>• <b>Carte :</b> Capture de la carte avec sa légende active
+                <br>• <b>Bâtiments :</b> Tableau selon les colonnes du profil (max 400)
+                <br>• <b>Bailleurs &amp; SCI :</b> Tableau des entités morales
               </p>
               <button type="button" class="btn btn-primary export-card-btn" id="btn-export-word-doc">
                 <span>📝</span> Exporter le Rapport Word (.docx)
@@ -622,7 +646,7 @@
         </div>
 
         <!-- SUBVIEW 2: DATASET / GEO VIEW -->
-        <div id="sources-subview-dataset" class="sources-subview-panel" style="display: none;">
+        <div id="sources-subview-dataset" class="sources-subview-panel">
         <div class="tz-tag-legend">
           <b>🏷️ Étiquettes du mode de récupération</b> <span style="color: var(--text-muted);">(survolez une étiquette avec la souris pour lire l'explication non-technique) :</span>
           <span class="tz-tag tz-tag-etl" data-tooltip="Étape de préparation (script app/build_dataset.py) qui télécharge les gros fichiers bruts officiels, les nettoie, les relie entre eux et fabrique nos fichiers locaux prêts à l'emploi en 5 secondes.">⚙️ Fabriquer les archives de données (Build ETL) ℹ️</span>
@@ -650,6 +674,7 @@
                 </div>
                 <div class="tz-src-meta"><b>Producteur :</b> DINUM / INSEE / INPI (<code>data.gouv.fr</code> — couverture France entière)</div>
                 <div class="tz-src-meta"><b>Où on la récupère :</b> <code>GET https://recherche-entreprises.api.gouv.fr/search?q={SIREN}</code></div>
+                <div><a class="sources-download-link" href="https://recherche-entreprises.api.gouv.fr/docs" target="_blank" rel="noopener noreferrer" title="Documentation et point d’accès public de l’API Recherche Entreprises (DINUM / INSEE)">📥 Accéder à l’API Recherche Entreprises</a></div>
                 <div class="tz-src-meta"><b>Champs extraits :</b> <code>nom_complet</code>, <code>siren</code>, <code>siege.adresse</code>, <code>libelle_activite_principale</code>, <code>dirigeants</code> (<code>nom</code>, <code>prenoms</code>, <code>annee_de_naissance</code>, <code>qualite</code>)</div>
                 <div class="tz-src-meta"><b>Pourquoi à l'échelle France :</b> Une SCI ou foncière qui possède un immeuble à Lyon a souvent son siège social à Paris ou ailleurs en France. L'interrogation nationale en direct lève l'anonymat des gérants partout en France.</div>
               </div>
@@ -662,7 +687,8 @@
                   <span class="tz-tag tz-tag-etl" data-tooltip="Étape de préparation (script app/build_dataset.py) qui télécharge les gros fichiers bruts officiels, les nettoie, les relie entre eux et fabrique nos fichiers locaux prêts à l'emploi en 5 secondes.">⚙️ Fabriquer les archives de données (Build ETL) ℹ️</span>
                 </div>
                 <div class="tz-src-meta"><b>Producteurs nationaux :</b> IGN (BD TOPO), ADEME (Observatoire DPE), DGFiP (Fichiers Fonciers & MAJIC), BAN (Adresses), ANAH (RNIC Copropriétés), Ministère du Logement (RPLS), ANCT (Quartiers QPV).</div>
-                <div class="tz-src-meta"><b>Où on les récupère :</b> Consolidés à l'échelle nationale par le <b>CSTB</b> dans la <b>Base de Données Nationale des Bâtiments (BDNB)</b>, puis téléchargés sous forme d'archive départementale (voir <b>Département du Rhône 69</b> ci-dessous).</div>
+                <div class="tz-src-meta"><b>Où on les récupère :</b> Consolidés à l'échelle nationale par le <b>CSTB</b> dans la <b>Base de Données Nationale des Bâtiments (BDNB)</b>, puis téléchargés sous forme d'archive départementale (voir les sections départementales ci-dessous).</div>
+                <div><a class="sources-download-link" href="https://www.data.gouv.fr/datasets/base-de-donnees-nationale-des-batiments-bdnb/" target="_blank" rel="noopener noreferrer" title="Portail national BDNB sur data.gouv.fr (tous départements)">📥 Portail national BDNB (data.gouv.fr)</a></div>
               </div>
             </div>
           </div>
@@ -677,6 +703,7 @@
           <div class="tz-geo-body">
             <div style="margin-bottom:0.65rem;font-size:0.82rem;color:var(--text-secondary);line-height:1.45;">
               <b style="color:var(--text-primary);">📦 A. Sources à l'échelle de tout le Département du Rhône (69)</b> — Archive <code>open_data_millesime_2025-07-a_dep69_csv.zip</code> (CSTB BDNB, 505 Mo) intégrée dans <code>buildings.parquet</code> (313&nbsp;979 bâtiments) et <code>building_owners.parquet</code> (101&nbsp;905 liens propriétaires personnes morales) :
+              <div style="margin-top:0.25rem;"><a class="sources-download-link" href="https://open-data.s3.fr-par.scw.cloud/bdnb_millesime_2025-07-a/millesime_2025-07-a_dep69/open_data_millesime_2025-07-a_dep69_csv.zip" target="_blank" rel="noopener noreferrer" title="Télécharger l'archive ZIP BDNB officielle pour le département du Rhône (69)">📥 Télécharger l'archive BDNB 69 (.zip)</a></div>
             </div>
             <div class="tz-src-grid-3">
               <div class="tz-src-card">
@@ -764,6 +791,7 @@
                     </div>
                     <div class="tz-src-meta"><b>Producteur :</b> Métropole de Lyon (<b>Data Grand Lyon</b>)</div>
                     <div class="tz-src-meta"><b>Source :</b> WFS <code>metropole-de-lyon:ilots-de-chaleur-urbains</code> &rarr; <code>ilots_chaleur_urbains.geojson</code> (29 657 zones)</div>
+                    <div><a class="sources-download-link" href="https://data.grandlyon.com/geoserver/metropole-de-lyon/ows?service=WFS&version=2.0.0&request=GetFeature&typeName=metropole-de-lyon:ilots-de-chaleur-urbains&outputFormat=application/json" target="_blank" rel="noopener noreferrer" title="Télécharger la couche WFS Îlots de Chaleur Urbains (Data Grand Lyon)">📥 Télécharger GeoJSON (Data Grand Lyon)</a></div>
                     <div class="tz-src-meta"><b>Champs :</b> <code>icu_lcz_lib</code>, <code>icu_expo_jour</code>, <code>icu_expo_nuit</code>, <code>icu_vulnerabilite_nuit</code></div>
                     <div class="tz-src-meta"><b>Usage à Lyon :</b> Croisement GPS par rue ; ajoute jusqu'à +15 pts au Score Surchauffe la nuit.</div>
                   </div>
@@ -776,6 +804,7 @@
                     </div>
                     <div class="tz-src-meta"><b>Producteur :</b> Préfecture / Métropole (<b>Data Grand Lyon</b>)</div>
                     <div class="tz-src-meta"><b>Source :</b> WFS <code>car_care.carencadrmtloyer_2025_2026</code> &rarr; <code>encadrement_loyers.geojson</code> (233 IRIS)</div>
+                    <div><a class="sources-download-link" href="https://data.grandlyon.com/geoserver/metropole-de-lyon/ows?service=WFS&version=2.0.0&request=GetFeature&typeName=car_care:carencadrmtloyer_2025_2026&outputFormat=application/json" target="_blank" rel="noopener noreferrer" title="Télécharger la couche WFS Encadrement des Loyers (Data Grand Lyon)">📥 Télécharger GeoJSON (Data Grand Lyon)</a></div>
                     <div class="tz-src-meta"><b>Champs :</b> <code>zone_encadrement_loyers</code> (1–4), <code>loyer_max_t2_non_meuble_m2</code>, <code>loyer_max_t2_meuble_m2</code></div>
                     <div class="tz-src-meta"><b>Spécifique Lyon :</b> Seules Lyon (1er–9e) & Villeurbanne ont l'encadrement légal des loyers dans le 69.</div>
                   </div>
@@ -805,6 +834,7 @@
           <div class="tz-geo-body">
             <div style="margin-bottom:0.65rem;font-size:0.82rem;color:var(--text-secondary);line-height:1.45;">
               <b style="color:var(--text-primary);">📦 A. Sources à l'échelle du Département de l'Isère (38)</b> — Archive <code>open_data_millesime_2025-07-a_dep38_csv.zip</code> (CSTB BDNB, 611 Mo) intégrée dans <code>buildings.parquet</code> (371&nbsp;148 bâtiments) et <code>building_owners.parquet</code> (70&nbsp;056 liens propriétaires personnes morales) :
+              <div style="margin-top:0.25rem;"><a class="sources-download-link" href="https://open-data.s3.fr-par.scw.cloud/bdnb_millesime_2025-07-a/millesime_2025-07-a_dep38/open_data_millesime_2025-07-a_dep38_csv.zip" target="_blank" rel="noopener noreferrer" title="Télécharger l'archive ZIP BDNB officielle pour le département de l'Isère (38)">📥 Télécharger l'archive BDNB 38 (.zip)</a></div>
             </div>
             <div class="tz-src-grid-3">
               <div class="tz-src-card">
@@ -856,6 +886,7 @@
                     </div>
                     <div class="tz-src-meta"><b>Producteur :</b> <b>Cerema</b> (<code>data.gouv.fr</code> — <code>lcz-spot-2022-grenoble.zip</code>)</div>
                     <div class="tz-src-meta"><b>Fichier :</b> <code>data/grenoble/LCZ_SPOT_2022_Grenoble.shp</code> (93 Mo)</div>
+                    <div><a class="sources-download-link" href="https://www.data.gouv.fr/datasets/cartographie-des-zones-climatiques-locales-lcz-des-principales-aires-urbaines/" target="_blank" rel="noopener noreferrer" title="Télécharger les zones climatiques locales Cerema sur data.gouv.fr">📥 Télécharger sur data.gouv.fr (Cerema LCZ)</a></div>
                     <div class="tz-src-meta"><b>Champs :</b> <code>lcz</code> (types urbains 1–10 et végétalisés A–G), <code>ver</code> (% végétation), <code>bur</code> (% bâti) &rarr; convertis en <code>icu_expo_nuit</code> / <code>icu_expo_jour</code>.</div>
                     <div class="tz-src-meta"><b>Usage à Grenoble :</b> Cible les quartiers en cuvette à forte minéralisation nocturne.</div>
                   </div>
@@ -868,6 +899,7 @@
                     </div>
                     <div class="tz-src-meta"><b>Producteur :</b> Observatoire des Loyers / Préfecture 38 (<code>Base_OP_2024_L3800.zip</code>)</div>
                     <div class="tz-src-meta"><b>Fichiers :</b> <code>L3800_zone_cal_2024_1.kml</code> (Zones 1 à 6) + <code>Base_OP_2024_L3800.csv</code></div>
+                    <div><a class="sources-download-link" href="https://www.data.gouv.fr/datasets/resultats-de-lobservatoire-local-des-loyers-de-lagglomeration-grenobloise/" target="_blank" rel="noopener noreferrer" title="Accéder aux données de l’Observatoire Local des Loyers de Grenoble">📥 Télécharger sur data.gouv.fr (OLL 38)</a></div>
                     <div class="tz-src-meta"><b>Champs :</b> <code>zone_encadrement_loyers</code> (Zones 1–3 Grenoble, Zones 4–6 Métropole), <code>loyer_ref_t2_non_meuble_m2</code>, <code>loyer_max_t2_non_meuble_m2</code> (+20%).</div>
                   </div>
                   <div class="tz-src-card" style="border-left: 3px solid #d97706;">
@@ -898,6 +930,11 @@
               <b>76 (Seine-Maritime / Rouen)</b> — 399&nbsp;918 bâtiments / 63&nbsp;887 liens (91 codes postaux) ·
               <b>34 (Hérault / Montpellier)</b> — 386&nbsp;030 bâtiments / 68&nbsp;414 liens (81 codes postaux).
               Fusionnés dans <code>buildings.parquet</code> et <code>building_owners.parquet</code> (total national consolidé : 1&nbsp;986&nbsp;486 bâtiments et 371&nbsp;711 liens) sans altérer Rhône et Isère, puis découpés en 444 chunks par code postal (+ 5 bundles départementaux) et cartographiés dans <code>postal_zones.geojson</code> (2&nbsp;042 zones communales).
+              <div style="display:flex;flex-wrap:wrap;gap:0.75rem;margin-top:0.35rem;">
+                <a class="sources-download-link" href="https://open-data.s3.fr-par.scw.cloud/bdnb_millesime_2025-07-a/millesime_2025-07-a_dep44/open_data_millesime_2025-07-a_dep44_csv.zip" target="_blank" rel="noopener noreferrer" title="Télécharger l'archive ZIP BDNB officielle pour la Loire-Atlantique (44)">📥 Archive BDNB 44 (.zip)</a>
+                <a class="sources-download-link" href="https://open-data.s3.fr-par.scw.cloud/bdnb_millesime_2025-07-a/millesime_2025-07-a_dep76/open_data_millesime_2025-07-a_dep76_csv.zip" target="_blank" rel="noopener noreferrer" title="Télécharger l'archive ZIP BDNB officielle pour la Seine-Maritime (76)">📥 Archive BDNB 76 (.zip)</a>
+                <a class="sources-download-link" href="https://open-data.s3.fr-par.scw.cloud/bdnb_millesime_2025-07-a/millesime_2025-07-a_dep34/open_data_millesime_2025-07-a_dep34_csv.zip" target="_blank" rel="noopener noreferrer" title="Télécharger l'archive ZIP BDNB officielle pour l'Hérault (34)">📥 Archive BDNB 34 (.zip)</a>
+              </div>
             </div>
             <div class="tz-src-grid-3">
               <div class="tz-src-card">
@@ -1013,9 +1050,9 @@
     <div class="modal-content filter-catalog-modal-content">
       <div class="modal-header">
         <div>
-          <h3 class="modal-title">🎛️ Catalogue des Filtres & Profils Métiers</h3>
+          <h3 class="modal-title">🎭 Choisir Profil & Indicateurs</h3>
           <p style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 0.2rem;">
-            Sélectionnez les indicateurs à afficher dans votre panneau ou chargez un profil rapide.
+            Sélectionnez un profil rapide ou personnalisez les colonnes, filtres et légendes cartographiques actifs.
           </p>
         </div>
         <button class="drawer-close" id="btn-close-filter-catalog">&times;</button>
@@ -1041,8 +1078,6 @@
           </div>
           <div class="catalog-action-buttons">
             <button class="btn btn-secondary btn-sm" id="btn-catalog-select-none" title="Désélectionner les filtres non actifs">☐ Minimum</button>
-            <button class="btn btn-secondary btn-sm" id="btn-catalog-expand-all" title="Déplier toutes les thématiques">▼ Tout déplier</button>
-            <button class="btn btn-secondary btn-sm" id="btn-catalog-collapse-all" title="Replier toutes les thématiques">▶ Tout replier</button>
           </div>
         </div>
 
@@ -1225,6 +1260,60 @@
       </div>
       <div class="modal-footer">
         <button class="btn btn-secondary" id="btn-close-export-footer">Annuler</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Word Export Options Modal -->
+  <div class="modal-overlay" id="modal-word-export-options" style="z-index: 450;">
+    <div class="modal-content" style="max-width: 480px;">
+      <div class="modal-header">
+        <h3 class="modal-title">📝 Options du Rapport Word (.docx)</h3>
+        <button class="drawer-close" id="btn-close-word-export-modal" aria-label="Fermer">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1rem;">
+          Choisissez les sections à inclure dans le rapport Word :
+        </p>
+        <div style="display: flex; flex-direction: column; gap: 0.65rem;">
+          <label class="checkbox-label" style="color: var(--text-primary); font-weight: 500; align-items: flex-start;">
+            <input type="checkbox" id="chk-word-opt-context" checked style="margin-top: 0.15rem;">
+            <span>
+              <strong>Contexte &amp; Synthèse (1ère page)</strong><br>
+              <small style="color: var(--text-secondary); font-weight: 400;">Territoire (codes postaux), indicateurs clés et filtres actifs.</small>
+            </span>
+          </label>
+          <label class="checkbox-label" style="color: var(--text-primary); font-weight: 500; align-items: flex-start;">
+            <input type="checkbox" id="chk-word-opt-map" checked style="margin-top: 0.15rem;">
+            <span>
+              <strong>Carte de la sélection</strong><br>
+              <small style="color: var(--text-secondary); font-weight: 400;">Capture de la carte avec sa légende active intégrée.</small>
+            </span>
+          </label>
+          <label class="checkbox-label" style="color: var(--text-primary); font-weight: 500; align-items: flex-start;">
+            <input type="checkbox" id="chk-word-opt-buildings" checked style="margin-top: 0.15rem;">
+            <span>
+              <strong>Tableau des Bâtiments</strong><br>
+              <small style="color: var(--text-secondary); font-weight: 400;">Colonnes du profil actif (limité aux 400 premiers bâtiments, police adaptée).</small>
+            </span>
+          </label>
+          <label class="checkbox-label" style="color: var(--text-primary); font-weight: 500; align-items: flex-start;">
+            <input type="checkbox" id="chk-word-opt-sci" checked style="margin-top: 0.15rem;">
+            <span>
+              <strong>Tableau des Bailleurs &amp; SCI</strong><br>
+              <small style="color: var(--text-secondary); font-weight: 400;">Entités morales propriétaires identifiées sur la sélection.</small>
+            </span>
+          </label>
+        </div>
+        <p id="word-export-options-error" style="display: none; font-size: 0.8rem; color: var(--danger, #ef4444); margin-top: 0.75rem; margin-bottom: 0;">
+          Veuillez sélectionner au moins une section à exporter.
+        </p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" id="btn-cancel-word-export">Annuler</button>
+        <button type="button" class="btn btn-primary" id="btn-confirm-word-export">
+          <span>📝</span> Générer le .docx
+        </button>
       </div>
     </div>
   </div>

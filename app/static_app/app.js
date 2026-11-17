@@ -37,7 +37,7 @@ const state = {
   minPctFg: 0,
   minConcentration: 0,
   minLog: 1,
-  bgDimPct: 20,
+  bgDimPct: 35,
   maxPolygons: 3000,
   onlyUninsulatedRoof: false,
   onlyNoShutters: false,
@@ -49,16 +49,23 @@ const state = {
   filterExcludeSocial: false,
   filterRentControl: false,
   // Sociological Filter Catalog & Profiles State
-  activeProfileId: 'essential',
+  activeProfileId: 'tezeloma_carto',
   activeFilterIds: new Set([
-    'dpe', 'pct_dpe_fg', 'nb_log', 'risque_surchauffe_ete',
-    'owner_search', 'legal_category', 'concentration_pct', 'min_patrimoine_majic'
+    'commune_filter',
+    'dpe', 'pct_dpe_g', 'pct_dpe_f', 'pct_dpe_e', 'pct_dpe_fg', 'pct_dpe_inconnu',
+    'legal_category', 'forme_juridique_principale', 'owner_search',
+    'nb_log', 'concentration_pct'
   ]),
   customProfiles: [],
   catalogCategoryFilter: 'all',
   catalogSearchQuery: '',
   dynFilters: {},       // filterId -> value state for extended catalog filters
   fieldworkFilters: {}, // customCol -> text/value filter
+  sourceExtraColumns: new Set(), // Dictionary item ids enabled as extra table columns
+  hiddenBaseColumns: new Set(), // Base building column keys explicitly hidden by the user
+  sourceExtraFilterIds: new Set(), // Dictionary item ids (non-predefined) enabled as dynamic filters
+  sourceLegendIds: new Set(), // Dictionary item ids enabled as map legends
+  sourceLegendMeta: new Map(), // itemId -> { itemId, colKey, label, kind, min, max, values, colorMap }
   map: null,
   selectedBuildingId: null,
   searchedAddressMarkers: [],
@@ -96,6 +103,13 @@ const OVERHEATING_COLORS = {
    Sociological & Social-Work Filter Categorization & Catalog (55 Indicators)
    ========================================================================== */
 const SOCIOLOGICAL_CATEGORIES = [
+  {
+    id: 'fieldwork',
+    icon: '📋',
+    shortLabel: 'Enquête de Terrain',
+    title: 'Enquête de Terrain (.xlsx importé)',
+    desc: 'Filtrer par présence dans le fichier importé et par les colonnes personnalisées de votre tableur de terrain.',
+  },
   {
     id: 'winter',
     icon: '🌡️',
@@ -145,16 +159,29 @@ const SOCIOLOGICAL_CATEGORIES = [
     title: '7. Géographie Fine & Quartiers IRIS',
     desc: 'Filtrer par commune/arrondissement, îlot statistique INSEE (IRIS) ou nom de rue.',
   },
-  {
-    id: 'fieldwork',
-    icon: '📋',
-    shortLabel: '8. Enquête de Terrain',
-    title: '8. Enquête de Terrain (.xlsx importé)',
-    desc: 'Filtrer par statut de visite et par les colonnes personnalisées importées depuis votre tableur de terrain.',
-  },
 ];
 
 const BUILTIN_PROFILES = [
+  {
+    id: 'tezeloma_carto',
+    icon: '🗺️',
+    name: 'Cartographie TeZeLoMa (Site)',
+    desc: 'Reprend les filtres de la cartographie officielle zerologementmalade.org : code postal/commune, DPE représentatif, % logements DPE E/F/G/Inconnu, forme juridique (inclusif/exclusif), bailleur, nb de logements et concentration foncière.',
+    mapStyleMode: 'dpe',
+    filterIds: [
+      'commune_filter',
+      'dpe', 'pct_dpe_g', 'pct_dpe_f', 'pct_dpe_e', 'pct_dpe_fg', 'pct_dpe_inconnu',
+      'legal_category', 'forme_juridique_principale', 'owner_search',
+      'nb_log', 'concentration_pct'
+    ],
+    columnIds: [
+      'batiment_groupe_id', 'adr', 'cp', 'commune_filter',
+      'dpe', 'pct_dpe_g', 'pct_dpe_f', 'pct_dpe_e', 'pct_dpe_fg', 'pct_dpe_inconnu',
+      'legal_category', 'forme_juridique_principale', 'owner_search',
+      'nb_log', 'concentration_pct'
+    ],
+    legendIds: ['dpe', 'pct_dpe_fg', 'pct_dpe_g', 'nb_log', 'concentration_pct'],
+  },
   {
     id: 'essential',
     icon: '🔥',
@@ -165,6 +192,12 @@ const BUILTIN_PROFILES = [
       'dpe', 'pct_dpe_fg', 'nb_log', 'risque_surchauffe_ete',
       'owner_search', 'legal_category', 'concentration_pct', 'min_patrimoine_majic'
     ],
+    columnIds: [
+      'batiment_groupe_id', 'adr', 'cp',
+      'dpe', 'pct_dpe_fg', 'nb_log', 'risque_surchauffe_ete',
+      'owner_search', 'legal_category', 'concentration_pct', 'min_patrimoine_majic'
+    ],
+    legendIds: ['dpe', 'pct_dpe_fg', 'risque_surchauffe_ete', 'nb_log', 'concentration_pct'],
   },
   {
     id: 'winter_poverty',
@@ -176,6 +209,12 @@ const BUILTIN_PROFILES = [
       'dpe', 'pct_dpe_g', 'pct_dpe_fg', 'type_energie_chauffage', 'type_installation_chauffage',
       'conso_elec_res_par_pdl_kwh', 'conso_ep_m2', 'type_vitrage', 'surface_habitable_logement', 'dpe_arrete_2021'
     ],
+    columnIds: [
+      'batiment_groupe_id', 'adr', 'cp',
+      'dpe', 'pct_dpe_g', 'pct_dpe_fg', 'type_energie_chauffage', 'type_installation_chauffage',
+      'conso_elec_res_par_pdl_kwh', 'conso_ep_m2', 'type_vitrage', 'surface_habitable_logement', 'dpe_arrete_2021'
+    ],
+    legendIds: ['dpe', 'pct_dpe_g', 'pct_dpe_fg', 'type_energie_chauffage', 'conso_elec_res_par_pdl_kwh', 'conso_ep_m2', 'type_vitrage'],
   },
   {
     id: 'summer_heat',
@@ -187,6 +226,12 @@ const BUILTIN_PROFILES = [
       'risque_surchauffe_ete', 'score_surchauffe_ete', 'icu_expo_nuit', 'icu_vulnerabilite_nuit',
       'type_isolation_plancher_haut', 'type_fermeture', 'traversant', 'classe_inertie', 'presence_balcon', 'has_clim'
     ],
+    columnIds: [
+      'batiment_groupe_id', 'adr', 'cp',
+      'risque_surchauffe_ete', 'score_surchauffe_ete', 'icu_expo_nuit', 'icu_vulnerabilite_nuit',
+      'type_isolation_plancher_haut', 'type_fermeture', 'traversant', 'classe_inertie', 'presence_balcon', 'has_clim'
+    ],
+    legendIds: ['risque_surchauffe_ete', 'score_surchauffe_ete', 'icu_expo_nuit', 'icu_vulnerabilite_nuit', 'type_isolation_plancher_haut', 'type_fermeture', 'classe_inertie'],
   },
   {
     id: 'landlords_sci',
@@ -198,6 +243,12 @@ const BUILTIN_PROFILES = [
       'owner_search', 'legal_category', 'forme_juridique_principale', 'concentration_pct',
       'max_locaux_un_prop', 'min_patrimoine_majic', 'nb_proprietaires_open', 'bailleur_distant', 'dvf_nb_mutations'
     ],
+    columnIds: [
+      'batiment_groupe_id', 'adr', 'cp',
+      'owner_search', 'legal_category', 'forme_juridique_principale', 'concentration_pct',
+      'max_locaux_un_prop', 'min_patrimoine_majic', 'nb_proprietaires_open', 'dvf_nb_mutations'
+    ],
+    legendIds: ['concentration_pct', 'forme_juridique_principale', 'min_patrimoine_majic', 'nb_proprietaires_open', 'dvf_nb_mutations'],
   },
   {
     id: 'social_worker',
@@ -209,6 +260,12 @@ const BUILTIN_PROFILES = [
       'qpv_mode', 'quartier_qpv_select', 'social_rpls_mode', 'nb_log_sociaux_rpls',
       'pmr_rpls_mode', 'rent_control_mode', 'zone_encadrement_loyers', 'loyer_max_t2_nm', 'dvf_prix_m2_median', 'dpe'
     ],
+    columnIds: [
+      'batiment_groupe_id', 'adr', 'cp',
+      'qpv_mode', 'quartier_qpv_select', 'social_rpls_mode', 'nb_log_sociaux_rpls',
+      'pmr_rpls_mode', 'rent_control_mode', 'zone_encadrement_loyers', 'loyer_max_t2_nm', 'dvf_prix_m2_median', 'dpe'
+    ],
+    legendIds: ['dpe', 'quartier_qpv', 'social_rpls_mode', 'zone_encadrement_loyers', 'loyer_max_t2_nm', 'dvf_prix_m2_median'],
   },
   {
     id: 'degraded_copro',
@@ -220,6 +277,12 @@ const BUILTIN_PROFILES = [
       'copro_status', 'copro_search', 'nb_lots_copro', 'type_vitrage', 'type_ventilation',
       'type_isolation_mur_exterieur', 'type_isolation_plancher_bas', 'periode_construction_dpe', 'patrimoine_abf', 'alea_radon'
     ],
+    columnIds: [
+      'batiment_groupe_id', 'adr', 'cp',
+      'copro_status', 'copro_search', 'nb_lots_copro', 'type_vitrage', 'type_ventilation',
+      'type_isolation_mur_exterieur', 'type_isolation_plancher_bas', 'periode_construction_dpe', 'patrimoine_abf', 'alea_radon'
+    ],
+    legendIds: ['dpe', 'copro_status', 'nb_lots_copro', 'type_vitrage', 'type_ventilation', 'type_isolation_mur_exterieur', 'alea_radon'],
   },
   {
     id: 'complete',
@@ -228,6 +291,8 @@ const BUILTIN_PROFILES = [
     desc: 'Affiche l\'intégralité des 69 indicateurs sociologiques, climatiques, fonciers et techniques.',
     mapStyleMode: 'dpe',
     filterIds: [], // populated dynamically with all FILTER_DEFINITIONS ids
+    columnIds: null, // null => all building columns visible
+    legendIds: ['dpe', 'risque_surchauffe_ete', 'concentration_pct', 'score_surchauffe_ete', 'nb_log', 'pct_dpe_fg', 'conso_ep_m2', 'loyer_max_t2_nm', 'dvf_prix_m2_median'],
   },
 ];
 
@@ -1999,7 +2064,7 @@ function saveSessionToStorage() {
     };
 
     // 2. Active Profile
-    const activeProfileId = state.activeProfileId || 'essential';
+    const activeProfileId = state.activeProfileId || 'tezeloma_carto';
 
     // 3. Selected Filters (IDs of active indicators in sidebar/catalog)
     const activeFilterIds = Array.from(state.activeFilterIds || []);
@@ -2042,7 +2107,7 @@ function saveSessionToStorage() {
     const screenState = {
       activeTab: state.activeTab || 'map',
       mapStyleMode: state.mapStyleMode || 'dpe',
-      bgDimPct: state.bgDimPct !== undefined ? state.bgDimPct : 20,
+      bgDimPct: state.bgDimPct !== undefined ? state.bgDimPct : 35,
       maxPolygons: state.maxPolygons || 3000,
       mapDisplayOverlayCollapsed: isOverlayCollapsed,
       selectedBuildingId: state.selectedBuildingId || null,
@@ -2091,7 +2156,7 @@ function saveMapDisplaySettingsToStorage() {
     const isCollapsed = overlay ? overlay.classList.contains('collapsed') : true;
     const settings = {
       collapsed: isCollapsed,
-      bgDimPct: state.bgDimPct !== undefined ? state.bgDimPct : 20,
+      bgDimPct: state.bgDimPct !== undefined ? state.bgDimPct : 35,
       maxPolygons: state.maxPolygons || 3000,
     };
     localStorage.setItem(MAP_DISPLAY_SETTINGS_STORAGE_KEY, JSON.stringify(settings));
@@ -2103,15 +2168,15 @@ function saveMapDisplaySettingsToStorage() {
 function loadMapDisplaySettingsFromStorage() {
   try {
     const raw = localStorage.getItem(MAP_DISPLAY_SETTINGS_STORAGE_KEY);
-    if (!raw) return { collapsed: true, bgDimPct: 20, maxPolygons: 3000 };
+    if (!raw) return { collapsed: true, bgDimPct: 35, maxPolygons: 3000 };
     const parsed = JSON.parse(raw);
     return {
       collapsed: parsed.collapsed !== undefined ? Boolean(parsed.collapsed) : true,
-      bgDimPct: typeof parsed.bgDimPct === 'number' ? parsed.bgDimPct : 20,
+      bgDimPct: typeof parsed.bgDimPct === 'number' ? parsed.bgDimPct : 35,
       maxPolygons: typeof parsed.maxPolygons === 'number' ? parsed.maxPolygons : 3000,
     };
   } catch (e) {
-    return { collapsed: true, bgDimPct: 20, maxPolygons: 3000 };
+    return { collapsed: true, bgDimPct: 35, maxPolygons: 3000 };
   }
 }
 
@@ -2242,6 +2307,54 @@ function getAllProfiles() {
   return [...BUILTIN_PROFILES, ...state.customProfiles];
 }
 
+function applyProfileColumnsAndLegends(prof) {
+  if (!prof) return;
+  if (DATA_SOURCES_DICTIONARY.length === 0) {
+    buildDataSourcesDictionary();
+  }
+
+  state.hiddenBaseColumns.clear();
+  state.sourceExtraColumns.clear();
+  state.sourceLegendIds.clear();
+
+  if (prof.columnIds === null) {
+    // 'complete' profile: all building columns visible
+    for (const item of DATA_SOURCES_DICTIONARY) {
+      const bCol = resolveBuildingColumnKey(item);
+      if (bCol && !isBaseBuildingColumn(bCol)) {
+        state.sourceExtraColumns.add(item.id);
+      }
+    }
+  } else {
+    const targetColIds = Array.isArray(prof.columnIds)
+      ? prof.columnIds
+      : ['batiment_groupe_id', 'adr', 'cp', ...(prof.filterIds || [])];
+
+    const allowedColKeys = new Set();
+    for (const id of targetColIds) {
+      const item = DATA_SOURCES_DICTIONARY.find(d => d.id === id);
+      const bCol = item ? resolveBuildingColumnKey(item) : id;
+      if (bCol) {
+        allowedColKeys.add(bCol);
+        if (!isBaseBuildingColumn(bCol) && item) {
+          state.sourceExtraColumns.add(item.id);
+        }
+      }
+    }
+    for (const baseCol of BASE_BUILDINGS_TABLE_COLUMNS) {
+      if (!allowedColKeys.has(baseCol.key)) {
+        state.hiddenBaseColumns.add(baseCol.key);
+      }
+    }
+  }
+
+  for (const lid of (prof.legendIds || [])) {
+    if (!BUILTIN_LEGEND_MAP[lid]) {
+      state.sourceLegendIds.add(lid);
+    }
+  }
+}
+
 function applyProfile(profileId) {
   const allProfiles = getAllProfiles();
   const prof = allProfiles.find(p => p.id === profileId);
@@ -2249,11 +2362,16 @@ function applyProfile(profileId) {
 
   state.activeProfileId = prof.id;
   state.activeFilterIds = new Set(prof.filterIds);
+  state.sourceExtraFilterIds.clear();
 
   // Reset all filters so selected filters arrive inactive
   for (const f of FILTER_DEFINITIONS) {
     f.reset(state);
   }
+
+  // Apply profile columns and map legends
+  applyProfileColumnsAndLegends(prof);
+  saveSourcesPrefs();
 
   // If custom profile has saved filter values, restore them
   if (prof.savedValues && typeof prof.savedValues === 'object') {
@@ -2273,12 +2391,14 @@ function applyProfile(profileId) {
     document.querySelectorAll('.map-style-btn').forEach(b => {
       b.classList.toggle('active', b.getAttribute('data-style') === state.mapStyleMode);
     });
-    updateLegend();
   }
 
+  syncSourcePreferencesWithBuildings();
   renderProfileButtons();
   renderSidebarFilterControls();
   renderCatalogModalContent();
+  renderBuildingsTable();
+  renderSourcesDictTable();
   applyFilters();
   saveSessionToStorage();
   showToast(`Profil activé : ${prof.icon} ${prof.name} (${prof.filterIds.length} filtres)`);
@@ -2288,7 +2408,7 @@ function deleteCustomProfile(profileId) {
   state.customProfiles = state.customProfiles.filter(p => p.id !== profileId);
   saveCustomProfilesToStorage();
   if (state.activeProfileId === profileId) {
-    state.activeProfileId = 'essential';
+    state.activeProfileId = 'tezeloma_carto';
   }
   renderProfileButtons();
   saveSessionToStorage();
@@ -2322,6 +2442,18 @@ function handleConfirmSaveProfile() {
     }
   }
 
+  const activeColumnIds = [];
+  for (const item of DATA_SOURCES_DICTIONARY) {
+    const bCol = resolveBuildingColumnKey(item);
+    if (bCol && isSourceColumnChecked(item, bCol)) {
+      activeColumnIds.push(item.id);
+    }
+  }
+  const activeLegendIds = [
+    ...Object.keys(BUILTIN_LEGEND_MAP),
+    ...Array.from(state.sourceLegendIds || []),
+  ];
+
   const newProfile = {
     id: `custom_${Date.now()}`,
     icon,
@@ -2330,6 +2462,8 @@ function handleConfirmSaveProfile() {
     isCustom: true,
     mapStyleMode: state.mapStyleMode,
     filterIds: Array.from(state.activeFilterIds),
+    columnIds: activeColumnIds,
+    legendIds: activeLegendIds,
     savedValues,
   };
 
@@ -2804,6 +2938,40 @@ function updateAllFilterCardMatches() {
   }
 }
 
+function getActivePostalCodes() {
+  const cps = new Set();
+  const mode = state.activeTerritory?.mode;
+
+  if (mode === 'chunks' && Array.isArray(state.activeTerritory.chunkIds) && state.activeTerritory.chunkIds.length > 0) {
+    for (const cId of state.activeTerritory.chunkIds) {
+      const chunk = (state.manifest?.chunks || []).find(c => c.id === cId);
+      if (chunk && chunk.cp != null) {
+        cps.add(String(chunk.cp));
+        continue;
+      }
+      if (state.postalZonesGeoJson?.features) {
+        const feat = state.postalZonesGeoJson.features.find(f => f.properties?.chunk_id === cId || f.properties?.id === cId);
+        if (feat?.properties?.cp != null) {
+          cps.add(String(feat.properties.cp));
+          continue;
+        }
+      }
+      const m = String(cId).match(/\b(\d{5})\b/);
+      if (m) cps.add(m[1]);
+    }
+  } else if (mode === 'cp' && state.activeTerritory?.cp) {
+    cps.add(String(state.activeTerritory.cp));
+  }
+
+  if (cps.size === 0 && Array.isArray(state.buildings) && state.buildings.length > 0) {
+    for (const b of state.buildings) {
+      if (b.cp != null && b.cp !== '') cps.add(String(b.cp));
+    }
+  }
+
+  return Array.from(cps).sort((a, b) => a.localeCompare(b, 'fr', { numeric: true }));
+}
+
 function updateLoadedDataButtonUI() {
   const nameEl = document.getElementById('sidebar-territory-name');
   const countEl = document.getElementById('sidebar-data-count');
@@ -2820,8 +2988,15 @@ function updateLoadedDataButtonUI() {
         const depName = DEP_DISPLAY[state.activeTerritory.dep] || ('Département ' + state.activeTerritory.dep);
         nameEl.textContent = depName;
       } else if (state.activeTerritory.mode === 'chunks' && state.activeTerritory.chunkIds) {
-        const chunkCount = state.activeTerritory.chunkIds.length;
-        nameEl.textContent = `${chunkCount} secteur${chunkCount > 1 ? 's' : ''} CP`;
+        const cps = getActivePostalCodes();
+        if (cps.length > 0) {
+          nameEl.textContent = cps.length <= 3
+            ? `CP ${cps.join(', ')}`
+            : `CP ${cps.slice(0, 2).join(', ')} (+${cps.length - 2})`;
+        } else {
+          const chunkCount = state.activeTerritory.chunkIds.length;
+          nameEl.textContent = `${chunkCount} secteur${chunkCount > 1 ? 's' : ''} CP`;
+        }
       } else if (state.activeTerritory.mode === 'cp') {
         nameEl.textContent = `CP ${state.activeTerritory.cp}`;
       } else if (state.activeTerritory.mode === 'range') {
@@ -2852,15 +3027,50 @@ function renderCatalogModalContent() {
   updateFilterCountsUI();
 }
 
+function getCatalogSourcesList() {
+  if (DATA_SOURCES_DICTIONARY.length === 0) {
+    buildDataSourcesDictionary();
+  }
+  const q = (state.catalogSearchQuery || '').toLowerCase().trim();
+  const cat = state.catalogCategoryFilter || 'all';
+
+  const list = DATA_SOURCES_DICTIONARY.filter(item => {
+    if (cat !== 'all' && item.category !== cat) return false;
+    if (!q) return true;
+    return (
+      (item.label && item.label.toLowerCase().includes(q)) ||
+      (item.rawColumn && item.rawColumn.toLowerCase().includes(q)) ||
+      (item.desc && item.desc.toLowerCase().includes(q)) ||
+      (item.producer && item.producer.toLowerCase().includes(q)) ||
+      (item.categoryLabel && item.categoryLabel.toLowerCase().includes(q))
+    );
+  });
+
+  const sortCol = state.catalogSortCol || 'label';
+  const sortDir = state.catalogSortDir || 'asc';
+  const colDef = SOURCES_TABLE_COLUMNS.find(c => c.key === sortCol);
+  if (colDef) {
+    list.sort((a, b) => {
+      const cmp = colDef.sortValue(a).localeCompare(colDef.sortValue(b), 'fr', { numeric: true, sensitivity: 'base' });
+      return sortDir === 'desc' ? -cmp : cmp;
+    });
+  }
+  return list;
+}
+
 function renderCatalogCategoryTabs() {
   const tabsWrap = document.getElementById('catalog-category-tabs');
   if (!tabsWrap) return;
   tabsWrap.innerHTML = '';
 
+  if (DATA_SOURCES_DICTIONARY.length === 0) {
+    buildDataSourcesDictionary();
+  }
+
   const allTab = document.createElement('button');
   allTab.type = 'button';
   allTab.className = `catalog-cat-tab${state.catalogCategoryFilter === 'all' ? ' active' : ''}`;
-  allTab.textContent = `Toutes les catégories (${FILTER_DEFINITIONS.length})`;
+  allTab.textContent = `Toutes les catégories (${DATA_SOURCES_DICTIONARY.length})`;
   allTab.addEventListener('click', () => {
     state.catalogCategoryFilter = 'all';
     renderCatalogCategoryTabs();
@@ -2869,12 +3079,12 @@ function renderCatalogCategoryTabs() {
   tabsWrap.appendChild(allTab);
 
   for (const cat of SOCIOLOGICAL_CATEGORIES) {
-    const count = FILTER_DEFINITIONS.filter(f => f.category === cat.id).length;
-    const selectedInCat = FILTER_DEFINITIONS.filter(f => f.category === cat.id && state.activeFilterIds.has(f.id)).length;
+    const itemsInCat = DATA_SOURCES_DICTIONARY.filter(it => it.category === cat.id);
+    const activeInCat = itemsInCat.filter(it => isItemActiveInCurrentProfile(it)).length;
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className = `catalog-cat-tab${state.catalogCategoryFilter === cat.id ? ' active' : ''}`;
-    btn.innerHTML = `${cat.icon} ${escapeHtml(cat.shortLabel)} <span style="opacity:0.75;">(${selectedInCat}/${count})</span>`;
+    btn.innerHTML = `${cat.icon} ${escapeHtml(cat.shortLabel)} <span style="opacity:0.75;">(${activeInCat}/${itemsInCat.length})</span>`;
     btn.addEventListener('click', () => {
       state.catalogCategoryFilter = cat.id;
       renderCatalogCategoryTabs();
@@ -2884,155 +3094,184 @@ function renderCatalogCategoryTabs() {
   }
 }
 
-function getCatalogVisibleFilters() {
-  const q = (state.catalogSearchQuery || '').toLowerCase().trim();
-  return FILTER_DEFINITIONS.filter(f => {
-    if (state.catalogCategoryFilter !== 'all' && f.category !== state.catalogCategoryFilter) {
-      return false;
-    }
-    if (!q) return true;
-    return f.label.toLowerCase().includes(q) ||
-           f.desc.toLowerCase().includes(q) ||
-           f.column.toLowerCase().includes(q) ||
-           f.source.toLowerCase().includes(q);
-  });
-}
-
 function renderCatalogCategoriesGrid() {
   const container = document.getElementById('catalog-categories-list');
   if (!container) return;
   container.innerHTML = '';
 
-  const q = (state.catalogSearchQuery || '').toLowerCase().trim();
-  let totalRendered = 0;
-
-  if (!state.catalogCategoryFoldState) {
-    state.catalogCategoryFoldState = new Map();
-  }
-
-  for (const cat of SOCIOLOGICAL_CATEGORIES) {
-    if (state.catalogCategoryFilter !== 'all' && state.catalogCategoryFilter !== cat.id) continue;
-
-    const catFilters = FILTER_DEFINITIONS.filter(f => {
-      if (f.category !== cat.id) return false;
-      if (!q) return true;
-      return f.label.toLowerCase().includes(q) ||
-             f.desc.toLowerCase().includes(q) ||
-             f.column.toLowerCase().includes(q) ||
-             f.source.toLowerCase().includes(q);
-    });
-
-    if (catFilters.length === 0) continue;
-    totalRendered += catFilters.length;
-
-    const selectedInCat = catFilters.filter(f => state.activeFilterIds.has(f.id)).length;
-    const allSelected = catFilters.length > 0 && selectedInCat === catFilters.length;
-
-    // Foldable details element
-    const details = document.createElement('details');
-    details.className = 'catalog-category-block';
-    details.setAttribute('data-cat-id', cat.id);
-
-    // If searching, force open so user immediately sees matches. Otherwise use remembered fold state (default: open)
-    const isFolded = state.catalogCategoryFoldState.has(cat.id) ? !state.catalogCategoryFoldState.get(cat.id) : false;
-    details.open = q.length > 0 ? true : !isFolded;
-
-    details.addEventListener('toggle', () => {
-      state.catalogCategoryFoldState.set(cat.id, details.open);
-    });
-
-    const summary = document.createElement('summary');
-    summary.className = 'catalog-category-header';
-    summary.innerHTML = `
-      <div class="cat-header-left">
-        <span class="cat-fold-chevron">▶</span>
-        <span class="cat-icon">${cat.icon}</span>
-        <div class="cat-title-wrap">
-          <div class="catalog-category-title">${escapeHtml(cat.title)}</div>
-          <div class="catalog-category-desc">${escapeHtml(cat.desc)}</div>
-        </div>
-      </div>
-      <div class="cat-header-right">
-        <span class="status-badge ${selectedInCat > 0 ? 'status-cached' : 'status-muted'}">${selectedInCat} / ${catFilters.length} sélectionné${selectedInCat > 1 ? 's' : ''}</span>
-      </div>
-    `;
-
-    details.appendChild(summary);
-
-    const grid = document.createElement('div');
-    grid.className = 'catalog-filters-grid';
-
-    for (const f of catFilters) {
-      const isSelected = state.activeFilterIds.has(f.id);
-      const isFilteringNow = f.isActive(state);
-      const item = document.createElement('div');
-      item.className = `catalog-filter-card${isSelected ? ' selected' : ''}`;
-      item.innerHTML = `
-        <div class="catalog-filter-check-wrap">
-          <input type="checkbox" class="catalog-filter-checkbox" ${isSelected ? 'checked' : ''}>
-        </div>
-        <div class="catalog-filter-info">
-          <div class="catalog-filter-name">
-            <span class="catalog-filter-label">${escapeHtml(f.label)}</span>
-            <span class="catalog-filter-source">${escapeHtml(f.source)}</span>
-          </div>
-          <div class="catalog-filter-desc">${escapeHtml(f.desc)}</div>
-          <div class="catalog-filter-meta">
-            <span class="catalog-filter-col"><code>${escapeHtml(f.column)}</code></span>
-            ${isFilteringNow ? `<span class="catalog-filter-active-pill">● Actif</span>` : ''}
-          </div>
-        </div>
-      `;
-
-      item.addEventListener('click', (e) => {
-        if (e.target.tagName !== 'INPUT') {
-          const chk = item.querySelector('.catalog-filter-checkbox');
-          chk.checked = !chk.checked;
-        }
-        const chk = item.querySelector('.catalog-filter-checkbox');
-        if (chk.checked) {
-          f.reset(state);
-          state.activeFilterIds.add(f.id);
-          item.classList.add('selected');
-        } else {
-          f.reset(state);
-          state.activeFilterIds.delete(f.id);
-          item.classList.remove('selected');
-        }
-        state.activeProfileId = 'custom_selection';
-        renderProfileButtons();
-        renderCatalogCategoryTabs();
-        renderSidebarFilterControls();
-        updateFilterCountsUI();
-        saveSessionToStorage();
-
-        // Update summary count and button
-        const currentSelectedInCat = catFilters.filter(fi => state.activeFilterIds.has(fi.id)).length;
-        const badge = summary.querySelector('.status-badge');
-        if (badge) {
-          badge.textContent = `${currentSelectedInCat} / ${catFilters.length} sélectionné${currentSelectedInCat > 1 ? 's' : ''}`;
-          badge.className = `status-badge ${currentSelectedInCat > 0 ? 'status-cached' : 'status-muted'}`;
-        }
-        if (toggleBtn) {
-          toggleBtn.textContent = currentSelectedInCat === catFilters.length ? 'Tout décocher' : 'Tout cocher';
-        }
-      });
-
-      grid.appendChild(item);
-    }
-
-    details.appendChild(grid);
-    container.appendChild(details);
-  }
-
-  if (totalRendered === 0) {
+  const filtered = getCatalogSourcesList();
+  if (filtered.length === 0) {
     container.innerHTML = `
       <div style="text-align:center; padding:2.5rem; color:var(--text-muted);">
         <p style="font-size: 1.5rem; margin-bottom: 0.5rem;">🔍</p>
         <p>Aucun indicateur ne correspond à votre recherche « <strong>${escapeHtml(state.catalogSearchQuery)}</strong> ».</p>
       </div>
     `;
+    return;
   }
+
+  const modalCols = SOURCES_TABLE_COLUMNS.filter(c => c.key !== 'sourceFile');
+  const isCheckCol = (k) => k === 'colEnabled' || k === 'filterEnabled' || k === 'legendEnabled';
+  const sortCol = state.catalogSortCol || 'label';
+  const sortDir = state.catalogSortDir || 'asc';
+
+  const tableWrap = document.createElement('div');
+  tableWrap.className = 'data-table-container sources-table-container';
+  tableWrap.style.height = '100%';
+  tableWrap.style.maxHeight = 'none';
+
+  const table = document.createElement('table');
+  table.className = 'tz-data-table sources-data-table profile-sources-table';
+  table.id = 'table-profile-sources';
+
+  const thead = document.createElement('thead');
+  const headTr = document.createElement('tr');
+
+  for (const col of modalCols) {
+    const th = document.createElement('th');
+    th.className = 'sortable';
+    const isActive = sortCol === col.key;
+    if (isActive) th.classList.add('sorted-active');
+    const sortSymbol = isActive
+      ? (sortDir === 'asc' ? ' ▲' : ' ▼')
+      : ' <span style="opacity:0.35;">⇅</span>';
+    th.innerHTML = `${escapeHtml(col.label)} <span class="sort-indicator">${sortSymbol}</span>`;
+
+    if (isCheckCol(col.key)) {
+      const { total, checked } = getSourcesColumnToggleState(col.key, filtered);
+      const wrap = document.createElement('div');
+      wrap.className = 'sources-select-all-wrap';
+      const masterCb = document.createElement('input');
+      masterCb.type = 'checkbox';
+      masterCb.className = 'sources-select-all-cb';
+      masterCb.setAttribute('data-col', col.key);
+      masterCb.title = 'Tout sélectionner / Tout désélectionner (lignes affichées)';
+      masterCb.setAttribute('aria-label', `Tout sélectionner / désélectionner pour ${col.label}`);
+      masterCb.disabled = total === 0;
+      masterCb.checked = total > 0 && checked === total;
+      masterCb.indeterminate = checked > 0 && checked < total;
+      masterCb.addEventListener('click', (e) => e.stopPropagation());
+      masterCb.addEventListener('change', (e) => {
+        e.stopPropagation();
+        state.activeProfileId = 'custom_selection';
+        toggleAllSourcesColumn(col.key, masterCb.checked, filtered);
+        renderProfileButtons();
+        renderCatalogCategoryTabs();
+        renderCatalogCategoriesGrid();
+        updateFilterCountsUI();
+        saveSessionToStorage();
+      });
+      wrap.appendChild(masterCb);
+      th.appendChild(wrap);
+    }
+
+    th.addEventListener('click', () => {
+      if (state.catalogSortCol === col.key) {
+        state.catalogSortDir = state.catalogSortDir === 'asc' ? 'desc' : 'asc';
+      } else {
+        state.catalogSortCol = col.key;
+        state.catalogSortDir = 'asc';
+      }
+      renderCatalogCategoriesGrid();
+    });
+
+    headTr.appendChild(th);
+  }
+  thead.appendChild(headTr);
+  table.appendChild(thead);
+
+  const tbody = document.createElement('tbody');
+  const fragment = document.createDocumentFragment();
+
+  for (const item of filtered) {
+    const tr = document.createElement('tr');
+    tr.setAttribute('data-id', item.id);
+    if (!isItemActiveInCurrentProfile(item)) {
+      tr.classList.add('sources-row-inactive');
+    }
+
+    // 1. Info
+    const tdInfo = document.createElement('td');
+    tdInfo.className = 'sources-info-cell';
+    tdInfo.innerHTML = `
+      <div class="sources-info-name" title="${escapeHtml(item.label)}">
+        <span>${item.categoryIcon}</span>
+        <span>${escapeHtml(item.label)}</span>
+      </div>
+    `;
+
+    // 2. Raw column
+    const tdCol = document.createElement('td');
+    tdCol.innerHTML = `
+      <div class="sources-col-box" data-col="${escapeHtml(item.rawColumn)}" title="${escapeHtml(item.rawColumn)}">
+        <code>${escapeHtml(item.rawColumn)}</code>
+      </div>
+    `;
+
+    // 3. Description
+    const tdDesc = document.createElement('td');
+    const isLongDesc = item.desc && item.desc.length > 75;
+    tdDesc.innerHTML = `
+      <div class="sources-desc-cell" data-id="${item.id}">
+        <div class="sources-desc-preview">${escapeHtml(item.desc)}</div>
+        ${isLongDesc ? `<span class="sources-desc-more-hint">🔍 Survoler pour lire la suite</span>` : ''}
+        <div class="sources-desc-popover">
+          <div class="sources-desc-popover-title"><span>${item.categoryIcon}</span><span>${escapeHtml(item.label)}</span></div>
+          <div class="sources-desc-popover-body">${escapeHtml(item.desc)}</div>
+        </div>
+      </div>
+    `;
+
+    // 4. Producer
+    const tdProd = document.createElement('td');
+    tdProd.className = 'sources-producer-cell';
+    tdProd.innerHTML = `<span class="badge-producer" title="${escapeHtml(item.producer)}">🏛️ ${escapeHtml(item.producer)}</span>`;
+
+    // 5. Category
+    const tdCat = document.createElement('td');
+    tdCat.innerHTML = `
+      <span class="badge-category badge-cat-${item.category}" title="${escapeHtml(item.categoryLabel)}">
+        <span>${item.categoryIcon}</span>
+        <span>${escapeHtml(item.categoryLabel)}</span>
+      </span>
+    `;
+
+    // 6-8. Interactive Checkboxes (Colonne, Filtre, Légende)
+    const { tdCheckCol, tdCheckFilter, tdCheckLegend } = createSourcesCheckboxCells(item, {
+      readOnly: false,
+      onAfterChange: () => {
+        state.activeProfileId = 'custom_selection';
+        renderProfileButtons();
+        renderCatalogCategoryTabs();
+        updateFilterCountsUI();
+        saveSessionToStorage();
+        // Sync master checkboxes in modal
+        for (const ck of ['colEnabled', 'filterEnabled', 'legendEnabled']) {
+          const cb = table.querySelector(`.sources-select-all-cb[data-col="${ck}"]`);
+          if (!cb) continue;
+          const { total, checked } = getSourcesColumnToggleState(ck, filtered);
+          cb.disabled = total === 0;
+          cb.checked = total > 0 && checked === total;
+          cb.indeterminate = checked > 0 && checked < total;
+        }
+      },
+    });
+
+    tr.appendChild(tdInfo);
+    tr.appendChild(tdCol);
+    tr.appendChild(tdDesc);
+    tr.appendChild(tdProd);
+    tr.appendChild(tdCat);
+    tr.appendChild(tdCheckCol);
+    tr.appendChild(tdCheckFilter);
+    tr.appendChild(tdCheckLegend);
+    fragment.appendChild(tr);
+  }
+
+  tbody.appendChild(fragment);
+  table.appendChild(tbody);
+  tableWrap.appendChild(table);
+  container.appendChild(tableWrap);
 }
 
 function closeMobileSidebar() {
@@ -4579,6 +4818,11 @@ async function loadTerritory(options = {}) {
       state.ownersByBuilding.get(bId).push(o);
     }
 
+    // Sync source-based dynamic filters & map legends with newly loaded buildings
+    if (typeof syncSourcePreferencesWithBuildings === 'function') {
+      syncSourcePreferencesWithBuildings();
+    }
+
     // Apply filtering & update map
     applyFilters();
     updateLoadedDataButtonUI();
@@ -4621,6 +4865,9 @@ function applyFilters() {
   const activeFwColMeta = (state.mapStyleMode && state.mapStyleMode.startsWith('fieldwork_col:'))
     ? (state.fieldworkColumns || []).find(c => c.colName === state.mapStyleMode.slice('fieldwork_col:'.length))
     : null;
+  const activeSourceColMeta = (state.mapStyleMode && state.mapStyleMode.startsWith('source_col:'))
+    ? state.sourceLegendMeta.get(state.mapStyleMode.slice('source_col:'.length))
+    : null;
 
   for (let i = 0; i < state.buildings.length; i++) {
     const b = state.buildings[i];
@@ -4651,6 +4898,8 @@ function applyFilters() {
     } else if (activeFwColMeta) {
       const fwRow = fieldwork.get(b.batiment_groupe_id);
       renderColor = getFieldworkColumnColor(fwRow, activeFwColMeta);
+    } else if (activeSourceColMeta) {
+      renderColor = getSourceColumnColor(b, activeSourceColMeta);
     }
 
     b.render_color = renderColor;
@@ -4865,29 +5114,41 @@ function updateLegend() {
   } else if (state.mapStyleMode && state.mapStyleMode.startsWith('fieldwork_col:')) {
     const colName = state.mapStyleMode.slice('fieldwork_col:'.length);
     const meta = (state.fieldworkColumns || []).find(c => c.colName === colName);
-    if (meta && meta.kind === 'numeric') {
-      items.innerHTML = `
-        <div class="legend-item" style="width: 100%; flex-direction: column; align-items: stretch; gap: 0.25rem;">
-          <div style="height: 10px; border-radius: 999px; background: linear-gradient(90deg, #2563eb 0%, #eab308 50%, #dc2626 100%);"></div>
-          <div style="display: flex; justify-content: space-between; font-size: 0.7rem; color: var(--text-secondary);">
-            <span>${meta.min.toLocaleString('fr-FR')}</span>
-            <span>${meta.max.toLocaleString('fr-FR')}</span>
-          </div>
+    renderDynamicColumnLegend(items, meta);
+  } else if (state.mapStyleMode && state.mapStyleMode.startsWith('source_col:')) {
+    const itemId = state.mapStyleMode.slice('source_col:'.length);
+    const meta = state.sourceLegendMeta.get(itemId);
+    renderDynamicColumnLegend(items, meta);
+  }
+}
+
+function renderDynamicColumnLegend(items, meta) {
+  if (!items || !meta) return;
+  if (meta.kind === 'numeric') {
+    items.innerHTML = `
+      <div class="legend-item" style="width: 100%; flex-direction: column; align-items: stretch; gap: 0.25rem;">
+        <div style="height: 10px; border-radius: 999px; background: linear-gradient(90deg, #2563eb 0%, #eab308 50%, #dc2626 100%);"></div>
+        <div style="display: flex; justify-content: space-between; font-size: 0.7rem; color: var(--text-secondary);">
+          <span>${meta.min.toLocaleString('fr-FR')}</span>
+          <span>${meta.max.toLocaleString('fr-FR')}</span>
         </div>
-        <div class="legend-item"><span class="legend-color" style="background: rgba(148, 163, 184, 0.45);"></span><span>Non renseigné</span></div>
+      </div>
+      <div class="legend-item"><span class="legend-color" style="background: rgba(148, 163, 184, 0.45);"></span><span>Non renseigné</span></div>
+    `;
+  } else if (meta.kind === 'categorical') {
+    for (const val of meta.values) {
+      const c = meta.colorMap.get(val) || '#94a3b8';
+      items.innerHTML += `
+        <div class="legend-item">
+          <span class="legend-color" style="background: ${c};"></span>
+          <span>${escapeHtml(val)}</span>
+        </div>
       `;
-    } else if (meta && meta.kind === 'categorical') {
-      for (const val of meta.values) {
-        const c = meta.colorMap.get(val) || '#94a3b8';
-        items.innerHTML += `
-          <div class="legend-item">
-            <span class="legend-color" style="background: ${c};"></span>
-            <span>${escapeHtml(val)}</span>
-          </div>
-        `;
-      }
-      items.innerHTML += `<div class="legend-item"><span class="legend-color" style="background: rgba(148, 163, 184, 0.45);"></span><span>Non renseigné</span></div>`;
     }
+    if (meta.hasOther) {
+      items.innerHTML += `<div class="legend-item"><span class="legend-color" style="background: #94a3b8;"></span><span>Autres valeurs</span></div>`;
+    }
+    items.innerHTML += `<div class="legend-item"><span class="legend-color" style="background: rgba(148, 163, 184, 0.45);"></span><span>Non renseigné</span></div>`;
   }
 }
 
@@ -5037,6 +5298,25 @@ async function lookupSiren(siren) {
 /* ==========================================================================
    Fieldwork Excel Upload & Merge
    ========================================================================== */
+let pendingFieldworkFile = null;
+
+function setPendingFieldworkFile(file) {
+  pendingFieldworkFile = file || null;
+  const dropzone = document.getElementById('fieldwork-dropzone');
+  const iconEl = document.getElementById('fieldwork-dropzone-icon');
+  const textEl = document.getElementById('fieldwork-dropzone-text');
+  if (dropzone) dropzone.classList.toggle('has-file', !!pendingFieldworkFile);
+  if (iconEl) iconEl.textContent = pendingFieldworkFile ? '📄' : '📋';
+  if (textEl) {
+    if (pendingFieldworkFile) {
+      textEl.innerHTML = `<strong>${escapeHtml(pendingFieldworkFile.name)}</strong><br><span>Fichier sélectionné — cliquez sur le bouton ci-dessous pour valider</span>`;
+    } else {
+      textEl.innerHTML = `<strong>Cliquer ou déposer un fichier de terrain (.xlsx, .xls, .csv)</strong><br><span>Clé de jointure requise : <code>ID BDNB</code> ou <code>batiment_groupe_id</code></span>`;
+    }
+  }
+  updateEnquiryNameHintAndDatalist();
+}
+
 function initFieldworkDropzone() {
   const dropzone = document.getElementById('fieldwork-dropzone');
   const fileInput = document.getElementById('fieldwork-file-input');
@@ -5066,39 +5346,356 @@ function initFieldworkDropzone() {
     e.preventDefault();
     dropzone.classList.remove('dragover');
     if (e.dataTransfer.files.length > 0) {
-      handleFieldworkFile(e.dataTransfer.files[0]);
+      setPendingFieldworkFile(e.dataTransfer.files[0]);
     }
   });
 
   fileInput.addEventListener('change', (e) => {
     if (e.target.files.length > 0) {
-      handleFieldworkFile(e.target.files[0]);
+      setPendingFieldworkFile(e.target.files[0]);
     }
   });
+
+  const nameInput = document.getElementById('fieldwork-enquiry-name');
+  if (nameInput) {
+    nameInput.addEventListener('input', updateEnquiryNameHintAndDatalist);
+  }
+
+  const submitBtn = document.getElementById('btn-fieldwork-create-submit');
+  if (submitBtn) {
+    submitBtn.addEventListener('click', async () => {
+      const nameVal = nameInput ? nameInput.value.trim() : '';
+      if (!pendingFieldworkFile || !nameVal) return;
+      const fileToImport = pendingFieldworkFile;
+      await handleFieldworkFile(fileToImport);
+      setPendingFieldworkFile(null);
+    });
+  }
 
   const clearBtn = document.getElementById('btn-clear-fieldwork');
   if (clearBtn) {
     clearBtn.addEventListener('click', () => {
-      state.fieldwork.clear();
-      state.fieldworkColumns = [];
-      clearDynamicFieldworkFilters();
-      const fwInfo = document.getElementById('fieldwork-info');
-      const fwBadge = document.getElementById('fieldwork-badge');
-      const btnStyleFw = document.getElementById('btn-style-fieldwork');
-      if (fwInfo) fwInfo.style.display = 'none';
-      if (fwBadge) fwBadge.style.display = 'none';
-      if (btnStyleFw) btnStyleFw.style.display = 'none';
+      deactivateActiveEnquiry();
       fileInput.value = '';
-      if (state.mapStyleMode === 'fieldwork' || (state.mapStyleMode && state.mapStyleMode.startsWith('fieldwork_col:'))) {
-        state.mapStyleMode = 'dpe';
-      }
-      syncFieldworkColorOptions();
-      renderSidebarFilterControls();
-      renderCatalogModalContent();
-      updateFilterCountsUI();
-      updateLegend();
-      applyFilters();
+      setPendingFieldworkFile(null);
     });
+  }
+
+  // Restore saved enquiries and active enquiries from localStorage
+  updateEnquiryNameHintAndDatalist();
+  renderSavedEnquiriesList();
+  if (getActiveEnquiryIds().length > 0) {
+    syncActiveEnquiries({ skipApplyFilters: true });
+  }
+}
+
+const FIELDWORK_STORAGE_KEY = 'tz_fieldwork_enquiries_v1';
+const FIELDWORK_ACTIVE_KEY = 'tz_fieldwork_active_id_v1';
+let openUpdateEnquiryId = null;
+
+function loadSavedEnquiries() {
+  try {
+    const raw = localStorage.getItem(FIELDWORK_STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (e) {
+    return [];
+  }
+}
+
+function saveEnquiries(list) {
+  try {
+    localStorage.setItem(FIELDWORK_STORAGE_KEY, JSON.stringify(list));
+  } catch (e) {
+    console.warn('Could not save fieldwork enquiries to localStorage:', e);
+    alert('Espace de stockage local insuffisant pour sauvegarder cette enquête.');
+  }
+}
+
+function getActiveEnquiryIds() {
+  try {
+    const raw = localStorage.getItem(FIELDWORK_ACTIVE_KEY);
+    if (!raw) return [];
+    if (raw.startsWith('[')) {
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed.filter(Boolean) : [];
+    }
+    return [raw];
+  } catch (e) {
+    return [];
+  }
+}
+
+function setActiveEnquiryIds(ids) {
+  try {
+    const unique = Array.from(new Set((ids || []).filter(Boolean)));
+    if (unique.length > 0) {
+      localStorage.setItem(FIELDWORK_ACTIVE_KEY, JSON.stringify(unique));
+    } else {
+      localStorage.removeItem(FIELDWORK_ACTIVE_KEY);
+    }
+  } catch (e) { /* ignore */ }
+}
+
+function updateEnquiryNameHintAndDatalist() {
+  const list = loadSavedEnquiries();
+  const datalist = document.getElementById('fieldwork-enquiry-datalist');
+  if (datalist) {
+    datalist.innerHTML = '';
+    for (const item of list) {
+      const opt = document.createElement('option');
+      opt.value = item.name;
+      datalist.appendChild(opt);
+    }
+  }
+
+  const input = document.getElementById('fieldwork-enquiry-name');
+  const hint = document.getElementById('fieldwork-name-hint');
+  const submitBtn = document.getElementById('btn-fieldwork-create-submit');
+  if (!input || !hint) return;
+
+  const val = input.value.trim();
+  if (!val) {
+    hint.textContent = "Veuillez saisir un nom pour l'enquête";
+    hint.className = 'fieldwork-name-hint';
+    if (submitBtn) {
+      submitBtn.disabled = true;
+      submitBtn.textContent = "✨ Créer l'enquête";
+    }
+    return;
+  }
+
+  const existing = list.find(e => e.name.trim().toLowerCase() === val.toLowerCase());
+  if (existing) {
+    hint.textContent = `🔄 Mettra à jour l'enquête existante « ${existing.name} » (${existing.buildingCount} bât.)`;
+    hint.className = 'fieldwork-name-hint is-update';
+    if (submitBtn) submitBtn.textContent = "🔄 Mettre à jour l'enquête";
+  } else {
+    hint.textContent = `✨ Créera une nouvelle enquête « ${val} »`;
+    hint.className = 'fieldwork-name-hint is-create';
+    if (submitBtn) submitBtn.textContent = "✨ Créer l'enquête";
+  }
+  if (submitBtn) {
+    submitBtn.disabled = !pendingFieldworkFile;
+  }
+}
+
+function syncActiveEnquiries(opts = {}) {
+  const enquiries = loadSavedEnquiries();
+  const byId = new Map(enquiries.map(e => [e.id, e]));
+  const activeIds = getActiveEnquiryIds().filter(id => byId.has(id));
+  setActiveEnquiryIds(activeIds);
+
+  state.fieldwork.clear();
+  state.fieldworkColumns = [];
+  clearDynamicFieldworkFilters();
+
+  const fwInfo = document.getElementById('fieldwork-info');
+  const fwName = document.getElementById('fieldwork-filename');
+  const fwStats = document.getElementById('fieldwork-stats');
+  const badge = document.getElementById('fieldwork-badge');
+  const btnStyleFw = document.getElementById('btn-style-fieldwork');
+
+  if (activeIds.length === 0) {
+    if (fwInfo) fwInfo.style.display = 'none';
+    if (badge) badge.style.display = 'none';
+    if (btnStyleFw) btnStyleFw.style.display = 'none';
+    if (state.mapStyleMode === 'fieldwork' || (state.mapStyleMode && state.mapStyleMode.startsWith('fieldwork_col:'))) {
+      state.mapStyleMode = 'dpe';
+    }
+    syncFieldworkColorOptions();
+    renderSidebarFilterControls();
+    renderCatalogModalContent();
+    updateFilterCountsUI();
+    updateLegend();
+    renderSavedEnquiriesList();
+    if (!opts.skipApplyFilters) applyFilters();
+    return;
+  }
+
+  const activeEnquiries = activeIds.map(id => byId.get(id)).filter(Boolean);
+  for (const enq of activeEnquiries) {
+    for (const [bId, rowObj] of Object.entries(enq.rowsById || {})) {
+      const prev = state.fieldwork.get(bId) || { batiment_groupe_id: bId };
+      state.fieldwork.set(bId, { ...prev, ...(rowObj || {}), batiment_groupe_id: bId });
+    }
+  }
+
+  const rowsArray = Array.from(state.fieldwork.values());
+  const buildingIds = new Set((state.buildings || []).map(b => b.batiment_groupe_id));
+  let matchCount = 0;
+  for (const bId of state.fieldwork.keys()) {
+    if (buildingIds.has(bId)) matchCount++;
+  }
+
+  buildDynamicFieldworkFiltersAndColors(rowsArray, 'batiment_groupe_id');
+
+  if (fwInfo) fwInfo.style.display = 'block';
+  if (fwName) {
+    fwName.textContent = activeEnquiries.length === 1
+      ? `${activeEnquiries[0].name} (${activeEnquiries[0].fileName || 'tableur'})`
+      : `${activeEnquiries.length} enquêtes actives : ${activeEnquiries.map(e => e.name).join(', ')}`;
+  }
+  if (fwStats) {
+    const totalRows = rowsArray.length;
+    fwStats.textContent = buildingIds.size > 0
+      ? `${totalRows.toLocaleString('fr-FR')} bâtiments — ${matchCount.toLocaleString('fr-FR')} correspondants sur le territoire chargé.`
+      : `${totalRows.toLocaleString('fr-FR')} bâtiments enregistrés dans l'enquête.`;
+  }
+
+  if (badge) {
+    badge.textContent = buildingIds.size > 0 ? `${matchCount} liés` : `${rowsArray.length} bât.`;
+    badge.style.display = 'inline-block';
+    badge.className = 'status-badge status-cached';
+  }
+
+  if (btnStyleFw) btnStyleFw.style.display = 'inline-block';
+
+  syncFieldworkColorOptions();
+  renderSidebarFilterControls();
+  renderCatalogModalContent();
+  updateFilterCountsUI();
+  updateLegend();
+  renderSavedEnquiriesList();
+  if (!opts.skipApplyFilters) {
+    applyFilters();
+  }
+}
+
+function deactivateActiveEnquiry(opts = {}) {
+  setActiveEnquiryIds([]);
+  syncActiveEnquiries(opts);
+}
+
+function deactivateSavedEnquiry(enquiryId, opts = {}) {
+  const next = getActiveEnquiryIds().filter(id => id !== enquiryId);
+  setActiveEnquiryIds(next);
+  syncActiveEnquiries(opts);
+}
+
+function activateSavedEnquiry(enquiry, opts = {}) {
+  if (!enquiry || !enquiry.rowsById) return;
+  const next = getActiveEnquiryIds().filter(id => id !== enquiry.id);
+  next.push(enquiry.id);
+  setActiveEnquiryIds(next);
+  syncActiveEnquiries(opts);
+}
+
+function renderSavedEnquiriesList() {
+  const listEl = document.getElementById('fieldwork-saved-list');
+  const countEl = document.getElementById('fieldwork-saved-count');
+  if (!listEl) return;
+
+  const enquiries = loadSavedEnquiries();
+  const activeSet = new Set(getActiveEnquiryIds());
+  if (countEl) countEl.textContent = String(enquiries.length);
+
+  if (enquiries.length === 0) {
+    listEl.innerHTML = '<div class="fieldwork-saved-empty">Aucune enquête enregistrée pour le moment.</div>';
+    return;
+  }
+
+  listEl.innerHTML = '';
+  const existingKeys = getExistingDatasetColumnKeys();
+  for (const enq of enquiries) {
+    const isActive = activeSet.has(enq.id);
+    const isUpdateOpen = enq.id === openUpdateEnquiryId;
+    const card = document.createElement('div');
+    card.className = `fieldwork-saved-card${isActive ? ' active' : ''}`;
+
+    const visibleExtraCols = (enq.extraColumns || []).filter(
+      c => !existingKeys.has(normalizeFieldworkColKey(c))
+    );
+    const colsHtml = visibleExtraCols.length > 0
+      ? visibleExtraCols.map(c => `<span class="fieldwork-col-chip">${escapeHtml(c)}</span>`).join('')
+      : '<span style="font-style: italic;">Aucune colonne supplémentaire</span>';
+
+    const dateStr = enq.updatedAt
+      ? new Date(enq.updatedAt).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: '2-digit' })
+      : '';
+
+    card.innerHTML = `
+      <div class="fieldwork-saved-card-top">
+        <div class="fieldwork-saved-title-wrap">
+          <span class="fieldwork-saved-name">${escapeHtml(enq.name)}</span>
+          <span class="fieldwork-saved-count">${Number(enq.buildingCount || 0).toLocaleString('fr-FR')} bât.</span>
+          ${isActive ? '<span class="status-badge status-cached">Active</span>' : ''}
+          ${dateStr ? `<span style="font-size: 0.7rem; color: var(--text-muted);">(${dateStr})</span>` : ''}
+        </div>
+        <div class="fieldwork-saved-actions">
+          <button type="button" class="btn btn-secondary btn-sm btn-enq-toggle" style="font-size: 0.71rem; padding: 0.18rem 0.5rem;">
+            ${isActive ? 'Désactiver' : 'Activer'}
+          </button>
+          <button type="button" class="btn btn-secondary btn-sm btn-enq-update" style="font-size: 0.71rem; padding: 0.18rem 0.5rem;">
+            🔄 Mettre à jour
+          </button>
+          <button type="button" class="btn btn-secondary btn-sm btn-enq-delete" title="Supprimer cette enquête" aria-label="Supprimer" style="font-size: 0.71rem; padding: 0.18rem 0.45rem; color: #dc2626;">
+            🗑️
+          </button>
+        </div>
+      </div>
+      <div class="fieldwork-saved-cols">
+        <span>Colonnes :</span>
+        ${colsHtml}
+      </div>
+      ${isUpdateOpen ? `
+        <div class="fieldwork-update-dropzone" data-enq-id="${escapeHtml(enq.id)}">
+          <strong>Déposer ou cliquer pour mettre à jour « ${escapeHtml(enq.name)} »</strong> (.xlsx, .xls, .csv)
+          <input type="file" class="fieldwork-update-input" accept=".xlsx,.xls,.csv" style="display: none;">
+        </div>
+      ` : ''}
+    `;
+
+    card.querySelector('.btn-enq-toggle').addEventListener('click', () => {
+      if (isActive) {
+        deactivateSavedEnquiry(enq.id);
+      } else {
+        activateSavedEnquiry(enq);
+      }
+    });
+
+    card.querySelector('.btn-enq-update').addEventListener('click', () => {
+      openUpdateEnquiryId = isUpdateOpen ? null : enq.id;
+      renderSavedEnquiriesList();
+    });
+
+    card.querySelector('.btn-enq-delete').addEventListener('click', () => {
+      if (!window.confirm(`Supprimer définitivement l'enquête « ${enq.name} » ?`)) {
+        return;
+      }
+      const next = loadSavedEnquiries().filter(item => item.id !== enq.id);
+      saveEnquiries(next);
+      if (openUpdateEnquiryId === enq.id) openUpdateEnquiryId = null;
+      updateEnquiryNameHintAndDatalist();
+      if (isActive) {
+        deactivateSavedEnquiry(enq.id);
+      } else {
+        renderSavedEnquiriesList();
+      }
+    });
+
+    if (isUpdateOpen) {
+      const upZone = card.querySelector('.fieldwork-update-dropzone');
+      const upInput = card.querySelector('.fieldwork-update-input');
+      upZone.addEventListener('click', () => upInput.click());
+      upZone.addEventListener('dragover', (e) => { e.preventDefault(); upZone.classList.add('dragover'); });
+      upZone.addEventListener('dragleave', () => upZone.classList.remove('dragover'));
+      upZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        upZone.classList.remove('dragover');
+        if (e.dataTransfer.files.length > 0) {
+          handleFieldworkFile(e.dataTransfer.files[0], { targetEnquiryId: enq.id, targetEnquiryName: enq.name });
+        }
+      });
+      upInput.addEventListener('change', (e) => {
+        if (e.target.files.length > 0) {
+          handleFieldworkFile(e.target.files[0], { targetEnquiryId: enq.id, targetEnquiryName: enq.name });
+        }
+      });
+    }
+
+    listEl.appendChild(card);
   }
 }
 
@@ -5204,7 +5801,12 @@ function getExistingDatasetColumnKeys() {
   for (const f of FILTER_DEFINITIONS) {
     if (f.id && f.id.startsWith('fw_col_')) continue;
     if (f.column) existing.add(normalizeFieldworkColKey(f.column));
-    if (f.label) existing.add(normalizeFieldworkColKey(f.label));
+    if (f.label) {
+      existing.add(normalizeFieldworkColKey(f.label));
+      if (f.label.length > 26) {
+        existing.add(normalizeFieldworkColKey(f.label.slice(0, 24) + '…'));
+      }
+    }
   }
   if (state.buildings && state.buildings.length > 0) {
     for (const k of Object.keys(state.buildings[0])) {
@@ -5220,9 +5822,15 @@ function buildDynamicFieldworkFiltersAndColors(jsonRows, idKey) {
   if (!jsonRows || jsonRows.length === 0) return;
 
   const existingKeys = getExistingDatasetColumnKeys();
-  const colNames = Object.keys(jsonRows[0]).filter(
-    k => k !== idKey && !existingKeys.has(normalizeFieldworkColKey(k))
-  );
+  const colNameSet = new Set();
+  for (const row of jsonRows) {
+    for (const k of Object.keys(row)) {
+      if (k !== idKey && !k.startsWith('__') && !existingKeys.has(normalizeFieldworkColKey(k))) {
+        colNameSet.add(k);
+      }
+    }
+  }
+  const colNames = Array.from(colNameSet);
   const newFilterIds = [];
 
   colNames.forEach((colName, idx) => {
@@ -5391,12 +5999,31 @@ function syncFieldworkColorOptions() {
     colorSelect.appendChild(group);
   }
 
+  let srcGroup = document.getElementById('opt-group-source-cols');
+  if (srcGroup) srcGroup.remove();
+
+  if (state.sourceLegendIds && state.sourceLegendIds.size > 0) {
+    srcGroup = document.createElement('optgroup');
+    srcGroup.id = 'opt-group-source-cols';
+    srcGroup.label = '📚 Colonnes Sources de Données';
+    for (const itemId of state.sourceLegendIds) {
+      const dictItem = DATA_SOURCES_DICTIONARY.find(d => d.id === itemId);
+      const meta = state.sourceLegendMeta.get(itemId);
+      const labelText = (dictItem && dictItem.label) || (meta && meta.label) || itemId;
+      const opt = document.createElement('option');
+      opt.value = `source_col:${itemId}`;
+      opt.textContent = meta && meta.kind === 'numeric' ? `📊 ${labelText} (Bleu → Rouge)` : `🏷️ ${labelText}`;
+      srcGroup.appendChild(opt);
+    }
+    colorSelect.appendChild(srcGroup);
+  }
+
   if (colorSelect.value !== state.mapStyleMode) {
     colorSelect.value = state.mapStyleMode;
   }
 }
 
-async function handleFieldworkFile(file) {
+async function handleFieldworkFile(file, opts = {}) {
   showLoading(`Lecture du fichier terrain ${file.name}...`);
   try {
     const arrayBuffer = await file.arrayBuffer();
@@ -5407,7 +6034,6 @@ async function handleFieldworkFile(file) {
 
     if (jsonRows.length === 0) {
       alert("Le fichier Excel est vide.");
-      hideLoading();
       return;
     }
 
@@ -5416,49 +6042,90 @@ async function handleFieldworkFile(file) {
     const idKey = findFieldworkIdColumn(sample);
     if (!idKey) {
       alert("Colonne d'identifiant introuvable ('ID BDNB', 'batiment_groupe_id' ou 'id').");
-      hideLoading();
       return;
     }
 
-    state.fieldwork.clear();
-    let matchCount = 0;
-    const buildingIds = new Set(state.buildings.map(b => b.batiment_groupe_id));
+    const nameInput = document.getElementById('fieldwork-enquiry-name');
+    const targetName = (opts.targetEnquiryName || (nameInput ? nameInput.value : '') || '').trim();
+    if (!targetName) {
+      alert("Veuillez saisir un nom pour l'enquête avant de l'importer.");
+      return;
+    }
 
+    const existingKeys = getExistingDatasetColumnKeys();
+    const extraColSet = new Set();
+    for (const row of jsonRows) {
+      for (const k of Object.keys(row)) {
+        if (k === idKey || k.startsWith('__')) continue;
+        if (existingKeys.has(normalizeFieldworkColKey(k))) continue;
+        const val = row[k];
+        if (val !== undefined && val !== null && String(val).trim() !== '') {
+          extraColSet.add(k);
+        }
+      }
+    }
+    const extraColumns = Array.from(extraColSet);
+
+    const rowsById = {};
+    let buildingCount = 0;
     for (const row of jsonRows) {
       const bId = String(row[idKey] ?? '').trim();
       if (!bId) continue;
-      state.fieldwork.set(bId, row);
-      if (buildingIds.has(bId)) matchCount++;
+      const entry = {};
+      for (const col of extraColumns) {
+        if (row[col] !== undefined && row[col] !== null && String(row[col]).trim() !== '') {
+          entry[col] = row[col];
+        }
+      }
+      if (!rowsById[bId]) buildingCount++;
+      rowsById[bId] = entry;
     }
 
-    buildDynamicFieldworkFiltersAndColors(jsonRows, idKey);
-
-    const fwInfo = document.getElementById('fieldwork-info');
-    const fwName = document.getElementById('fieldwork-filename');
-    const fwStats = document.getElementById('fieldwork-stats');
-    if (fwInfo) fwInfo.style.display = 'block';
-    if (fwName) fwName.textContent = file.name;
-    if (fwStats) {
-      fwStats.textContent = `${jsonRows.length.toLocaleString()} lignes lues — ${matchCount.toLocaleString()} bâtiments correspondants sur le territoire chargé.`;
+    const enquiries = loadSavedEnquiries();
+    let idx = -1;
+    if (opts.targetEnquiryId) {
+      idx = enquiries.findIndex(e => e.id === opts.targetEnquiryId);
+    }
+    if (idx === -1) {
+      const targetLower = targetName.toLowerCase();
+      idx = enquiries.findIndex(e => e.name.trim().toLowerCase() === targetLower);
     }
 
-    const badge = document.getElementById('fieldwork-badge');
-    if (badge) {
-      badge.textContent = `${matchCount} liés`;
-      badge.style.display = 'inline-block';
-      badge.className = 'status-badge status-cached';
+    let savedEnquiry;
+    const nowIso = new Date().toISOString();
+    if (idx !== -1) {
+      savedEnquiry = {
+        ...enquiries[idx],
+        name: targetName,
+        updatedAt: nowIso,
+        fileName: file.name,
+        rowsById,
+        extraColumns,
+        buildingCount
+      };
+      enquiries[idx] = savedEnquiry;
+    } else {
+      savedEnquiry = {
+        id: `enq_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+        name: targetName,
+        updatedAt: nowIso,
+        fileName: file.name,
+        rowsById,
+        extraColumns,
+        buildingCount
+      };
+      enquiries.unshift(savedEnquiry);
     }
 
-    // Reveal fieldwork style switcher if present
-    const btnStyleFw = document.getElementById('btn-style-fieldwork');
-    if (btnStyleFw) btnStyleFw.style.display = 'inline-block';
+    saveEnquiries(enquiries);
+    openUpdateEnquiryId = null;
 
-    syncFieldworkColorOptions();
-    renderSidebarFilterControls();
-    renderCatalogModalContent();
-    updateFilterCountsUI();
-    updateLegend();
-    applyFilters();
+    const fileInput = document.getElementById('fieldwork-file-input');
+    if (fileInput) fileInput.value = '';
+    if (nameInput && !opts.targetEnquiryId) nameInput.value = '';
+
+    updateEnquiryNameHintAndDatalist();
+    activateSavedEnquiry(savedEnquiry);
   } catch (err) {
     console.error('Error parsing fieldwork file:', err);
     alert(`Erreur lors de la lecture du tableur: ${err.message}`);
@@ -5744,16 +6411,31 @@ function initTabs() {
     const overlay = document.createElement('div');
     overlay.className = 'modal-overlay tool-dialog-overlay';
     overlay.id = `tool-dialog-${id}`;
+    const fullBtnHtml = id === 'sources'
+      ? `<button type="button" class="tool-dialog-fullscreen" id="btn-sources-fullscreen" aria-pressed="false" aria-label="Plein écran" title="Agrandir en plein écran">⛶</button>`
+      : '';
     overlay.innerHTML = `
       <div class="modal-content tool-dialog-content" role="dialog" aria-modal="true">
         <div class="modal-header">
           <h3 class="modal-title">${TOOL_TITLES[id] || id}</h3>
-          <button type="button" class="drawer-close tool-dialog-close" aria-label="Fermer">&times;</button>
+          <div class="modal-header-actions">
+            ${fullBtnHtml}
+            <button type="button" class="drawer-close tool-dialog-close" aria-label="Fermer">&times;</button>
+          </div>
         </div>
         <div class="tool-dialog-body"></div>
       </div>`;
     overlay.querySelector('.tool-dialog-body').appendChild(pane);
     document.body.appendChild(overlay);
+    const fullBtn = overlay.querySelector('.tool-dialog-fullscreen');
+    if (fullBtn) {
+      fullBtn.addEventListener('click', () => {
+        const isFull = overlay.classList.toggle('tool-dialog-fullscreen-active');
+        fullBtn.setAttribute('aria-pressed', isFull ? 'true' : 'false');
+        fullBtn.textContent = isFull ? '🗗' : '⛶';
+        fullBtn.title = isFull ? 'Revenir à la taille normale' : 'Agrandir en plein écran';
+      });
+    }
     overlay.querySelector('.tool-dialog-close').addEventListener('click', closeTool);
     overlay.addEventListener('mousedown', e => { if (e.target === overlay) closeTool(); });
   });
@@ -6044,11 +6726,12 @@ function getFieldworkColumns() {
 }
 
 function getAllBuildingsColumns() {
-  const baseKeys = new Set(BASE_BUILDINGS_TABLE_COLUMNS.map(c => c.key));
+  const visibleBaseCols = BASE_BUILDINGS_TABLE_COLUMNS.filter(c => !state.hiddenBaseColumns.has(c.key));
+  const baseKeys = new Set(visibleBaseCols.map(c => c.key));
   const extraSocCols = [];
 
   for (const f of FILTER_DEFINITIONS) {
-    if ((state.activeFilterIds.has(f.id) || f.isActive(state)) && f.column && !baseKeys.has(f.column)) {
+    if ((state.activeFilterIds.has(f.id) || f.isActive(state)) && f.column && !baseKeys.has(f.column) && !state.hiddenBaseColumns.has(f.column)) {
       baseKeys.add(f.column);
       const isNum = f.controlType === 'slider' || f.controlType === 'number_min';
       extraSocCols.push({
@@ -6057,6 +6740,30 @@ function getAllBuildingsColumns() {
         type: isNum ? 'number' : 'text',
         render: (b) => {
           const v = b[f.column];
+          if (v === null || v === undefined || v === '' || v === 'None') return '—';
+          if (typeof v === 'boolean') return v ? 'Oui' : 'Non';
+          if (typeof v === 'number') return Number.isInteger(v) ? v.toLocaleString('fr-FR') : v.toFixed(1);
+          return escapeHtml(String(v));
+        },
+      });
+    }
+  }
+
+  // Also include columns explicitly enabled from the "Sources de données" dictionary
+  if (state.sourceExtraColumns && state.sourceExtraColumns.size > 0) {
+    for (const itemId of state.sourceExtraColumns) {
+      const item = DATA_SOURCES_DICTIONARY.find(d => d.id === itemId);
+      const colKey = item ? resolveBuildingColumnKey(item) : null;
+      if (!colKey || baseKeys.has(colKey)) continue;
+      baseKeys.add(colKey);
+      const rawSample = state.buildings && state.buildings.length > 0 ? state.buildings[0][colKey] : null;
+      const isNum = typeof rawSample === 'number';
+      extraSocCols.push({
+        key: colKey,
+        label: item.label.length > 26 ? item.label.slice(0, 24) + '…' : item.label,
+        type: isNum ? 'number' : 'text',
+        render: (b) => {
+          const v = b[colKey];
           if (v === null || v === undefined || v === '' || v === 'None') return '—';
           if (typeof v === 'boolean') return v ? 'Oui' : 'Non';
           if (typeof v === 'number') return Number.isInteger(v) ? v.toLocaleString('fr-FR') : v.toFixed(1);
@@ -6077,7 +6784,7 @@ function getAllBuildingsColumns() {
       </button>
     `,
   };
-  return [actionCol, ...BASE_BUILDINGS_TABLE_COLUMNS, ...extraSocCols, ...fwCols];
+  return [actionCol, ...visibleBaseCols, ...extraSocCols, ...fwCols];
 }
 
 function getBuildingSortValue(b, col) {
@@ -7140,6 +7847,20 @@ function updateExportTab() {
   }
 }
 
+function openWordExportOptionsModal() {
+  if (state.filteredBuildings.length === 0) {
+    alert('Aucun bâtiment dans la sélection à exporter.');
+    return;
+  }
+  if (typeof JSZip === 'undefined') {
+    alert("La librairie JSZip n'est pas disponible.");
+    return;
+  }
+  const errEl = document.getElementById('word-export-options-error');
+  if (errEl) errEl.style.display = 'none';
+  document.getElementById('modal-word-export-options')?.classList.add('open');
+}
+
 function initExportTabControls() {
   const btnMapPng = document.getElementById('btn-export-map-png');
   const btnBldgs = document.getElementById('btn-export-tab-bldgs');
@@ -7151,9 +7872,66 @@ function initExportTabControls() {
   if (btnMapPng) btnMapPng.addEventListener('click', exportMapPng);
   if (btnBldgs) btnBldgs.addEventListener('click', exportFilteredBuildingsExcel);
   if (btnOwners) btnOwners.addEventListener('click', exportFilteredOwnersExcel);
-  if (btnWord) btnWord.addEventListener('click', exportWordReport);
+  if (btnWord) btnWord.addEventListener('click', openWordExportOptionsModal);
   if (btnZip) btnZip.addEventListener('click', exportFilteredFullZip);
   if (btnGeojson) btnGeojson.addEventListener('click', exportFilteredGeoJSON);
+
+  const wordModal = document.getElementById('modal-word-export-options');
+  const btnCloseWord = document.getElementById('btn-close-word-export-modal');
+  const btnCancelWord = document.getElementById('btn-cancel-word-export');
+  const btnConfirmWord = document.getElementById('btn-confirm-word-export');
+
+  const closeWordModal = () => wordModal?.classList.remove('open');
+  if (btnCloseWord) btnCloseWord.addEventListener('click', closeWordModal);
+  if (btnCancelWord) btnCancelWord.addEventListener('click', closeWordModal);
+  if (wordModal) {
+    wordModal.addEventListener('click', (e) => {
+      if (e.target === wordModal) closeWordModal();
+    });
+  }
+  if (btnConfirmWord) {
+    btnConfirmWord.addEventListener('click', () => {
+      const includeContext = Boolean(document.getElementById('chk-word-opt-context')?.checked);
+      const includeMap = Boolean(document.getElementById('chk-word-opt-map')?.checked);
+      const includeBuildings = Boolean(document.getElementById('chk-word-opt-buildings')?.checked);
+      const includeSci = Boolean(document.getElementById('chk-word-opt-sci')?.checked);
+      const errEl = document.getElementById('word-export-options-error');
+
+      if (!includeContext && !includeMap && !includeBuildings && !includeSci) {
+        if (errEl) errEl.style.display = 'block';
+        return;
+      }
+      if (errEl) errEl.style.display = 'none';
+      closeWordModal();
+      exportWordReport({ includeContext, includeMap, includeBuildings, includeSci });
+    });
+  }
+}
+
+function buildDynamicLegendEntries(title, meta) {
+  if (!meta) {
+    return { title, entries: [{ color: '#94a3b8', label: 'Non renseigné' }] };
+  }
+  if (meta.kind === 'numeric') {
+    const minLabel = meta.min != null ? meta.min.toLocaleString('fr-FR') : '0';
+    const maxLabel = meta.max != null ? meta.max.toLocaleString('fr-FR') : '0';
+    return {
+      title,
+      entries: [
+        { color: '#2563eb', label: `Min : ${minLabel}` },
+        { color: '#eab308', label: 'Valeur intermédiaire' },
+        { color: '#dc2626', label: `Max : ${maxLabel}` },
+        { color: '#94a3b8', label: 'Non renseigné' },
+      ],
+    };
+  }
+  const entries = (meta.values || []).map(val => ({
+    color: meta.colorMap?.get(val) || '#94a3b8',
+    label: String(val),
+  }));
+  if (meta.hasOther) entries.push({ color: '#94a3b8', label: 'Autres valeurs' });
+  entries.push({ color: '#cbd5e1', label: 'Non renseigné' });
+  return { title, entries };
 }
 
 function getMapStyleLegendEntries() {
@@ -7189,6 +7967,18 @@ function getMapStyleLegendEntries() {
       ],
     };
   }
+  if (state.mapStyleMode && state.mapStyleMode.startsWith('fieldwork_col:')) {
+    const colName = state.mapStyleMode.slice('fieldwork_col:'.length);
+    const meta = (state.fieldworkColumns || []).find(c => c.colName === colName);
+    return buildDynamicLegendEntries(meta?.colName || colName, meta);
+  }
+  if (state.mapStyleMode && state.mapStyleMode.startsWith('source_col:')) {
+    const itemId = state.mapStyleMode.slice('source_col:'.length);
+    const dictItem = DATA_SOURCES_DICTIONARY.find(d => d.id === itemId);
+    const meta = state.sourceLegendMeta.get(itemId);
+    const title = (dictItem && dictItem.label) || (meta && meta.label) || itemId;
+    return buildDynamicLegendEntries(title, meta);
+  }
   return {
     title: 'Diagnostic Énergétique (DPE)',
     entries: ['A', 'B', 'C', 'D', 'E', 'F', 'G'].map(c => ({
@@ -7198,7 +7988,24 @@ function getMapStyleLegendEntries() {
   };
 }
 
-function getActiveTerritoryLabel() {
+function getActiveTerritoryLabel(opts = {}) {
+  const { maxCps = Infinity } = opts;
+  const mode = state.activeTerritory?.mode;
+  if (mode === 'chunks') {
+    const cps = getActivePostalCodes();
+    if (cps.length > 0) {
+      if (cps.length <= maxCps) return `CP ${cps.join(', ')}`;
+      return `CP ${cps.slice(0, maxCps).join(', ')} (+${cps.length - maxCps} autres)`;
+    }
+  } else if (mode === 'dep') {
+    const dep = state.activeTerritory.dep || '69';
+    return DEP_DISPLAY[dep] || `Département ${dep}`;
+  } else if (mode === 'cp' && state.activeTerritory.cp) {
+    return `CP ${state.activeTerritory.cp}`;
+  } else if (mode === 'range' && Array.isArray(state.activeTerritory.range)) {
+    return `CP ${state.activeTerritory.range.join(' à ')}`;
+  }
+
   const el = document.getElementById('sidebar-territory-name');
   if (el && el.textContent.trim()) return el.textContent.trim();
   const dep = state.activeTerritory?.dep || '69';
@@ -7253,7 +8060,7 @@ async function captureMapWithOverlays() {
     }
 
     // 2. Top-Left Header Pill (Territory + Selection Count)
-    const territoryLabel = getActiveTerritoryLabel();
+    const territoryLabel = getActiveTerritoryLabel({ maxCps: 6 });
     const selCount = state.filteredBuildings.length.toLocaleString('fr-FR');
     const totCount = (state.buildings ? state.buildings.length : 0).toLocaleString('fr-FR');
     const headerTitle = `TeZeLoMa — ${territoryLabel}`;
@@ -7426,7 +8233,71 @@ function docxPageBreak() {
   return `<w:p><w:r><w:br w:type="page"/></w:r></w:p>`;
 }
 
-function docxTable(headers, rows, colWidthsPct = null, fontSizeHalfPt = 16) {
+function getDocxTableSizing(rowCount, colCount = 8) {
+  let fontSizeHalfPt = 14;
+  let cellPadV = 60;
+  let cellPadH = 85;
+  let lineSpacing = 15;
+
+  if (rowCount > 200) {
+    fontSizeHalfPt = 9;
+    cellPadV = 12;
+    cellPadH = 45;
+    lineSpacing = 0;
+  } else if (rowCount > 80) {
+    fontSizeHalfPt = 10;
+    cellPadV = 20;
+    cellPadH = 55;
+    lineSpacing = 0;
+  } else if (rowCount > 25) {
+    fontSizeHalfPt = 12;
+    cellPadV = 35;
+    cellPadH = 70;
+    lineSpacing = 8;
+  }
+
+  if (colCount > 12) {
+    fontSizeHalfPt = Math.max(8, fontSizeHalfPt - 1);
+    cellPadH = Math.min(cellPadH, 40);
+  }
+
+  return { fontSizeHalfPt, cellPadV, cellPadH, lineSpacing };
+}
+
+function getDocxBuildingColWidths(cols) {
+  const weightMap = {
+    batiment_groupe_id: 9,
+    adr: 18,
+    cp: 5,
+    nb_log: 5,
+    dpe: 4,
+    nb_dpe_fg: 5,
+    pct_dpe_fg: 5,
+    risque_surchauffe_ete: 9,
+    score_surchauffe_ete: 6,
+    facteurs_surchauffe: 14,
+    concentration_prop_max_denomination: 15,
+    siren_principal: 8,
+    concentration_prop_max_pct: 6,
+    max_patrimoine_majic_bailleur: 7,
+    loyer_max_t2_non_meuble_m2: 7,
+    loyer_max_t2_meuble_m2: 7,
+    nom_copro: 12,
+  };
+  const weights = cols.map(c => weightMap[c.key] || (c.type === 'number' ? 6 : 9));
+  const total = weights.reduce((acc, w) => acc + w, 0) || 1;
+  return weights.map(w => (w / total) * 100);
+}
+
+function docxTable(headers, rows, colWidthsPct = null, styleOpts = 16) {
+  const {
+    fontSizeHalfPt = 16,
+    cellPadV = 65,
+    cellPadH = 90,
+    lineSpacing = 15,
+  } = typeof styleOpts === 'number' ? { fontSizeHalfPt: styleOpts } : (styleOpts || {});
+  const hdrPadV = Math.max(30, cellPadV);
+
   const borderXml = `
     <w:tblBorders>
       <w:top w:val="single" w:sz="4" w:space="0" w:color="CBD5E1"/>
@@ -7446,14 +8317,14 @@ function docxTable(headers, rows, colWidthsPct = null, fontSizeHalfPt = 16) {
           ${wPct}
           <w:shd w:val="clear" w:color="auto" w:fill="0F172A"/>
           <w:tcMar>
-            <w:top w:w="80" w:type="dxa"/>
-            <w:bottom w:w="80" w:type="dxa"/>
-            <w:left w:w="100" w:type="dxa"/>
-            <w:right w:w="100" w:type="dxa"/>
+            <w:top w:w="${hdrPadV}" w:type="dxa"/>
+            <w:bottom w:w="${hdrPadV}" w:type="dxa"/>
+            <w:left w:w="${cellPadH}" w:type="dxa"/>
+            <w:right w:w="${cellPadH}" w:type="dxa"/>
           </w:tcMar>
         </w:tcPr>
         <w:p>
-          <w:pPr><w:spacing w:before="20" w:after="20"/></w:pPr>
+          <w:pPr><w:spacing w:before="${lineSpacing}" w:after="${lineSpacing}"/></w:pPr>
           <w:r>
             <w:rPr><w:b/><w:color w:val="FFFFFF"/><w:sz w:val="${fontSizeHalfPt}"/><w:szCs w:val="${fontSizeHalfPt}"/></w:rPr>
             <w:t xml:space="preserve">${escapeXml(h)}</w:t>
@@ -7474,14 +8345,14 @@ function docxTable(headers, rows, colWidthsPct = null, fontSizeHalfPt = 16) {
             ${wPct}
             <w:shd w:val="clear" w:color="auto" w:fill="${fill}"/>
             <w:tcMar>
-              <w:top w:w="65" w:type="dxa"/>
-              <w:bottom w:w="65" w:type="dxa"/>
-              <w:left w:w="90" w:type="dxa"/>
-              <w:right w:w="90" w:type="dxa"/>
+              <w:top w:w="${cellPadV}" w:type="dxa"/>
+              <w:bottom w:w="${cellPadV}" w:type="dxa"/>
+              <w:left w:w="${cellPadH}" w:type="dxa"/>
+              <w:right w:w="${cellPadH}" w:type="dxa"/>
             </w:tcMar>
           </w:tcPr>
           <w:p>
-            <w:pPr><w:spacing w:before="15" w:after="15"/></w:pPr>
+            <w:pPr><w:spacing w:before="${lineSpacing}" w:after="${lineSpacing}"/></w:pPr>
             <w:r>
               <w:rPr><w:color w:val="1E293B"/><w:sz w:val="${fontSizeHalfPt}"/><w:szCs w:val="${fontSizeHalfPt}"/></w:rPr>
               <w:t xml:space="preserve">${escapeXml(cellVal)}</w:t>
@@ -7553,7 +8424,14 @@ function docxEmbeddedImage(rId, widthPx, heightPx) {
     </w:p>`;
 }
 
-async function exportWordReport() {
+async function exportWordReport(options = {}) {
+  const {
+    includeContext = true,
+    includeMap = true,
+    includeBuildings = true,
+    includeSci = true,
+  } = options;
+
   if (state.filteredBuildings.length === 0) {
     alert('Aucun bâtiment dans la sélection à exporter.');
     return;
@@ -7562,8 +8440,13 @@ async function exportWordReport() {
     alert("La librairie JSZip n'est pas disponible.");
     return;
   }
+  if (!includeContext && !includeMap && !includeBuildings && !includeSci) {
+    alert('Veuillez sélectionner au moins une section à exporter.');
+    return;
+  }
 
-  showLoading('Génération du rapport Word (.docx) en 4 pages...');
+  const totalSections = [includeContext, includeMap, includeBuildings, includeSci].filter(Boolean).length;
+  showLoading(`Génération du rapport Word (.docx) (${totalSections} section${totalSections > 1 ? 's' : ''})...`);
 
   try {
     const dateStr = new Date().toISOString().slice(0, 10);
@@ -7573,195 +8456,200 @@ async function exportWordReport() {
     const filteredCount = state.filteredBuildings.length;
     const excludedTotal = Math.max(0, totalLoaded - filteredCount);
 
-    // Compute synthesis KPIs on active selection
-    let totalLogs = 0;
-    let totalFgLogs = 0;
-    let totalOverheat = 0;
-    for (const b of state.filteredBuildings) {
-      totalLogs += Number(b.nb_log || 0);
-      totalFgLogs += Number(b.nb_dpe_fg != null ? b.nb_dpe_fg : (b.dpe === 'F' || b.dpe === 'G' ? (b.nb_log || 1) : 0));
-      if (b.risque_surchauffe_ete === 'Élevé' || b.risque_surchauffe_ete === 'Critique') totalOverheat++;
-    }
-
     const { grouped: groupedLandlords } = getGroupedLandlordsForSelection();
-    const effectiveFilters = getEffectiveActiveFilters();
+    const mapCapture = includeMap ? await captureMapWithOverlays() : null;
 
-    // Capture Map PNG
-    const mapCapture = await captureMapWithOverlays();
+    const sections = [];
+    let sectionIdx = 0;
 
     // =========================================================================
-    // PAGE 1: Active Filters (those that actually remove matches)
+    // SECTION 1: Contexte & Synthèse des filtres actifs
     // =========================================================================
-    const profObj = getAllProfiles().find(p => p.id === state.activeProfileId);
-    const profileLabel = profObj ? profObj.name : 'Sélection personnalisée';
+    if (includeContext) {
+      sectionIdx++;
+      let totalLogs = 0;
+      let totalFgLogs = 0;
+      let totalOverheat = 0;
+      for (const b of state.filteredBuildings) {
+        totalLogs += Number(b.nb_log || 0);
+        totalFgLogs += Number(b.nb_dpe_fg != null ? b.nb_dpe_fg : (b.dpe === 'F' || b.dpe === 'G' ? (b.nb_log || 1) : 0));
+        if (b.risque_surchauffe_ete === 'Élevé' || b.risque_surchauffe_ete === 'Critique') totalOverheat++;
+      }
 
-    const page1Parts = [
-      docxParagraph('TeZeLoMa — Rapport d\'Enquête Cartographique & Bailleurs', {
-        bold: true, sizeHalfPt: 32, color: '0284C7', spaceBefore: 0, spaceAfter: 80,
-      }),
-      docxParagraph('Page 1 / 4 — Synthèse de la sélection & Filtres actifs (excluant des bâtiments)', {
-        bold: true, sizeHalfPt: 24, color: '0F172A', spaceBefore: 20, spaceAfter: 140,
-      }),
-      docxParagraph(
-        `Date : ${nowFormatted}   |   Territoire : ${territoryLabel}   |   Profil : ${profileLabel}`,
-        { italic: true, sizeHalfPt: 18, color: '475569', spaceBefore: 0, spaceAfter: 160 }
-      ),
-      docxTable(
-        ['Bâtiments retenus', 'Bâtiments exclus', 'Logements (sélection)', 'Logements DPE F/G', 'Surchauffe Élevée/Crit.', 'Bailleurs PM identifiés'],
-        [[
-          `${filteredCount.toLocaleString('fr-FR')} / ${totalLoaded.toLocaleString('fr-FR')}`,
-          `${excludedTotal.toLocaleString('fr-FR')} (-${totalLoaded > 0 ? ((excludedTotal / totalLoaded) * 100).toFixed(1) : '0.0'}%)`,
-          totalLogs.toLocaleString('fr-FR'),
-          totalFgLogs.toLocaleString('fr-FR'),
-          totalOverheat.toLocaleString('fr-FR'),
-          groupedLandlords.length.toLocaleString('fr-FR'),
-        ]],
-        [18, 18, 16, 16, 16, 16],
-        17
-      ),
-      docxParagraph(
-        `Filtres actifs réduisant effectivement la sélection (${effectiveFilters.length} filtre${effectiveFilters.length > 1 ? 's' : ''}) :`,
-        { bold: true, sizeHalfPt: 22, color: '0F172A', spaceBefore: 220, spaceAfter: 80 }
-      ),
-      docxParagraph(
-        'Seuls les filtres actifs qui écartent effectivement au moins un bâtiment du territoire chargé sont listés ci-dessous avec leur impact mesuré :',
-        { italic: true, sizeHalfPt: 17, color: '475569', spaceBefore: 0, spaceAfter: 120 }
-      ),
-    ];
+      const effectiveFilters = getEffectiveActiveFilters();
+      const profObj = getAllProfiles().find(p => p.id === state.activeProfileId);
+      const profileLabel = profObj ? profObj.name : 'Sélection personnalisée';
 
-    if (effectiveFilters.length === 0) {
-      page1Parts.push(
+      const page1Parts = [
+        docxParagraph('TeZeLoMa — Rapport d\'Enquête Cartographique & Bailleurs', {
+          bold: true, sizeHalfPt: 32, color: '0284C7', spaceBefore: 0, spaceAfter: 80,
+        }),
+        docxParagraph(`Section ${sectionIdx} / ${totalSections} — Synthèse de la sélection & Filtres actifs (excluant des bâtiments)`, {
+          bold: true, sizeHalfPt: 24, color: '0F172A', spaceBefore: 20, spaceAfter: 140,
+        }),
         docxParagraph(
-          'Aucun filtre actif ne réduit la sélection sur ce territoire (100 % des bâtiments chargés sont conservés).',
-          { bold: true, sizeHalfPt: 19, color: '334155', spaceBefore: 80, spaceAfter: 120 }
-        )
-      );
-    } else {
-      const filterRows = effectiveFilters.map(ef => [
-        ef.label,
-        ef.categoryTitle.replace(/^[^\wÀ-ÿ]+/, '').trim(),
-        ef.criterionText,
-        `${ef.matchCount.toLocaleString('fr-FR')} / ${ef.totalCount.toLocaleString('fr-FR')} retenus (${ef.removedCount.toLocaleString('fr-FR')} exclus, -${ef.removedPct}%)`,
-        `${ef.desc} [Source : ${ef.source}]`,
-      ]);
-      page1Parts.push(
+          `Date : ${nowFormatted}   |   Territoire : ${territoryLabel}   |   Profil : ${profileLabel}`,
+          { italic: true, sizeHalfPt: 18, color: '475569', spaceBefore: 0, spaceAfter: 160 }
+        ),
         docxTable(
-          ['Filtre actif', 'Catégorie', 'Critère appliqué', 'Impact sur les bâtiments', 'Explication & Source'],
-          filterRows,
-          [20, 15, 17, 18, 30],
-          16
-        )
-      );
+          ['Bâtiments retenus', 'Bâtiments exclus', 'Logements (sélection)', 'Logements DPE F/G', 'Surchauffe Élevée/Crit.', 'Bailleurs PM identifiés'],
+          [[
+            `${filteredCount.toLocaleString('fr-FR')} / ${totalLoaded.toLocaleString('fr-FR')}`,
+            `${excludedTotal.toLocaleString('fr-FR')} (-${totalLoaded > 0 ? ((excludedTotal / totalLoaded) * 100).toFixed(1) : '0.0'}%)`,
+            totalLogs.toLocaleString('fr-FR'),
+            totalFgLogs.toLocaleString('fr-FR'),
+            totalOverheat.toLocaleString('fr-FR'),
+            groupedLandlords.length.toLocaleString('fr-FR'),
+          ]],
+          [18, 18, 16, 16, 16, 16],
+          17
+        ),
+        docxParagraph(
+          `Filtres actifs réduisant effectivement la sélection (${effectiveFilters.length} filtre${effectiveFilters.length > 1 ? 's' : ''}) :`,
+          { bold: true, sizeHalfPt: 22, color: '0F172A', spaceBefore: 220, spaceAfter: 80 }
+        ),
+        docxParagraph(
+          'Seuls les filtres actifs qui écartent effectivement au moins un bâtiment du territoire chargé sont listés ci-dessous avec leur impact mesuré :',
+          { italic: true, sizeHalfPt: 17, color: '475569', spaceBefore: 0, spaceAfter: 120 }
+        ),
+      ];
+
+      if (effectiveFilters.length === 0) {
+        page1Parts.push(
+          docxParagraph(
+            'Aucun filtre actif ne réduit la sélection sur ce territoire (100 % des bâtiments chargés sont conservés).',
+            { bold: true, sizeHalfPt: 19, color: '334155', spaceBefore: 80, spaceAfter: 120 }
+          )
+        );
+      } else {
+        const filterRows = effectiveFilters.map(ef => [
+          ef.label,
+          ef.categoryTitle.replace(/^[^\wÀ-ÿ]+/, '').trim(),
+          ef.criterionText,
+          `${ef.matchCount.toLocaleString('fr-FR')} / ${ef.totalCount.toLocaleString('fr-FR')} retenus (${ef.removedCount.toLocaleString('fr-FR')} exclus, -${ef.removedPct}%)`,
+          `${ef.desc} [Source : ${ef.source}]`,
+        ]);
+        page1Parts.push(
+          docxTable(
+            ['Filtre actif', 'Catégorie', 'Critère appliqué', 'Impact sur les bâtiments', 'Explication & Source'],
+            filterRows,
+            [20, 15, 17, 18, 30],
+            16
+          )
+        );
+      }
+      sections.push(page1Parts);
     }
 
     // =========================================================================
-    // PAGE 2: Map PNG + Legend
+    // SECTION 2: Map PNG (legend already embedded on the map image)
     // =========================================================================
-    const legendInfo = getMapStyleLegendEntries();
-    const page2Parts = [
-      docxParagraph('Page 2 / 4 — Carte de la sélection', {
-        bold: true, sizeHalfPt: 24, color: '0F172A', spaceBefore: 0, spaceAfter: 60,
-      }),
-      docxParagraph(
-        `Territoire : ${territoryLabel}   |   Coloration : ${legendInfo.title}   |   ${filteredCount.toLocaleString('fr-FR')} bâtiments affichés`,
-        { italic: true, sizeHalfPt: 18, color: '475569', spaceBefore: 0, spaceAfter: 80 }
-      ),
-      docxEmbeddedImage('rIdMapImg', mapCapture.width, mapCapture.height),
-      docxParagraph(
-        `Légende active (${legendInfo.title}) : ${legendInfo.entries.map(e => e.label).join('  •  ')}`,
-        { bold: true, sizeHalfPt: 17, color: '334155', align: 'center', spaceBefore: 60, spaceAfter: 60 }
-      ),
-    ];
-
-    // =========================================================================
-    // PAGE 3: Bâtiments Table
-    // =========================================================================
-    const { rows: sortedBldgs } = getSortedBuildingsForExport();
-    const maxDocxBldgRows = 25;
-    const bldgSlice = sortedBldgs.slice(0, maxDocxBldgRows);
-    const bldgDocxCols = [
-      { label: 'ID BDNB', get: b => b.batiment_groupe_id || '' },
-      { label: 'Adresse', get: b => b.adr || 'Adresse inconnue' },
-      { label: 'CP', get: b => b.cp != null ? String(b.cp) : '' },
-      { label: 'Log.', get: b => b.nb_log != null ? String(b.nb_log) : '1' },
-      { label: 'DPE', get: b => b.dpe || 'NC' },
-      { label: '% F/G', get: b => b.pct_dpe_fg != null ? Math.round(Number(b.pct_dpe_fg)) + '%' : '0%' },
-      { label: 'Risque Été', get: b => b.risque_surchauffe_ete || 'Non renseigné' },
-      { label: 'Score', get: b => b.score_surchauffe_ete != null ? `${b.score_surchauffe_ete}/100` : '0/100' },
-      { label: 'Principal Bailleur', get: b => b.concentration_prop_max_denomination || '—' },
-      { label: 'SIREN', get: b => b.siren_principal || '—' },
-      { label: 'Conc. %', get: b => {
-        const val = b.concentration_prop_max_num != null ? b.concentration_prop_max_num : b.concentration_prop_max_pct;
-        return val != null && Number(val) > 0 ? Math.round(Number(val)) + '%' : '—';
-      }},
-      { label: 'Loyer Max T2', get: b => b.loyer_max_t2_non_meuble_m2 ? Number(b.loyer_max_t2_non_meuble_m2).toFixed(1) + ' €' : (b.zone_encadrement_loyers ? 'Zoné' : 'Non') },
-    ];
-
-    const bldgTableRows = bldgSlice.map(b => bldgDocxCols.map(c => c.get(b)));
-    const bldgTruncNote = sortedBldgs.length > maxDocxBldgRows
-      ? `Affichage des ${maxDocxBldgRows} premiers bâtiments selon le tri actif sur ${sortedBldgs.length.toLocaleString('fr-FR')} au total (voir l'export Excel Bâtiments pour la liste intégrale).`
-      : `Liste complète des ${sortedBldgs.length.toLocaleString('fr-FR')} bâtiment(s) de la sélection active.`;
-
-    const page3Parts = [
-      docxParagraph(`Page 3 / 4 — Tableau des Bâtiments (${sortedBldgs.length.toLocaleString('fr-FR')} bâtiments)`, {
-        bold: true, sizeHalfPt: 24, color: '0F172A', spaceBefore: 0, spaceAfter: 60,
-      }),
-      docxParagraph(bldgTruncNote, {
-        italic: true, sizeHalfPt: 17, color: '475569', spaceBefore: 0, spaceAfter: 100,
-      }),
-      docxTable(
-        bldgDocxCols.map(c => c.label),
-        bldgTableRows,
-        [10, 20, 5, 5, 5, 5, 9, 6, 15, 8, 6, 6],
-        14
-      ),
-    ];
+    if (includeMap && mapCapture) {
+      sectionIdx++;
+      const legendInfo = getMapStyleLegendEntries();
+      const page2Parts = [
+        docxParagraph(`Section ${sectionIdx} / ${totalSections} — Carte de la sélection`, {
+          bold: true, sizeHalfPt: 24, color: '0F172A', spaceBefore: 0, spaceAfter: 60,
+        }),
+        docxParagraph(
+          `Territoire : ${territoryLabel}   |   Coloration : ${legendInfo.title}   |   ${filteredCount.toLocaleString('fr-FR')} bâtiments affichés`,
+          { italic: true, sizeHalfPt: 18, color: '475569', spaceBefore: 0, spaceAfter: 80 }
+        ),
+        docxEmbeddedImage('rIdMapImg', mapCapture.width, mapCapture.height),
+      ];
+      sections.push(page2Parts);
+    }
 
     // =========================================================================
-    // PAGE 4: Bailleurs Table
+    // SECTION 3: Bâtiments Table (respecting profile columns, max 400 rows)
     // =========================================================================
-    const maxDocxOwnerRows = 25;
-    const ownerSlice = groupedLandlords.slice(0, maxDocxOwnerRows);
-    const ownerTruncNote = groupedLandlords.length > maxDocxOwnerRows
-      ? `Affichage des ${maxDocxOwnerRows} premiers bailleurs personnes morales sur ${groupedLandlords.length.toLocaleString('fr-FR')} au total (voir l'export Excel Bailleurs pour la liste intégrale).`
-      : `Liste complète des ${groupedLandlords.length.toLocaleString('fr-FR')} bailleur(s) personne(s) morale(s) de la sélection active.`;
-
-    const page4Parts = [
-      docxParagraph(`Page 4 / 4 — Tableau des Bailleurs & SCI (${groupedLandlords.length.toLocaleString('fr-FR')} entités morales)`, {
-        bold: true, sizeHalfPt: 24, color: '0F172A', spaceBefore: 0, spaceAfter: 60,
-      }),
-      docxParagraph(ownerTruncNote, {
-        italic: true, sizeHalfPt: 17, color: '475569', spaceBefore: 0, spaceAfter: 100,
-      }),
-    ];
-
-    if (ownerSlice.length === 0) {
-      page4Parts.push(
-        docxParagraph('Aucun propriétaire personne morale identifié dans la sélection active.', {
-          italic: true, sizeHalfPt: 18, color: '64748B', spaceBefore: 80, spaceAfter: 80,
+    if (includeBuildings) {
+      sectionIdx++;
+      const { rows: sortedBldgs, cols: visibleBldgCols } = getSortedBuildingsForExport();
+      const maxDocxBldgRows = 400;
+      const bldgSlice = sortedBldgs.slice(0, maxDocxBldgRows);
+      const bldgTableRows = bldgSlice.map(b =>
+        visibleBldgCols.map(col => {
+          const v = getBuildingCellPlainValue(b, col);
+          return v === null || v === undefined || v === '' ? '—' : String(v);
         })
       );
-    } else {
-      const ownerTableRows = ownerSlice.map(g => [
-        g.siren || 'NC',
-        g.denomination || '',
-        g.forme_juridique || '',
-        g.buildings.size.toLocaleString('fr-FR'),
-        g.locauxCount.toLocaleString('fr-FR'),
-        g.patrimoine_majic > 0 ? `${g.patrimoine_majic.toLocaleString('fr-FR')} loc.` : '—',
-        g.commune_siege || '—',
-      ]);
-      page4Parts.push(
+      const bldgSizing = getDocxTableSizing(bldgSlice.length, visibleBldgCols.length);
+      const bldgColWidths = getDocxBuildingColWidths(visibleBldgCols);
+      const bldgTruncNote = sortedBldgs.length > maxDocxBldgRows
+        ? `Affichage des ${maxDocxBldgRows} premiers bâtiments selon le tri actif sur ${sortedBldgs.length.toLocaleString('fr-FR')} au total (voir l'export Excel Bâtiments pour la liste intégrale).`
+        : `Liste complète des ${sortedBldgs.length.toLocaleString('fr-FR')} bâtiment(s) de la sélection active.`;
+
+      const page3Parts = [
+        docxParagraph(`Section ${sectionIdx} / ${totalSections} — Tableau des Bâtiments (${sortedBldgs.length.toLocaleString('fr-FR')} bâtiments)`, {
+          bold: true, sizeHalfPt: 24, color: '0F172A', spaceBefore: 0, spaceAfter: 60,
+        }),
+        docxParagraph(bldgTruncNote, {
+          italic: true, sizeHalfPt: 17, color: '475569', spaceBefore: 0, spaceAfter: 100,
+        }),
         docxTable(
-          ['SIREN', 'Dénomination', 'Forme Juridique', 'Bâtiments (sél.)', 'Locaux (sél.)', 'Patrimoine Total', 'Commune du Siège'],
-          ownerTableRows,
-          [11, 28, 16, 11, 11, 11, 12],
-          15
-        )
-      );
+          visibleBldgCols.map(c => c.label),
+          bldgTableRows,
+          bldgColWidths,
+          bldgSizing
+        ),
+      ];
+      sections.push(page3Parts);
     }
 
-    // Combine all 4 pages with explicit page breaks into word/document.xml
+    // =========================================================================
+    // SECTION 4: Bailleurs & SCI Table (max 400 rows, adaptive font size)
+    // =========================================================================
+    if (includeSci) {
+      sectionIdx++;
+      const maxDocxOwnerRows = 400;
+      const ownerSlice = groupedLandlords.slice(0, maxDocxOwnerRows);
+      const ownerTruncNote = groupedLandlords.length > maxDocxOwnerRows
+        ? `Affichage des ${maxDocxOwnerRows} premiers bailleurs personnes morales sur ${groupedLandlords.length.toLocaleString('fr-FR')} au total (voir l'export Excel Bailleurs pour la liste intégrale).`
+        : `Liste complète des ${groupedLandlords.length.toLocaleString('fr-FR')} bailleur(s) personne(s) morale(s) de la sélection active.`;
+
+      const page4Parts = [
+        docxParagraph(`Section ${sectionIdx} / ${totalSections} — Tableau des Bailleurs & SCI (${groupedLandlords.length.toLocaleString('fr-FR')} entités morales)`, {
+          bold: true, sizeHalfPt: 24, color: '0F172A', spaceBefore: 0, spaceAfter: 60,
+        }),
+        docxParagraph(ownerTruncNote, {
+          italic: true, sizeHalfPt: 17, color: '475569', spaceBefore: 0, spaceAfter: 100,
+        }),
+      ];
+
+      if (ownerSlice.length === 0) {
+        page4Parts.push(
+          docxParagraph('Aucun propriétaire personne morale identifié dans la sélection active.', {
+            italic: true, sizeHalfPt: 18, color: '64748B', spaceBefore: 80, spaceAfter: 80,
+          })
+        );
+      } else {
+        const ownerTableRows = ownerSlice.map(g => [
+          g.siren || 'NC',
+          g.denomination || '',
+          g.forme_juridique || '',
+          g.buildings.size.toLocaleString('fr-FR'),
+          g.locauxCount.toLocaleString('fr-FR'),
+          g.patrimoine_majic > 0 ? `${g.patrimoine_majic.toLocaleString('fr-FR')} loc.` : '—',
+          g.commune_siege || '—',
+        ]);
+        const ownerSizing = getDocxTableSizing(ownerSlice.length, 7);
+        page4Parts.push(
+          docxTable(
+            ['SIREN', 'Dénomination', 'Forme Juridique', 'Bâtiments (sél.)', 'Locaux (sél.)', 'Patrimoine Total', 'Commune du Siège'],
+            ownerTableRows,
+            [11, 28, 16, 11, 11, 11, 12],
+            ownerSizing
+          )
+        );
+      }
+      sections.push(page4Parts);
+    }
+
+    const bodyXml = sections
+      .map(parts => parts.join('\n'))
+      .join(`\n${docxPageBreak()}\n`);
+
     const documentXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"
             xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"
@@ -7769,13 +8657,7 @@ async function exportWordReport() {
             xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"
             xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture">
   <w:body>
-    ${page1Parts.join('\n')}
-    ${docxPageBreak()}
-    ${page2Parts.join('\n')}
-    ${docxPageBreak()}
-    ${page3Parts.join('\n')}
-    ${docxPageBreak()}
-    ${page4Parts.join('\n')}
+    ${bodyXml}
     <w:sectPr>
       <w:pgSz w:w="16838" w:h="11906" w:orient="landscape"/>
       <w:pgMar w:top="720" w:right="720" w:bottom="720" w:left="720" w:header="360" w:footer="360" w:gutter="0"/>
@@ -7797,10 +8679,12 @@ async function exportWordReport() {
   <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>
 </Relationships>`;
 
+    const mapRelEntry = (includeMap && mapCapture)
+      ? `\n  <Relationship Id="rIdMapImg" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/map.png"/>`
+      : '';
     const docRelsXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
-  <Relationship Id="rIdStyles" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>
-  <Relationship Id="rIdMapImg" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/map.png"/>
+  <Relationship Id="rIdStyles" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>${mapRelEntry}
 </Relationships>`;
 
     const stylesXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
@@ -7823,7 +8707,9 @@ async function exportWordReport() {
     docxZip.file('word/document.xml', documentXml);
     docxZip.file('word/_rels/document.xml.rels', docRelsXml);
     docxZip.file('word/styles.xml', stylesXml);
-    docxZip.file('word/media/map.png', mapCapture.bytes);
+    if (includeMap && mapCapture) {
+      docxZip.file('word/media/map.png', mapCapture.bytes);
+    }
 
     const blob = await docxZip.generateAsync({
       type: 'blob',
@@ -8333,8 +9219,9 @@ let DATA_SOURCES_DICTIONARY = [];
 function buildDataSourcesDictionary() {
   const dict = [];
 
-  // 1. Convert all FILTER_DEFINITIONS
+  // 1. Convert all FILTER_DEFINITIONS (excluding runtime dynamic fieldwork/source filters)
   for (const f of FILTER_DEFINITIONS) {
+    if (f.id.startsWith('fw_col_') || f.id.startsWith('src_col_')) continue;
     const meta = SOURCE_METADATA_MAP[f.source] || {
       file: f.source,
       producer: f.source,
@@ -8367,6 +9254,7 @@ function buildDataSourcesDictionary() {
       categoryLabel: categoryLabel,
       categoryIcon: categoryIcon,
       rawColumn: rawCol,
+      filterColumn: f.column || null,
       desc: f.desc,
       source: f.source,
       sourceFile: meta.file,
@@ -8413,6 +9301,381 @@ function buildDataSourcesDictionary() {
   return DATA_SOURCES_DICTIONARY;
 }
 
+const SOURCES_PREFS_STORAGE_KEY = 'tezeloma_sources_prefs_v1';
+
+const BUILDING_COL_ALIAS = {
+  has_clim: 'type_energie_climatisation',
+  max_locaux_un_prop: 'max_locaux_open_un_prop',
+  copro_status: 'immat_copro',
+  nb_lots_copro: 'nb_lots_copro',
+  patrimoine_abf: 'contrainte_urbanisme_ac1',
+};
+
+const BUILTIN_LEGEND_MAP = {
+  dpe: 'dpe',
+  risque_surchauffe_ete: 'overheating',
+  concentration_pct: 'concentration',
+  fieldwork_status: 'fieldwork',
+};
+
+function resolveBuildingColumnKey(item) {
+  if (!item) return null;
+  if (
+    item.isLandlord ||
+    item.id === 'geometry' ||
+    item.id === 'fieldwork_custom' ||
+    item.id === 'fieldwork_status' ||
+    item.id === 'bailleur_distant'
+  ) {
+    return null;
+  }
+  return BUILDING_COL_ALIAS[item.id] || item.filterColumn || item.id;
+}
+
+function isBaseBuildingColumn(colKey) {
+  if (!colKey || typeof BASE_BUILDINGS_TABLE_COLUMNS === 'undefined') return false;
+  return BASE_BUILDINGS_TABLE_COLUMNS.some(c => c.key === colKey);
+}
+
+function getActiveDepartmentCode() {
+  const bDept = state.buildings && state.buildings.length > 0 ? state.buildings[0].departement : null;
+  if (bDept && /^(69|38|44|76|34)$/.test(String(bDept))) return String(bDept);
+  return '69';
+}
+
+function getSourceDownloadInfo(item) {
+  if (!item) return { isComputed: false, url: null, label: '', title: '' };
+  if (item.retrievalMode === 'etl') {
+    return {
+      isComputed: true,
+      url: null,
+      label: '',
+      title: 'Indicateur calculé par TeZeLoMa lors du pipeline ETL (app/build_dataset.py).',
+    };
+  }
+  if (item.retrievalMode === 'xlsx') {
+    return {
+      isComputed: true,
+      url: null,
+      label: '',
+      title: 'Données importées localement depuis votre propre tableur (.xlsx / .csv).',
+    };
+  }
+  const src = item.sourceFile || '';
+  if (/ilots_chaleur_urbains\.geojson/i.test(src)) {
+    return {
+      isComputed: false,
+      url: 'https://data.grandlyon.com/geoserver/metropole-de-lyon/ows?service=WFS&version=2.0.0&request=GetFeature&typeName=metropole-de-lyon:ilots-de-chaleur-urbains&outputFormat=application/json',
+      label: 'Télécharger GeoJSON (Data Grand Lyon)',
+      title: 'Télécharger la couche WFS Îlots de Chaleur Urbains (Data Grand Lyon)',
+    };
+  }
+  if (/encadrement_loyers\.geojson/i.test(src)) {
+    return {
+      isComputed: false,
+      url: 'https://data.grandlyon.com/geoserver/metropole-de-lyon/ows?service=WFS&version=2.0.0&request=GetFeature&typeName=car_care:carencadrmtloyer_2025_2026&outputFormat=application/json',
+      label: 'Télécharger GeoJSON (Data Grand Lyon)',
+      title: 'Télécharger la couche WFS Encadrement des Loyers (Data Grand Lyon)',
+    };
+  }
+  if (/Base_OP_2024_L3800\.csv/i.test(src)) {
+    return {
+      isComputed: false,
+      url: 'https://www.data.gouv.fr/datasets/resultats-de-lobservatoire-local-des-loyers-de-lagglomeration-grenobloise/',
+      label: 'Télécharger sur data.gouv.fr (OLL 38)',
+      title: 'Accéder aux données de l’Observatoire Local des Loyers de Grenoble',
+    };
+  }
+  if (/recherche-entreprises\.api\.gouv\.fr/i.test(src)) {
+    return {
+      isComputed: false,
+      url: 'https://recherche-entreprises.api.gouv.fr/docs',
+      label: 'Accéder à l’API Recherche Entreprises',
+      title: 'Documentation et point d’accès public de l’API Recherche Entreprises (DINUM / INSEE)',
+    };
+  }
+  if (/\.csv/i.test(src)) {
+    return {
+      isComputed: false,
+      url: 'https://www.data.gouv.fr/datasets/base-de-donnees-nationale-des-batiments-bdnb/',
+      label: 'Portail BDNB (data.gouv.fr)',
+      title: `Portail national BDNB (tous départements) pour ${src}. Pour le lien direct vers l'archive CSV d'un département précis (69, 38, 44, 76, 34), consultez la vue « Référentiels Bruts & Territoires » (section Géo).`,
+    };
+  }
+  return { isComputed: false, url: null, label: '', title: '' };
+}
+
+function saveSourcesPrefs() {
+  try {
+    localStorage.setItem(SOURCES_PREFS_STORAGE_KEY, JSON.stringify({
+      extraColumns: Array.from(state.sourceExtraColumns || []),
+      hiddenBaseColumns: Array.from(state.hiddenBaseColumns || []),
+      extraFilterIds: Array.from(state.sourceExtraFilterIds || []),
+      legendIds: Array.from(state.sourceLegendIds || []),
+    }));
+  } catch (e) {
+    console.warn('Could not save sources preferences:', e);
+  }
+}
+
+function loadSourcesPrefs() {
+  try {
+    const raw = localStorage.getItem(SOURCES_PREFS_STORAGE_KEY);
+    if (!raw) return;
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed.extraColumns)) {
+      state.sourceExtraColumns = new Set(parsed.extraColumns);
+    }
+    if (Array.isArray(parsed.hiddenBaseColumns)) {
+      state.hiddenBaseColumns = new Set(parsed.hiddenBaseColumns);
+    }
+    if (Array.isArray(parsed.extraFilterIds)) {
+      state.sourceExtraFilterIds = new Set(parsed.extraFilterIds);
+    }
+    if (Array.isArray(parsed.legendIds)) {
+      state.sourceLegendIds = new Set(parsed.legendIds);
+    }
+  } catch (e) {
+    console.warn('Could not load sources preferences:', e);
+  }
+}
+
+function ensureDynamicSourceFilter(item) {
+  if (!item) return null;
+  const colKey = resolveBuildingColumnKey(item);
+  if (!colKey) return null;
+
+  const filterId = `src_col_${item.id}`;
+  // Remove existing definition if rebuilding with fresh buildings data
+  const existingIdx = FILTER_DEFINITIONS.findIndex(f => f.id === filterId);
+  if (existingIdx !== -1) {
+    FILTER_DEFINITIONS.splice(existingIdx, 1);
+  }
+
+  const rows = state.buildings || [];
+  const nonEmpty = [];
+  for (const b of rows) {
+    const v = b[colKey];
+    if (v !== null && v !== undefined && String(v).trim() !== '' && v !== 'None') {
+      nonEmpty.push(v);
+    }
+  }
+
+  const allNumeric = nonEmpty.length > 0 && nonEmpty.every(v => !Number.isNaN(parseFieldworkNumber(v)));
+
+  if (allNumeric) {
+    let min = Infinity;
+    let max = -Infinity;
+    for (const v of nonEmpty) {
+      const n = parseFieldworkNumber(v);
+      if (n < min) min = n;
+      if (n > max) max = n;
+    }
+    const minKey = `${filterId}_min`;
+    const maxKey = `${filterId}_max`;
+    FILTER_DEFINITIONS.push({
+      id: filterId,
+      category: item.category || 'geography',
+      label: item.label,
+      column: colKey,
+      source: item.source || 'BDNB',
+      desc: `Plage numérique sur « ${item.label} » (${min} à ${max}).`,
+      controlType: 'range_min_max',
+      minPlaceholder: `Min (${min})`,
+      maxPlaceholder: `Max (${max})`,
+      isActive: (s) => Boolean((s.dynFilters[minKey] !== undefined && s.dynFilters[minKey] !== '') || (s.dynFilters[maxKey] !== undefined && s.dynFilters[maxKey] !== '')),
+      reset: (s) => { delete s.dynFilters[minKey]; delete s.dynFilters[maxKey]; },
+      getValue: (s) => ({ min: s.dynFilters[minKey] ?? '', max: s.dynFilters[maxKey] ?? '' }),
+      setValue: (s, v) => {
+        if (v) {
+          s.dynFilters[minKey] = v.min ?? '';
+          s.dynFilters[maxKey] = v.max ?? '';
+        }
+      },
+      matches: (s, b) => {
+        const rawMin = s.dynFilters[minKey];
+        const rawMax = s.dynFilters[maxKey];
+        const hasMin = rawMin !== undefined && rawMin !== '';
+        const hasMax = rawMax !== undefined && rawMax !== '';
+        if (!hasMin && !hasMax) return true;
+        const num = parseFieldworkNumber(b[colKey]);
+        if (Number.isNaN(num)) return false;
+        if (hasMin && num < Number(rawMin)) return false;
+        if (hasMax && num > Number(rawMax)) return false;
+        return true;
+      },
+    });
+  } else {
+    const distinctSet = new Set(nonEmpty.map(v => String(v).trim()));
+    const values = Array.from(distinctSet).sort((a, b) => a.localeCompare(b, 'fr', { numeric: true, sensitivity: 'base' }));
+
+    if (values.length > 0 && values.length < 10) {
+      FILTER_DEFINITIONS.push({
+        id: filterId,
+        category: item.category || 'geography',
+        label: item.label,
+        column: colKey,
+        source: item.source || 'BDNB',
+        desc: `Sélection multiple sur « ${item.label} » (${values.length} valeur(s)).`,
+        controlType: 'multi_pills',
+        options: [...values, FIELDWORK_EMPTY_OPTION],
+        isActive: (s) => Array.isArray(s.dynFilters[filterId]) && s.dynFilters[filterId].length > 0,
+        reset: (s) => { delete s.dynFilters[filterId]; },
+        getValue: (s) => Array.isArray(s.dynFilters[filterId]) ? s.dynFilters[filterId] : [],
+        setValue: (s, v) => { s.dynFilters[filterId] = Array.isArray(v) ? v : []; },
+        matches: (s, b) => {
+          const selected = s.dynFilters[filterId];
+          if (!Array.isArray(selected) || selected.length === 0) return true;
+          const val = b[colKey] !== undefined && b[colKey] !== null && b[colKey] !== 'None' ? String(b[colKey]).trim() : '';
+          if (val === '') return selected.includes(FIELDWORK_EMPTY_OPTION);
+          return selected.includes(val);
+        },
+      });
+    } else {
+      FILTER_DEFINITIONS.push({
+        id: filterId,
+        category: item.category || 'geography',
+        label: item.label,
+        column: colKey,
+        source: item.source || 'BDNB',
+        desc: `Recherche texte (joker *) sur « ${item.label} ».`,
+        controlType: 'text',
+        placeholder: `Rechercher dans ${colKey} (ex: *mot*)...`,
+        isActive: (s) => Boolean(s.dynFilters[filterId] && String(s.dynFilters[filterId]).trim()),
+        reset: (s) => { delete s.dynFilters[filterId]; },
+        getValue: (s) => s.dynFilters[filterId] || '',
+        setValue: (s, v) => { s.dynFilters[filterId] = v || ''; },
+        matches: (s, b) => {
+          const rawQ = String(s.dynFilters[filterId] || '').trim();
+          if (!rawQ) return true;
+          const cell = String(b[colKey] ?? '').toLowerCase();
+          if (rawQ.includes('*')) {
+            const escaped = rawQ.toLowerCase().replace(/[.+?^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*');
+            return new RegExp(escaped).test(cell);
+          }
+          return cell.includes(rawQ.toLowerCase());
+        },
+      });
+    }
+  }
+  return filterId;
+}
+
+function removeDynamicSourceFilter(item) {
+  if (!item) return;
+  const filterId = `src_col_${item.id}`;
+  state.activeFilterIds.delete(filterId);
+  const idx = FILTER_DEFINITIONS.findIndex(f => f.id === filterId);
+  if (idx !== -1) {
+    FILTER_DEFINITIONS[idx].reset(state);
+    FILTER_DEFINITIONS.splice(idx, 1);
+  }
+  delete state.dynFilters[filterId];
+  delete state.dynFilters[`${filterId}_min`];
+  delete state.dynFilters[`${filterId}_max`];
+}
+
+function buildSourceLegendMetaForItem(item) {
+  if (!item) return null;
+  const colKey = resolveBuildingColumnKey(item);
+  if (!colKey) return null;
+
+  const rows = state.buildings || [];
+  const nonEmpty = [];
+  for (const b of rows) {
+    const v = b[colKey];
+    if (v !== null && v !== undefined && String(v).trim() !== '' && v !== 'None') {
+      nonEmpty.push(v);
+    }
+  }
+
+  if (nonEmpty.length === 0) {
+    const meta = { itemId: item.id, colKey, label: item.label, kind: 'categorical', values: [], colorMap: new Map(), hasOther: false };
+    state.sourceLegendMeta.set(item.id, meta);
+    return meta;
+  }
+
+  const allNumeric = nonEmpty.every(v => !Number.isNaN(parseFieldworkNumber(v)));
+  if (allNumeric) {
+    let min = Infinity;
+    let max = -Infinity;
+    for (const v of nonEmpty) {
+      const n = parseFieldworkNumber(v);
+      if (n < min) min = n;
+      if (n > max) max = n;
+    }
+    const meta = { itemId: item.id, colKey, label: item.label, kind: 'numeric', min, max };
+    state.sourceLegendMeta.set(item.id, meta);
+    return meta;
+  }
+
+  const counts = new Map();
+  for (const v of nonEmpty) {
+    const s = String(v).trim();
+    counts.set(s, (counts.get(s) || 0) + 1);
+  }
+  let values = Array.from(counts.keys()).sort((a, b) => a.localeCompare(b, 'fr', { numeric: true, sensitivity: 'base' }));
+  let hasOther = false;
+  if (values.length >= 10) {
+    values = Array.from(counts.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 9)
+      .map(([k]) => k);
+    hasOther = true;
+  }
+  const colorMap = new Map();
+  values.forEach((val, idx) => {
+    colorMap.set(val, FIELDWORK_CAT_PALETTE[idx % FIELDWORK_CAT_PALETTE.length]);
+  });
+  const meta = { itemId: item.id, colKey, label: item.label, kind: 'categorical', values, colorMap, hasOther };
+  state.sourceLegendMeta.set(item.id, meta);
+  return meta;
+}
+
+function getSourceColumnColor(b, meta) {
+  const missingColor = 'rgba(148, 163, 184, 0.4)';
+  if (!b || !meta) return missingColor;
+  const raw = b[meta.colKey];
+  if (raw === null || raw === undefined || String(raw).trim() === '' || raw === 'None') return missingColor;
+  if (meta.kind === 'numeric') {
+    const num = parseFieldworkNumber(raw);
+    if (Number.isNaN(num)) return missingColor;
+    const span = meta.max - meta.min;
+    const t = span > 0 ? (num - meta.min) / span : 0.5;
+    return interpolateBlueToRed(t);
+  }
+  if (meta.kind === 'categorical') {
+    const key = String(raw).trim();
+    if (meta.colorMap.has(key)) return meta.colorMap.get(key);
+    return meta.hasOther ? '#94a3b8' : missingColor;
+  }
+  return '#a855f7';
+}
+
+function syncSourcePreferencesWithBuildings() {
+  if (DATA_SOURCES_DICTIONARY.length === 0) {
+    buildDataSourcesDictionary();
+  }
+  for (const itemId of (state.sourceExtraFilterIds || [])) {
+    const item = DATA_SOURCES_DICTIONARY.find(d => d.id === itemId);
+    if (item) {
+      const fid = ensureDynamicSourceFilter(item);
+      if (fid) state.activeFilterIds.add(fid);
+    }
+  }
+  state.sourceLegendMeta.clear();
+  for (const itemId of (state.sourceLegendIds || [])) {
+    const item = DATA_SOURCES_DICTIONARY.find(d => d.id === itemId);
+    if (item) {
+      buildSourceLegendMetaForItem(item);
+    }
+  }
+  syncFieldworkColorOptions();
+  renderSidebarFilterControls();
+  updateFilterCountsUI();
+  updateLegend();
+}
+
 const sourcesState = {
   subview: 'info', // 'info' | 'dataset'
   searchQuery: '',
@@ -8454,6 +9717,33 @@ const SOURCES_TABLE_COLUMNS = [
     key: 'category',
     label: 'Thématique',
     sortValue: (item) => (item.categoryLabel || '').toLowerCase(),
+  },
+  {
+    key: 'colEnabled',
+    label: '👁️ Colonne',
+    sortValue: (item) => {
+      const colKey = resolveBuildingColumnKey(item);
+      if (!colKey) return '2';
+      return isSourceColumnChecked(item, colKey) ? '0' : '1';
+    },
+  },
+  {
+    key: 'filterEnabled',
+    label: '🎛️ Filtre',
+    sortValue: (item) => {
+      if (item.isFilter) return state.activeFilterIds.has(item.id) ? '0' : '1';
+      if (!resolveBuildingColumnKey(item)) return '2';
+      return state.sourceExtraFilterIds.has(item.id) ? '0' : '1';
+    },
+  },
+  {
+    key: 'legendEnabled',
+    label: '🗺️ Légende',
+    sortValue: (item) => {
+      if (BUILTIN_LEGEND_MAP[item.id]) return '0';
+      if (!resolveBuildingColumnKey(item)) return '2';
+      return state.sourceLegendIds.has(item.id) ? '0' : '1';
+    },
   },
 ];
 
@@ -8535,12 +9825,295 @@ function switchSourcesSubview(subview) {
   if (btnInfo) btnInfo.classList.toggle('active', subview === 'info');
   if (btnDataset) btnDataset.classList.toggle('active', subview === 'dataset');
 
-  if (panelInfo) panelInfo.style.display = subview === 'info' ? 'block' : 'none';
-  if (panelDataset) panelDataset.style.display = subview === 'dataset' ? 'block' : 'none';
+  if (panelInfo) {
+    panelInfo.classList.toggle('active', subview === 'info');
+    panelInfo.style.display = '';
+  }
+  if (panelDataset) {
+    panelDataset.classList.toggle('active', subview === 'dataset');
+    panelDataset.style.display = '';
+  }
 
   if (subview === 'info') {
     renderSourcesDictTable();
   }
+}
+
+function isSourceColumnChecked(item, colKey) {
+  if (!colKey) return false;
+  if (isBaseBuildingColumn(colKey)) return !state.hiddenBaseColumns.has(colKey);
+  return state.sourceExtraColumns.has(item.id);
+}
+
+function setSourceColumnChecked(item, colKey, checked) {
+  if (!colKey) return;
+  if (isBaseBuildingColumn(colKey)) {
+    if (checked) {
+      state.hiddenBaseColumns.delete(colKey);
+    } else {
+      state.hiddenBaseColumns.add(colKey);
+    }
+  } else {
+    if (checked) {
+      state.sourceExtraColumns.add(item.id);
+    } else {
+      state.sourceExtraColumns.delete(item.id);
+    }
+  }
+}
+
+function getSourcesColumnToggleState(colKey, filteredList) {
+  let total = 0;
+  let checked = 0;
+  for (const item of filteredList) {
+    const bCol = resolveBuildingColumnKey(item);
+    if (colKey === 'colEnabled') {
+      if (!bCol) continue;
+      total++;
+      if (isSourceColumnChecked(item, bCol)) checked++;
+    } else if (colKey === 'filterEnabled') {
+      if (!item.isFilter && !bCol) continue;
+      total++;
+      if (item.isFilter ? state.activeFilterIds.has(item.id) : state.sourceExtraFilterIds.has(item.id)) {
+        checked++;
+      }
+    } else if (colKey === 'legendEnabled') {
+      if (BUILTIN_LEGEND_MAP[item.id] || !bCol) continue;
+      total++;
+      if (state.sourceLegendIds.has(item.id)) checked++;
+    }
+  }
+  return { total, checked };
+}
+
+function updateSourcesMasterCheckboxes(filteredList) {
+  const list = filteredList || getFilteredSourcesList();
+  for (const colKey of ['colEnabled', 'filterEnabled', 'legendEnabled']) {
+    const cb = document.querySelector(`.sources-select-all-cb[data-col="${colKey}"]`);
+    if (!cb) continue;
+    const { total, checked } = getSourcesColumnToggleState(colKey, list);
+    cb.disabled = total === 0;
+    cb.checked = total > 0 && checked === total;
+    cb.indeterminate = checked > 0 && checked < total;
+  }
+}
+
+function isItemActiveInCurrentProfile(item) {
+  if (!item) return false;
+  const colKey = resolveBuildingColumnKey(item);
+  const colActive = colKey ? isSourceColumnChecked(item, colKey) : false;
+  const filterActive = item.isFilter
+    ? state.activeFilterIds.has(item.id)
+    : (colKey ? state.sourceExtraFilterIds.has(item.id) : false);
+  const legendActive = BUILTIN_LEGEND_MAP[item.id]
+    ? true
+    : (colKey ? state.sourceLegendIds.has(item.id) : false);
+  return colActive || filterActive || legendActive;
+}
+
+function createSourcesCheckboxCells(item, opts = {}) {
+  const readOnly = Boolean(opts.readOnly);
+  const onAfterChange = opts.onAfterChange || (() => {});
+  const colKey = resolveBuildingColumnKey(item);
+
+  // Colonne
+  const tdCheckCol = document.createElement('td');
+  tdCheckCol.className = 'sources-checkbox-cell';
+  const cbCol = document.createElement('input');
+  cbCol.type = 'checkbox';
+  cbCol.setAttribute('aria-label', `Afficher ${item.label} en colonne`);
+  if (!colKey) {
+    cbCol.disabled = true;
+    cbCol.title = 'Non disponible en colonne du tableau Bâtiments (donnée bailleur, API ou géométrie)';
+  } else {
+    cbCol.checked = isSourceColumnChecked(item, colKey);
+    if (readOnly) {
+      cbCol.disabled = true;
+      cbCol.title = cbCol.checked
+        ? 'Actif comme colonne dans le profil courant (modifiable via « Choisir Profil »)'
+        : 'Inactif comme colonne dans le profil courant (modifiable via « Choisir Profil »)';
+    } else {
+      cbCol.title = 'Afficher / masquer cette information comme colonne dans l’onglet Bâtiments';
+      cbCol.addEventListener('change', () => {
+        setSourceColumnChecked(item, colKey, cbCol.checked);
+        saveSourcesPrefs();
+        renderBuildingsTable();
+        renderSourcesDictTable();
+        onAfterChange();
+      });
+    }
+  }
+  tdCheckCol.appendChild(cbCol);
+
+  // Filtre
+  const tdCheckFilter = document.createElement('td');
+  tdCheckFilter.className = 'sources-checkbox-cell';
+  const cbFilter = document.createElement('input');
+  cbFilter.type = 'checkbox';
+  cbFilter.setAttribute('aria-label', `Activer ${item.label} dans les filtres`);
+  if (item.isFilter) {
+    cbFilter.checked = state.activeFilterIds.has(item.id);
+    if (readOnly) {
+      cbFilter.disabled = true;
+      cbFilter.title = cbFilter.checked
+        ? 'Actif comme filtre dans le profil courant (modifiable via « Choisir Profil »)'
+        : 'Inactif comme filtre dans le profil courant (modifiable via « Choisir Profil »)';
+    } else {
+      cbFilter.title = 'Afficher / masquer ce filtre dans la barre latérale';
+      cbFilter.addEventListener('change', () => {
+        if (cbFilter.checked) {
+          state.activeFilterIds.add(item.id);
+        } else {
+          state.activeFilterIds.delete(item.id);
+          const fDef = FILTER_DEFINITIONS.find(f => f.id === item.id);
+          if (fDef) fDef.reset(state);
+        }
+        renderSidebarFilterControls();
+        updateFilterCountsUI();
+        applyFilters();
+        renderSourcesDictTable();
+        onAfterChange();
+      });
+    }
+  } else if (!colKey) {
+    cbFilter.disabled = true;
+    cbFilter.title = 'Non filtrable (donnée bailleur, API en direct ou géométrie)';
+  } else {
+    cbFilter.checked = state.sourceExtraFilterIds.has(item.id);
+    if (readOnly) {
+      cbFilter.disabled = true;
+      cbFilter.title = cbFilter.checked
+        ? 'Actif comme filtre dans le profil courant (modifiable via « Choisir Profil »)'
+        : 'Inactif comme filtre dans le profil courant (modifiable via « Choisir Profil »)';
+    } else {
+      cbFilter.title = 'Ajouter cette information comme filtre dynamique dans la barre latérale';
+      cbFilter.addEventListener('change', () => {
+        if (cbFilter.checked) {
+          state.sourceExtraFilterIds.add(item.id);
+          const fid = ensureDynamicSourceFilter(item);
+          if (fid) state.activeFilterIds.add(fid);
+        } else {
+          state.sourceExtraFilterIds.delete(item.id);
+          removeDynamicSourceFilter(item);
+        }
+        saveSourcesPrefs();
+        renderSidebarFilterControls();
+        updateFilterCountsUI();
+        applyFilters();
+        renderSourcesDictTable();
+        onAfterChange();
+      });
+    }
+  }
+  tdCheckFilter.appendChild(cbFilter);
+
+  // Légende
+  const tdCheckLegend = document.createElement('td');
+  tdCheckLegend.className = 'sources-checkbox-cell';
+  const cbLegend = document.createElement('input');
+  cbLegend.type = 'checkbox';
+  cbLegend.setAttribute('aria-label', `Utiliser ${item.label} comme légende cartographique`);
+  if (BUILTIN_LEGEND_MAP[item.id]) {
+    cbLegend.checked = true;
+    cbLegend.disabled = true;
+    cbLegend.title = 'Légende cartographique intégrée par défaut';
+  } else if (!colKey) {
+    cbLegend.disabled = true;
+    cbLegend.title = 'Non disponible en légende cartographique (donnée bailleur, API ou géométrie)';
+  } else {
+    cbLegend.checked = state.sourceLegendIds.has(item.id);
+    if (readOnly) {
+      cbLegend.disabled = true;
+      cbLegend.title = cbLegend.checked
+        ? 'Actif comme légende dans le profil courant (modifiable via « Choisir Profil »)'
+        : 'Inactif comme légende dans le profil courant (modifiable via « Choisir Profil »)';
+    } else {
+      cbLegend.title = 'Rendre cette information disponible dans la légende de la carte';
+      cbLegend.addEventListener('change', () => {
+        if (cbLegend.checked) {
+          state.sourceLegendIds.add(item.id);
+          buildSourceLegendMetaForItem(item);
+        } else {
+          state.sourceLegendIds.delete(item.id);
+          state.sourceLegendMeta.delete(item.id);
+          if (state.mapStyleMode === `source_col:${item.id}`) {
+            state.mapStyleMode = 'dpe';
+            applyFilters();
+          }
+        }
+        saveSourcesPrefs();
+        syncFieldworkColorOptions();
+        updateLegend();
+        renderSourcesDictTable();
+        onAfterChange();
+      });
+    }
+  }
+  tdCheckLegend.appendChild(cbLegend);
+
+  return { tdCheckCol, tdCheckFilter, tdCheckLegend };
+}
+
+function toggleAllSourcesColumn(colKey, targetChecked, customList) {
+  const list = customList || getFilteredSourcesList();
+  if (colKey === 'colEnabled') {
+    for (const item of list) {
+      const bCol = resolveBuildingColumnKey(item);
+      if (!bCol) continue;
+      setSourceColumnChecked(item, bCol, targetChecked);
+    }
+    saveSourcesPrefs();
+    renderBuildingsTable();
+  } else if (colKey === 'filterEnabled') {
+    for (const item of list) {
+      const bCol = resolveBuildingColumnKey(item);
+      if (item.isFilter) {
+        if (targetChecked) {
+          state.activeFilterIds.add(item.id);
+        } else {
+          state.activeFilterIds.delete(item.id);
+          const fDef = FILTER_DEFINITIONS.find(f => f.id === item.id);
+          if (fDef) fDef.reset(state);
+        }
+      } else if (bCol) {
+        if (targetChecked) {
+          state.sourceExtraFilterIds.add(item.id);
+          const fid = ensureDynamicSourceFilter(item);
+          if (fid) state.activeFilterIds.add(fid);
+        } else {
+          state.sourceExtraFilterIds.delete(item.id);
+          removeDynamicSourceFilter(item);
+        }
+      }
+    }
+    saveSourcesPrefs();
+    renderSidebarFilterControls();
+    renderCatalogModalContent();
+    updateFilterCountsUI();
+    applyFilters();
+  } else if (colKey === 'legendEnabled') {
+    let resetStyle = false;
+    for (const item of list) {
+      const bCol = resolveBuildingColumnKey(item);
+      if (BUILTIN_LEGEND_MAP[item.id] || !bCol) continue;
+      if (targetChecked) {
+        state.sourceLegendIds.add(item.id);
+        buildSourceLegendMetaForItem(item);
+      } else {
+        state.sourceLegendIds.delete(item.id);
+        state.sourceLegendMeta.delete(item.id);
+        if (state.mapStyleMode === `source_col:${item.id}`) {
+          state.mapStyleMode = 'dpe';
+          resetStyle = true;
+        }
+      }
+    }
+    saveSourcesPrefs();
+    syncFieldworkColorOptions();
+    updateLegend();
+    if (resetStyle) applyFilters();
+  }
+  renderSourcesDictTable();
 }
 
 function renderSourcesDictHeaders() {
@@ -8581,9 +10154,8 @@ function renderSourcesDictTable() {
   const tbody = document.getElementById('table-sources-dict-body');
   if (!tbody) return;
 
-  renderSourcesDictHeaders();
-
   const filtered = getFilteredSourcesList();
+  renderSourcesDictHeaders();
 
   // Update dynamic count feedback
   const feedbackEl = document.getElementById('sources-filter-feedback');
@@ -8604,7 +10176,7 @@ function renderSourcesDictTable() {
   if (filtered.length === 0) {
     tbody.innerHTML = `
       <tr>
-        <td colspan="6">
+        <td colspan="9">
           <div class="sources-empty-state">
             <div class="sources-empty-icon">🔍</div>
             <div class="sources-empty-title">Aucune information trouvée</div>
@@ -8626,6 +10198,9 @@ function renderSourcesDictTable() {
   for (const item of filtered) {
     const tr = document.createElement('tr');
     tr.setAttribute('data-id', item.id);
+    if (!isItemActiveInCurrentProfile(item)) {
+      tr.classList.add('sources-row-inactive');
+    }
 
     // 1. Information / Libellé
     const tdInfo = document.createElement('td');
@@ -8667,7 +10242,7 @@ function renderSourcesDictTable() {
     const isPinned = sourcesState.pinnedRowId === item.id;
 
     tdDesc.innerHTML = `
-      <div class="sources-desc-cell${isPinned ? ' pinned' : ''}" data-id="${item.id}" title="${escapeHtml(item.desc)}">
+      <div class="sources-desc-cell${isPinned ? ' pinned' : ''}" data-id="${item.id}">
         <div class="sources-desc-preview">
           ${escapeHtml(item.desc)}
         </div>
@@ -8699,11 +10274,25 @@ function renderSourcesDictTable() {
       xlsx: '📋 Tableur .xlsx',
       etl: '⚙️ Build ETL',
     }[item.retrievalMode] || '📦 Fichier';
+    const modeTooltip = {
+      csv: 'Données issues d\'un fichier CSV Open Data (BDNB / INSEE)',
+      parquet: 'Données pré-agrégées et servies en GeoParquet',
+      wfs: 'Flux vectoriel WFS (géométries / contours)',
+      api: 'Interrogation en direct via API REST publique',
+      xlsx: 'Données importées depuis un tableur local (.xlsx / .csv)',
+      etl: 'Indicateur calculé lors du pipeline ETL de préparation',
+    }[item.retrievalMode] || 'Source de données';
+
+    const dlInfo = getSourceDownloadInfo(item);
+    const downloadLinkHtml = dlInfo.url
+      ? `<div><a class="sources-download-link" href="${escapeHtml(dlInfo.url)}" target="_blank" rel="noopener noreferrer" title="${escapeHtml(dlInfo.title)}">📥 ${escapeHtml(dlInfo.label)}</a></div>`
+      : '';
 
     tdFile.innerHTML = `
       <div class="sources-file-name" title="${escapeHtml(item.sourceFile)}">${escapeHtml(item.sourceFile)}</div>
+      ${downloadLinkHtml}
       <div class="sources-file-meta">
-        <span class="tz-tag ${tagClass}" style="font-size:0.68rem; padding: 1px 6px;">${modeLabel}</span>
+        <span class="tz-tag ${tagClass}" title="${escapeHtml(dlInfo.isComputed ? dlInfo.title : modeTooltip)}" style="font-size:0.68rem; padding: 1px 6px;">${modeLabel}</span>
         <span class="badge-coverage" title="${escapeHtml(item.coverage)}">${escapeHtml(item.coverage)}</span>
       </div>
     `;
@@ -8724,12 +10313,18 @@ function renderSourcesDictTable() {
       </span>
     `;
 
+    // 7-9. Read-Only Checkboxes (Colonne, Filtre, Légende) reflecting current profile
+    const { tdCheckCol, tdCheckFilter, tdCheckLegend } = createSourcesCheckboxCells(item, { readOnly: true });
+
     tr.appendChild(tdInfo);
     tr.appendChild(tdCol);
     tr.appendChild(tdDesc);
     tr.appendChild(tdFile);
     tr.appendChild(tdProd);
     tr.appendChild(tdCat);
+    tr.appendChild(tdCheckCol);
+    tr.appendChild(tdCheckFilter);
+    tr.appendChild(tdCheckLegend);
 
     fragment.appendChild(tr);
   }
@@ -8811,23 +10406,29 @@ function exportSourcesDictionaryCSV() {
     'Fichier_ou_API_Source',
     'Producteur_Officiel',
     'Mode_Recuperation',
+    'Lien_Telechargement',
     'Couverture_Territoriale',
     'Filtrable_Catalogue',
     'Affiche_Detail',
   ];
 
-  const rows = visibleItems.map(i => [
-    `"${(i.label || '').replace(/"/g, '""')}"`,
-    `"${(i.categoryLabel || '').replace(/"/g, '""')}"`,
-    `"${(i.rawColumn || '').replace(/"/g, '""')}"`,
-    `"${(i.desc || '').replace(/"/g, '""')}"`,
-    `"${(i.sourceFile || '').replace(/"/g, '""')}"`,
-    `"${(i.producer || '').replace(/"/g, '""')}"`,
-    `"${(i.retrievalMode || '').replace(/"/g, '""')}"`,
-    `"${(i.coverage || '').replace(/"/g, '""')}"`,
-    i.isFilter ? 'Oui' : 'Non',
-    i.isDisplay ? 'Oui' : 'Non',
-  ]);
+  const rows = visibleItems.map(i => {
+    const dlInfo = getSourceDownloadInfo(i);
+    const dlVal = dlInfo.url || (dlInfo.isComputed ? 'Calcule par TeZeLoMa / Local' : '');
+    return [
+      `"${(i.label || '').replace(/"/g, '""')}"`,
+      `"${(i.categoryLabel || '').replace(/"/g, '""')}"`,
+      `"${(i.rawColumn || '').replace(/"/g, '""')}"`,
+      `"${(i.desc || '').replace(/"/g, '""')}"`,
+      `"${(i.sourceFile || '').replace(/"/g, '""')}"`,
+      `"${(i.producer || '').replace(/"/g, '""')}"`,
+      `"${(i.retrievalMode || '').replace(/"/g, '""')}"`,
+      `"${dlVal.replace(/"/g, '""')}"`,
+      `"${(i.coverage || '').replace(/"/g, '""')}"`,
+      i.isFilter ? 'Oui' : 'Non',
+      i.isDisplay ? 'Oui' : 'Non',
+    ];
+  });
 
   const csvContent = '\uFEFF' + [headers.join(','), ...rows.map(r => r.join(','))].join('\r\n');
   const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -8881,6 +10482,14 @@ window.navigateToSourceInfo = navigateToSourceInfo;
 
 function initSourcesTabControls() {
   buildDataSourcesDictionary();
+  const hasSavedPrefs = Boolean(localStorage.getItem(SOURCES_PREFS_STORAGE_KEY));
+  if (hasSavedPrefs) {
+    loadSourcesPrefs();
+  } else {
+    const initProf = getAllProfiles().find(p => p.id === state.activeProfileId) || BUILTIN_PROFILES[0];
+    if (initProf) applyProfileColumnsAndLegends(initProf);
+  }
+  syncSourcePreferencesWithBuildings();
 
   // Subview toggle buttons
   document.getElementById('btn-sources-subview-info')?.addEventListener('click', () => {
