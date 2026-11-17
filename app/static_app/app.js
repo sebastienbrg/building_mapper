@@ -1946,26 +1946,6 @@ function initSociologicalFilterSystem() {
     renderCatalogCategoriesGrid();
   });
 
-  // Catalog Select Minimum (active or essential only)
-
-  document.getElementById('btn-catalog-select-none')?.addEventListener('click', () => {
-    const visibleFilters = getCatalogVisibleFilters();
-    for (const f of visibleFilters) {
-      if (!f.isActive(state)) {
-        state.activeFilterIds.delete(f.id);
-      }
-    }
-    if (state.activeFilterIds.size === 0) {
-      state.activeFilterIds.add('dpe');
-    }
-    state.activeProfileId = 'custom_selection';
-    renderProfileButtons();
-    renderCatalogCategoriesGrid();
-    renderSidebarFilterControls();
-    updateFilterCountsUI();
-    saveSessionToStorage();
-  });
-
   // Catalog Expand All / Collapse All
   document.getElementById('btn-catalog-expand-all')?.addEventListener('click', () => {
     const container = document.getElementById('catalog-categories-list');
@@ -3141,27 +3121,42 @@ function renderCatalogCategoriesGrid() {
       const { total, checked } = getSourcesColumnToggleState(col.key, filtered);
       const wrap = document.createElement('div');
       wrap.className = 'sources-select-all-wrap';
-      const masterCb = document.createElement('input');
-      masterCb.type = 'checkbox';
-      masterCb.className = 'sources-select-all-cb';
-      masterCb.setAttribute('data-col', col.key);
-      masterCb.title = 'Tout sélectionner / Tout désélectionner (lignes affichées)';
-      masterCb.setAttribute('aria-label', `Tout sélectionner / désélectionner pour ${col.label}`);
-      masterCb.disabled = total === 0;
-      masterCb.checked = total > 0 && checked === total;
-      masterCb.indeterminate = checked > 0 && checked < total;
-      masterCb.addEventListener('click', (e) => e.stopPropagation());
-      masterCb.addEventListener('change', (e) => {
-        e.stopPropagation();
+      wrap.setAttribute('data-col', col.key);
+
+      const applyBulk = (selectAll) => {
         state.activeProfileId = 'custom_selection';
-        toggleAllSourcesColumn(col.key, masterCb.checked, filtered);
+        toggleAllSourcesColumn(col.key, selectAll, filtered);
         renderProfileButtons();
         renderCatalogCategoryTabs();
         renderCatalogCategoriesGrid();
         updateFilterCountsUI();
         saveSessionToStorage();
+      };
+
+      const btnAll = document.createElement('button');
+      btnAll.type = 'button';
+      btnAll.className = 'btn-col-bulk btn-col-bulk-all';
+      btnAll.textContent = 'Tout';
+      btnAll.title = `Tout sélectionner pour ${col.label} (lignes affichées)`;
+      btnAll.disabled = total === 0 || checked === total;
+      btnAll.addEventListener('click', (e) => {
+        e.stopPropagation();
+        applyBulk(true);
       });
-      wrap.appendChild(masterCb);
+
+      const btnNone = document.createElement('button');
+      btnNone.type = 'button';
+      btnNone.className = 'btn-col-bulk btn-col-bulk-none';
+      btnNone.textContent = 'Aucun';
+      btnNone.title = `Tout désélectionner pour ${col.label} (lignes affichées)`;
+      btnNone.disabled = total === 0 || checked === 0;
+      btnNone.addEventListener('click', (e) => {
+        e.stopPropagation();
+        applyBulk(false);
+      });
+
+      wrap.appendChild(btnAll);
+      wrap.appendChild(btnNone);
       th.appendChild(wrap);
     }
 
@@ -3245,14 +3240,15 @@ function renderCatalogCategoriesGrid() {
         renderCatalogCategoryTabs();
         updateFilterCountsUI();
         saveSessionToStorage();
-        // Sync master checkboxes in modal
+        // Sync bulk action buttons in modal
         for (const ck of ['colEnabled', 'filterEnabled', 'legendEnabled']) {
-          const cb = table.querySelector(`.sources-select-all-cb[data-col="${ck}"]`);
-          if (!cb) continue;
+          const wrap = table.querySelector(`.sources-select-all-wrap[data-col="${ck}"]`);
+          if (!wrap) continue;
           const { total, checked } = getSourcesColumnToggleState(ck, filtered);
-          cb.disabled = total === 0;
-          cb.checked = total > 0 && checked === total;
-          cb.indeterminate = checked > 0 && checked < total;
+          const btnAll = wrap.querySelector('.btn-col-bulk-all');
+          const btnNone = wrap.querySelector('.btn-col-bulk-none');
+          if (btnAll) btnAll.disabled = total === 0 || checked === total;
+          if (btnNone) btnNone.disabled = total === 0 || checked === 0;
         }
       },
     });
@@ -3415,6 +3411,8 @@ function initPWA() {
 
   installBtns.forEach((btn) => {
     btn.addEventListener('click', async () => {
+      document.getElementById('tools-dropdown')?.classList.remove('open');
+      document.getElementById('btn-tools-toggle')?.setAttribute('aria-expanded', 'false');
       if (!deferredInstallPrompt) return;
       deferredInstallPrompt.prompt();
       try {
@@ -3531,6 +3529,16 @@ document.addEventListener('DOMContentLoaded', async () => {
       enterTerritorySelectionMode();
       showLocationPromptModal();
     }
+  }
+
+  // Open the user manual on first visit
+  try {
+    if (!localStorage.getItem('tezeloma_manual_seen_v1')) {
+      localStorage.setItem('tezeloma_manual_seen_v1', '1');
+      openTool('manual');
+    }
+  } catch (e) {
+    // ignore storage errors
   }
 });
 
@@ -3673,6 +3681,7 @@ function initMap(initialViewport = null) {
     // Hover & Click Interactions
     let hoveredId = null;
     state.map.on('mousemove', 'buildings-fill', (e) => {
+      if (state.territorySelectionMode) return;
       if (e.features.length > 0) {
         state.map.getCanvas().style.cursor = 'pointer';
         if (hoveredId !== null) {
@@ -3684,6 +3693,7 @@ function initMap(initialViewport = null) {
     });
 
     state.map.on('mouseleave', 'buildings-fill', () => {
+      if (state.territorySelectionMode) return;
       state.map.getCanvas().style.cursor = '';
       if (hoveredId !== null) {
         state.map.setFeatureState({ source: 'buildings-source', id: hoveredId }, { hover: false });
@@ -3692,6 +3702,7 @@ function initMap(initialViewport = null) {
     });
 
     state.map.on('click', 'buildings-fill', (e) => {
+      if (state.territorySelectionMode) return;
       if (e.features.length > 0) {
         const feat = e.features[0];
         const bId = feat.properties.batiment_groupe_id;
@@ -4224,79 +4235,127 @@ function updateTerritorySelectionBar() {
     metricsText.textContent = `${totalBldgs.toLocaleString('fr-FR')} bât. • ${sizeInfo}`;
   }
 
-  // Populate selected postal codes / chunks chips (vertical card list)
+  // Populate selected postal codes / chunks chips grouped by map legend status
   if (chipsContainer) {
     chipsContainer.innerHTML = '';
-    const list = [];
+    const loadedSet = new Set(getLoadedChunkIds());
+
+    const statusDefs = [
+      {
+        key: 'loaded',
+        label: 'Chargé',
+        dotClass: 'dot-loaded',
+        pillClass: 'status-loaded',
+        items: [],
+      },
+      {
+        key: 'cached',
+        label: "Disponible sur l'ordinateur",
+        dotClass: 'dot-cached',
+        pillClass: 'status-cached',
+        items: [],
+      },
+      {
+        key: 'downloadable',
+        label: 'Téléchargeable',
+        dotClass: 'dot-cloud',
+        pillClass: 'status-downloadable',
+        items: [],
+      },
+    ];
+    const groupsByKey = Object.fromEntries(statusDefs.map(g => [g.key, g]));
+
     for (const cId of state.pendingSelectedChunks) {
       const match = (state.manifest?.chunks || []).find(c => c.id === cId);
-      list.push({
+      const isLoaded = loadedSet.has(cId);
+      const isCached = state.locallyCachedChunkIds.has(cId);
+      const statusKey = isLoaded ? 'loaded' : (isCached ? 'cached' : 'downloadable');
+      groupsByKey[statusKey].items.push({
         id: cId,
         cp: match ? match.cp : cId,
         commune: match?.commune || (match?.communes ? match.communes[0] : ''),
         buildings_count: match?.buildings_count || 0,
         total_size_bytes: match?.total_size_bytes || 0,
-        isCached: state.locallyCachedChunkIds.has(cId),
+        statusKey,
       });
     }
-    list.sort((a, b) => {
-      const numA = parseInt(a.cp, 10) || 0;
-      const numB = parseInt(b.cp, 10) || 0;
-      return numA - numB;
-    });
 
-    for (const item of list) {
-      const pill = document.createElement('div');
-      pill.className = `sel-chunk-pill${item.isCached ? ' cached' : ''}`;
-      pill.dataset.chunkId = item.id;
-      pill.title = `Cliquer pour centrer sur ${escapeHtml(String(item.cp))}`;
+    for (const group of statusDefs) {
+      if (group.items.length === 0) continue;
 
-      const bldgLabel = item.buildings_count ? `${Number(item.buildings_count).toLocaleString('fr-FR')} bât.` : '';
-      const sizeLabel = item.total_size_bytes ? `${(item.total_size_bytes / 1048576).toFixed(1)} Mo` : '';
-      const metaSub = [bldgLabel, sizeLabel, item.isCached ? 'En cache' : 'Prêt'].filter(Boolean).join(' • ');
+      group.items.sort((a, b) => {
+        const numA = parseInt(a.cp, 10) || 0;
+        const numB = parseInt(b.cp, 10) || 0;
+        return numA - numB;
+      });
 
-      pill.innerHTML = `
-        <div class="sel-chunk-pill-left">
-          <span class="chunk-dot-status ${item.isCached ? 'dot-cached' : 'dot-cloud'}" title="${item.isCached ? 'En cache local' : 'Prêt au téléchargement'}"></span>
-          <div class="chunk-info-text">
-            <span class="chunk-cp-label"><strong>${escapeHtml(String(item.cp))}</strong>${item.commune ? ` <span class="chunk-commune-name">${escapeHtml(item.commune)}</span>` : ''}</span>
-            <span class="chunk-meta-sub">${escapeHtml(metaSub)}</span>
-          </div>
+      const groupEl = document.createElement('div');
+      groupEl.className = 'sel-status-group';
+      groupEl.innerHTML = `
+        <div class="sel-status-group-header">
+          <span class="sel-status-group-title">
+            <span class="chunk-dot-status ${group.dotClass}"></span>
+            <span>${escapeHtml(group.label)}</span>
+          </span>
+          <span class="sel-status-group-count">${group.items.length}</span>
         </div>
-        <button type="button" class="btn-remove-chunk" title="Retirer ${escapeHtml(String(item.cp))}" data-chunk-id="${escapeHtml(item.id)}">&times;</button>
       `;
 
-      // Hover on pill highlights corresponding zone polygon on map
-      pill.addEventListener('mouseenter', () => {
-        setPostalZoneHoverForChunk(item.id);
-      });
-      pill.addEventListener('mouseleave', () => {
-        clearPostalZoneHover();
-      });
+      for (const item of group.items) {
+        const pill = document.createElement('div');
+        pill.className = `sel-chunk-pill ${group.pillClass}`;
+        pill.dataset.chunkId = item.id;
+        pill.title = `Cliquer pour centrer sur ${escapeHtml(String(item.cp))}`;
 
-      // Clicking pill zooms/centers to this sector on the map with margin
-      pill.addEventListener('click', (e) => {
-        if (e.target.closest('.btn-remove-chunk')) return;
-        const chunkBbox = getBoundingBoxForChunkIds([item.id]);
-        if (chunkBbox && state.map) {
-          state.map.fitBounds(chunkBbox, {
-            padding: { top: 90, bottom: 90, left: 90, right: 390 },
-            maxZoom: 12.8,
-            essential: true
-          });
-        }
-      });
+        const bldgLabel = item.buildings_count ? `${Number(item.buildings_count).toLocaleString('fr-FR')} bât.` : '';
+        const sizeLabel = item.total_size_bytes ? `${(item.total_size_bytes / 1048576).toFixed(1)} Mo` : '';
+        const metaSub = [bldgLabel, sizeLabel, group.label].filter(Boolean).join(' • ');
 
-      // Remove button handler
-      pill.querySelector('.btn-remove-chunk').addEventListener('click', (e) => {
-        e.stopPropagation();
-        state.pendingSelectedChunks.delete(item.id);
-        refreshPostalZonesVisualState();
-        updateTerritorySelectionBar();
-        scheduleSaveSession();
-      });
+        pill.innerHTML = `
+          <div class="sel-chunk-pill-left">
+            <span class="chunk-dot-status ${group.dotClass}" title="${escapeHtml(group.label)}"></span>
+            <div class="chunk-info-text">
+              <span class="chunk-cp-label"><strong>${escapeHtml(String(item.cp))}</strong>${item.commune ? ` <span class="chunk-commune-name">${escapeHtml(item.commune)}</span>` : ''}</span>
+              <span class="chunk-meta-sub">${escapeHtml(metaSub)}</span>
+            </div>
+          </div>
+          <button type="button" class="btn-remove-chunk" title="Retirer ${escapeHtml(String(item.cp))}" data-chunk-id="${escapeHtml(item.id)}">&times;</button>
+        `;
 
-      chipsContainer.appendChild(pill);
+        // Hover on pill highlights corresponding zone polygon on map
+        pill.addEventListener('mouseenter', () => {
+          setPostalZoneHoverForChunk(item.id);
+        });
+        pill.addEventListener('mouseleave', () => {
+          clearPostalZoneHover();
+        });
+
+        // Clicking pill zooms/centers to this sector on the map with margin
+        pill.addEventListener('click', (e) => {
+          if (e.target.closest('.btn-remove-chunk')) return;
+          const chunkBbox = getBoundingBoxForChunkIds([item.id]);
+          if (chunkBbox && state.map) {
+            state.map.fitBounds(chunkBbox, {
+              padding: { top: 90, bottom: 90, left: 90, right: 390 },
+              maxZoom: 12.8,
+              essential: true
+            });
+          }
+        });
+
+        // Remove button handler
+        pill.querySelector('.btn-remove-chunk').addEventListener('click', (e) => {
+          e.stopPropagation();
+          state.pendingSelectedChunks.delete(item.id);
+          refreshPostalZonesVisualState();
+          updateTerritorySelectionBar();
+          scheduleSaveSession();
+        });
+
+        groupEl.appendChild(pill);
+      }
+
+      chipsContainer.appendChild(groupEl);
     }
   }
 }
@@ -4319,6 +4378,11 @@ async function validateAndLoadSelectedChunks() {
 function enterTerritorySelectionMode(centerLocation = null) {
   state.territorySelectionMode = true;
   document.body.classList.add('territory-selection-active');
+  document.getElementById('building-drawer')?.classList.remove('open');
+  state.selectedBuildingId = null;
+  if (state.map?.getLayer('buildings-selected')) {
+    state.map.setFilter('buildings-selected', ['==', ['get', 'batiment_groupe_id'], '']);
+  }
   const selBar = document.getElementById('territory-selection-bar');
   if (selBar) selBar.classList.add('active');
 
@@ -5294,6 +5358,7 @@ function renderDynamicColumnLegend(items, meta) {
    Building Inspector & Live INSEE/RNE Sirene Lookup
    ========================================================================== */
 function inspectBuilding(batimentGroupeId) {
+  if (state.territorySelectionMode) return;
   state.selectedBuildingId = batimentGroupeId;
   const b = state.buildings.find(item => item.batiment_groupe_id === batimentGroupeId);
   if (!b) return;
@@ -6600,9 +6665,6 @@ function initTabs() {
     });
   }
 
-  document.getElementById('btn-open-manual')?.addEventListener('click', () => {
-    openTool('manual');
-  });
   initManualTool();
 }
 
