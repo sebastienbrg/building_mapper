@@ -5,7 +5,5 @@ __pycache__/
 node_modules/
 package-lock.json
 package.json
-*.png
-!app/static_app/logo.png
-!app/static_app/icon-192.png
-!app/static_app/icon-512.png
+screenshot_*.png
+test_*.png
