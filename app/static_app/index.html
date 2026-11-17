@@ -64,14 +64,20 @@
           <button type="button" role="menuitem" data-tool="fieldwork">📋 Enquête de Terrain (.xlsx)</button>
           <button type="button" role="menuitem" data-tool="export">📥 Exporter</button>
           <button type="button" role="menuitem" data-tool="sources">📚 Sources de données</button>
+          <div class="tools-menu-divider" role="separator"></div>
+          <button type="button" role="menuitem" data-tool="manual">📖 Manuel Utilisateur</button>
         </div>
       </div>
+      <button type="button" class="nav-tab nav-tab-help" id="btn-open-manual" title="Ouvrir le manuel utilisateur interactif" aria-label="Ouvrir le manuel utilisateur">❓ Aide</button>
     </div>
 
     <!-- Live KPI Summary Strip -->
     <div class="kpi-strip">
       <div class="kpi-badge">
-        <span class="kpi-label">Bâtiments</span>
+        <span class="kpi-label">
+          Bâtiments
+          <span class="limit-warning-badge limit-warning-down" id="kpi-limit-warning" style="display: none;" tabindex="0" role="status" aria-live="polite">⚠️ Limité</span>
+        </span>
         <span class="kpi-value" id="kpi-buildings">—</span>
       </div>
       <div class="kpi-badge">
@@ -165,12 +171,6 @@
       <div class="tab-pane active" id="pane-map">
         <div id="map"></div>
 
-        <!-- Mode Indicator during Territory Selection -->
-        <div class="territory-mode-indicator" id="territory-mode-indicator">
-          <span>📍</span>
-          <span><strong>Sélection du Territoire</strong> — Cliquez sur les codes postaux à charger</span>
-        </div>
-
         <!-- Floating Territory Selection Bar (on the right of map, vertical) -->
         <div class="territory-selection-bar" id="territory-selection-bar">
           <div class="sel-bar-main">
@@ -206,6 +206,12 @@
           </div>
         </div>
 
+        <!-- Top-Left: Fit Map to Filtered Matches -->
+        <button type="button" class="map-fit-matches-btn" id="btn-fit-matches" title="Recadrer la carte sur les bâtiments correspondants" disabled>
+          <span>🎯</span>
+          <span>Cadrer sur les résultats</span>
+        </button>
+
         <!-- Address Search Bar -->
         <div class="map-search-bar" id="map-search-bar">
           <span class="map-search-icon" id="map-search-icon">🔍</span>
@@ -238,13 +244,16 @@
           <!-- Overlay control: Background whitening & polygon limit (default collapsed) -->
           <div class="map-overlay-control collapsed" id="map-display-overlay">
             <div class="map-overlay-header" id="header-toggle-display-overlay">
-              <span class="map-overlay-title">⚙️ Affichage</span>
+              <span class="map-overlay-title">
+                ⚙️ Affichage
+                <span class="limit-warning-badge limit-warning-up" id="display-limit-warning" style="display: none;" tabindex="0" role="status">⚠️</span>
+              </span>
               <button type="button" class="btn-toggle-overlay" id="btn-toggle-display-overlay" title="Réduire / Agrandir les réglages d'affichage">▸</button>
             </div>
             <div class="map-overlay-body" id="map-display-overlay-body">
               <div class="map-overlay-row">
-                <label for="slider-bg-dim" class="map-overlay-label">
-                  <span>Fond blanc</span>
+                <label for="slider-bg-dim" class="map-overlay-label" title="Désature et atténue le fond de carte pour mettre en valeur les données">
+                  <span>Fond neutre</span>
                   <strong id="label-bg-dim">35%</strong>
                 </label>
                 <input type="range" id="slider-bg-dim" min="0" max="100" step="5" value="35" class="map-overlay-slider">
@@ -974,6 +983,204 @@
           </div>
         </details>
         </div><!-- /#sources-subview-dataset -->
+      </div>
+
+      <!-- TOOL: 📖 MANUEL UTILISATEUR -->
+      <div class="tool-pane content-pane" id="pane-manual" data-tool-pane="manual">
+        <div class="manual-layout">
+          <!-- Left Navigation & Search -->
+          <aside class="manual-sidebar">
+            <div class="manual-search-wrap">
+              <input type="text" id="manual-search-input" class="form-input" placeholder="🔍 Rechercher dans le manuel..." autocomplete="off">
+            </div>
+            <nav class="manual-toc" id="manual-toc" aria-label="Sommaire du manuel">
+              <button type="button" class="manual-toc-item active" data-manual-target="manual-sec-start">1. 🚀 Démarrage &amp; Territoire</button>
+              <button type="button" class="manual-toc-item" data-manual-target="manual-sec-lots-of-data">2. 🧩 Beaucoup de données</button>
+              <button type="button" class="manual-toc-item" data-manual-target="manual-sec-profiles">3. 🎭 Profils</button>
+              <button type="button" class="manual-toc-item" data-manual-target="manual-sec-map">4. 🗺️ Carte Interactive</button>
+              <button type="button" class="manual-toc-item" data-manual-target="manual-sec-buildings">5. 📊 Bâtiments</button>
+              <button type="button" class="manual-toc-item" data-manual-target="manual-sec-sci">6. 🔍 Bailleurs &amp; SCI</button>
+              <button type="button" class="manual-toc-item" data-manual-target="manual-sec-fieldwork">7. 📋 Enquête de Terrain (.xlsx)</button>
+              <button type="button" class="manual-toc-item" data-manual-target="manual-sec-export">8. 📥 Exports (PNG, XLSX, DOCX)</button>
+              <button type="button" class="manual-toc-item" data-manual-target="manual-sec-offline">9. 📚 Sources &amp; Hors-ligne</button>
+              <button type="button" class="manual-toc-item" data-manual-target="manual-sec-troubleshooting">10. 🛠️ Dépannage &amp; Mémoire</button>
+            </nav>
+            <div class="manual-sidebar-tip">
+              💡 <strong>Astuce :</strong> cliquez sur les boutons <em>Aller à…</em> dans chaque section pour ouvrir directement l'outil correspondant.
+            </div>
+          </aside>
+
+          <!-- Main Scrollable Guide -->
+          <div class="manual-content" id="manual-content">
+
+            <section class="manual-section" id="manual-sec-start" data-manual-keywords="accueil territoire code postal charger lyon grenoble gps polygone">
+              <div class="manual-sec-header">
+                <h3>1. 🚀 Démarrage &amp; Chargement d'un Territoire</h3>
+                <button type="button" class="btn btn-secondary btn-sm manual-jump-btn" data-manual-action="open-territory">📦 Gérer mes territoires →</button>
+              </div>
+              <p>
+                TeZeLoMa découpe les données nationales (BDNB, DPE, MAJIC, ICU, loyers) en paquets de données par code postal.
+                À l'ouverture, choisissez un raccourci (ex. <strong>Lyon &amp; Villeurbanne</strong>, <strong>Grenoble</strong>), utilisez <strong>🧭 Ma position</strong> ou sélectionnez vos codes postaux directement sur la carte, puis cliquez sur <strong>🚀 Valider et charger</strong>.
+              </p>
+              <figure class="manual-media-card">
+                <img src="manual/01_accueil_territoire.gif" alt="Démonstration du choix de territoire et chargement de la carte" loading="lazy">
+                <figcaption>Sélection d'un territoire depuis l'accueil et chargement instantané des bâtiments.</figcaption>
+              </figure>
+            </section>
+
+            <section class="manual-section" id="manual-sec-lots-of-data" data-manual-keywords="beaucoup de donnees colonnes profil filtres bruit trier reduire cibler">
+              <div class="manual-sec-header">
+                <h3>2. 🧩 Beaucoup de données : pourquoi Profils &amp; Filtres ?</h3>
+                <button type="button" class="btn btn-secondary btn-sm manual-jump-btn" data-manual-action="open-profiles">🎭 Configurer mon Profil →</button>
+              </div>
+              <p>
+                Les bases publiques ouvertes (BDNB, DPE, fichiers fonciers MAJIC, îlots de chaleur, loyers, DVF, RNIC, RPLS…) contiennent <strong>une quantité considérable d'informations</strong> sur chaque immeuble. Tout afficher en même temps serait illisible — et vous n'avez pas besoin de tout pour chaque enquête.
+              </p>
+              <ul>
+                <li><strong>1. Choisir un Profil pour trier les informations :</strong> un profil sélectionne uniquement les <strong>colonnes</strong>, les <strong>indicateurs de filtrage</strong> et les <strong>légendes</strong> utiles à votre objectif dans l'application.</li>
+                <li><strong>2. Activer des Filtres pour cibler les bâtiments :</strong> limiter les colonnes rend l'interface claire, mais il reste encore <strong>des milliers de bâtiments</strong> sur le territoire. Utilisez ensuite les <strong>filtres</strong> du panneau latéral gauche pour n'afficher que ceux qui vous intéressent (ex. DPE F/G, surchauffe élevée, bailleur personne morale…).</li>
+              </ul>
+            </section>
+
+            <section class="manual-section" id="manual-sec-profiles" data-manual-keywords="profils personnaliser colonnes visibles filtres actifs legendes sauvegarder catalogue">
+              <div class="manual-sec-header">
+                <h3>3. 🎭 Profils (personnaliser l'information visible)</h3>
+                <button type="button" class="btn btn-secondary btn-sm manual-jump-btn" data-manual-action="open-profiles">🎭 Ouvrir Choisir Profil →</button>
+              </div>
+              <p>
+                Cliquez sur <strong>🎭 Choisir Profil</strong> dans le panneau gauche pour ouvrir le catalogue d'indicateurs. Vous pouvez partir d'un modèle prêt à l'emploi ou composer entièrement votre vue :
+              </p>
+              <ul>
+                <li><strong>Colonnes visibles :</strong> cochez les indicateurs que vous souhaitez voir apparaître dans le tableau <em>📊 Bâtiments</em> et dans les exports.</li>
+                <li><strong>Indicateurs filtrables :</strong> les indicateurs cochés deviennent immédiatement des filtres disponibles dans votre panneau latéral gauche (avec recherche par mot-clé et onglets thématiques pour les retrouver facilement).</li>
+                <li><strong>Légendes &amp; coloration :</strong> adaptez les axes d'analyse disponibles sur la carte.</li>
+                <li><strong>Sauvegarde personnalisée :</strong> cliquez sur <strong>💾 + Sauvegarder ce profil</strong> pour enregistrer votre configuration (et, si vous le souhaitez, mémoriser aussi les seuils de filtres déjà réglés).</li>
+              </ul>
+              <figure class="manual-media-card">
+                <img src="manual/03_profils_et_filtres.gif" alt="Personnalisation d'un profil et mise à jour des filtres" loading="lazy">
+                <figcaption>Ouverture du catalogue, personnalisation d'un profil et mise à jour des filtres actifs.</figcaption>
+              </figure>
+            </section>
+
+            <section class="manual-section" id="manual-sec-map" data-manual-keywords="carte dpe surchauffe concentration coloration legende affichage fond neutre limite polygones adresse fiche batiment">
+              <div class="manual-sec-header">
+                <h3>4. 🗺️ Carte Interactive</h3>
+                <button type="button" class="btn btn-secondary btn-sm manual-jump-btn" data-manual-action="tab-map">🗺️ Aller à la Carte →</button>
+              </div>
+              <ul>
+                <li><strong>Coloration (en bas à gauche) :</strong> basculez entre <em>🎨 Diagnostic Énergétique (DPE)</em>, <em>☀️ Risque Surchauffe Estivale</em>, <em>🏢 Concentration Foncière</em> et <em>📋 Enquête de Terrain</em>.</li>
+                <li><strong>⚙️ Affichage (en bas au centre) :</strong> réglez l'atténuation du <em>Fond neutre</em> (0–100 %) et la <em>Limite bât.</em> (1 500 à Tous) pour garder une carte fluide.</li>
+                <li><strong>Recherche &amp; cadrage :</strong> recherchez une adresse précise dans la barre en haut, ou cliquez sur <strong>🎯 Cadrer sur les résultats</strong> pour zoomer sur les bâtiments filtrés.</li>
+                <li><strong>Clic sur un bâtiment :</strong> ouvre sa fiche détaillée à droite (DPE, score de surchauffe, propriétaires personnes morales, loyers, DVF, QPV, RPLS, RNIC).</li>
+              </ul>
+              <figure class="manual-media-card">
+                <img src="manual/02_carte_coloration_affichage.gif" alt="Changement de coloration DPE, Surchauffe, Concentration et réglages d'affichage" loading="lazy">
+                <figcaption>Changement de mode de coloration et ouverture des réglages d'affichage.</figcaption>
+              </figure>
+            </section>
+
+            <section class="manual-section" id="manual-sec-buildings" data-manual-keywords="batiments tableau recherche filtrer surligner voir fiche synthese colonnes">
+              <div class="manual-sec-header">
+                <h3>5. 📊 Bâtiments (Tableau &amp; Interactions)</h3>
+                <button type="button" class="btn btn-secondary btn-sm manual-jump-btn" data-manual-action="tab-buildings">📊 Aller à Bâtiments →</button>
+              </div>
+              <p>
+                L'onglet <strong>📊 Bâtiments</strong> vous permet de passer de la vue géographique à une <strong>analyse ligne par ligne</strong> des immeubles retenus par vos filtres, avec uniquement les colonnes de votre profil actif.
+              </p>
+              <ul>
+                <li><strong>Recherche instantanée :</strong> filtrez par adresse, <code>ID BDNB</code>, nom de bailleur, <code>SIREN</code>, nom de copropriété ou facteur de surchauffe.</li>
+                <li><strong>Mode Filtrer vs Surligner :</strong> choisissez <em>Filtrer les lignes</em> pour isoler les résultats, ou <em>Surligner les lignes</em> pour les repérer visuellement tout en gardant le reste du tableau autour.</li>
+                <li><strong>Bandeau de synthèse :</strong> suit en temps réel le nombre de bâtiments, logements, logements DPE F/G, bâtiments en surchauffe et bâtiments avec bailleur personne morale.</li>
+                <li><strong>Bouton 👁️ Voir :</strong> cliquez sur <em>Voir</em> sur n'importe quelle ligne pour basculer automatiquement sur la carte, centrer sur l'immeuble et ouvrir sa <strong>fiche détaillée</strong>.</li>
+              </ul>
+              <figure class="manual-media-card">
+                <img src="manual/tab_batiments.png" alt="Tableau des bâtiments filtrés avec barre de recherche et synthèse" loading="lazy">
+                <figcaption>Tableau Bâtiments : recherche, surlignage, synthèse chiffrée et accès direct à la fiche immeuble.</figcaption>
+              </figure>
+            </section>
+
+            <section class="manual-section" id="manual-sec-sci" data-manual-keywords="bailleurs sci personnes morales dirigeants siren api gouv insee rne patrimoine multipropriete">
+              <div class="manual-sec-header">
+                <h3>6. 🔍 Bailleurs &amp; SCI (Enquête sur les propriétaires)</h3>
+                <button type="button" class="btn btn-secondary btn-sm manual-jump-btn" data-manual-action="tab-landlords">🔍 Aller à Bailleurs &amp; SCI →</button>
+              </div>
+              <p>
+                L'onglet <strong>🔍 Bailleurs &amp; SCI</strong> sert à identifier les <strong>propriétaires personnes morales</strong> (SCI, foncières, sociétés commerciales, bailleurs sociaux) qui concentrent des logements dans votre sélection et à lever l'anonymat sur leurs dirigeants.
+              </p>
+              <ul>
+                <li><strong>Classement des multipropriétaires :</strong> le tableau supérieur classe les entités morales par nombre de locaux détenus dans votre sélection (avec leur patrimoine total MAJIC et la commune du siège). Cliquez sur n'importe quelle colonne pour trier.</li>
+                <li><strong>Interrogation en direct (API Gouv) :</strong> sélectionnez un bailleur dans le tableau ou la liste déroulante, ou saisissez directement un numéro <strong>SIREN</strong> / une raison sociale puis cliquez sur <strong>🔎</strong>.</li>
+                <li><strong>Détail complet de l'entité :</strong> l'outil interroge en temps réel l'API officielle <code>recherche-entreprises.api.gouv.fr</code> et affiche la fiche légale, la liste des <strong>dirigeants / gérants</strong> (nom, prénoms, année de naissance, qualité) et le tableau de tous les <strong>immeubles détenus</strong> par cette entité sur le territoire actif.</li>
+              </ul>
+              <figure class="manual-media-card">
+                <img src="manual/04_fiche_batiment_et_sci.gif" alt="Ouverture de la fiche bâtiment et inspection des dirigeants d'une SCI" loading="lazy">
+                <figcaption>Passage d'un immeuble à l'inspection complète d'un bailleur moral et de ses dirigeants.</figcaption>
+              </figure>
+            </section>
+
+            <section class="manual-section" id="manual-sec-fieldwork" data-manual-keywords="enquete terrain ajouter donnees excel xlsx csv importer colonnes filtrer carte couleur">
+              <div class="manual-sec-header">
+                <h3>7. 📋 Enquête de Terrain (.xlsx, .xls, .csv)</h3>
+                <button type="button" class="btn btn-secondary btn-sm manual-jump-btn" data-manual-action="tool-fieldwork">📋 Ouvrir l'outil Terrain →</button>
+              </div>
+              <p>
+                <strong>Ajoutez vos propres données :</strong> exportez votre sélection au format Excel depuis <em>📥 Exporter</em>, ajoutez-y vos propres colonnes (ex. <code>statut</code>, <code>notes</code>, <code>priorite</code>), puis réimportez le fichier ici en tant qu'<strong>« Enquête de Terrain »</strong>.
+              </p>
+              <ul>
+                <li><strong>Visible partout :</strong> les informations ajoutées apparaissent automatiquement dans le tableau <em>📊 Bâtiments</em> et dans vos exports.</li>
+                <li><strong>Filtrable :</strong> chaque colonne ajoutée devient un filtre dans le panneau latéral gauche.</li>
+                <li><strong>Cartographiable :</strong> utilisez vos colonnes pour colorer les bâtiments sur la carte via le sélecteur de légende.</li>
+              </ul>
+              <figure class="manual-media-card">
+                <img src="manual/tool_enquete_terrain.png" alt="Interface d'import d'enquête de terrain" loading="lazy">
+                <figcaption>Import et gestion locale des enquêtes de terrain.</figcaption>
+              </figure>
+            </section>
+
+            <section class="manual-section" id="manual-sec-export" data-manual-keywords="exporter png carte excel xlsx word docx rapport zip geojson">
+              <div class="manual-sec-header">
+                <h3>8. 📥 Exports (PNG, Excel, Rapport Word, ZIP)</h3>
+                <button type="button" class="btn btn-secondary btn-sm manual-jump-btn" data-manual-action="tool-export">📥 Ouvrir Exporter →</button>
+              </div>
+              <p>
+                Exportez à tout moment votre sélection filtrée en <strong>Carte (.png)</strong> avec légende intégrée, en tableur <strong>Bâtiments (.xlsx)</strong> ou <strong>Bailleurs (.xlsx)</strong>, en <strong>Rapport Complet Word (.docx)</strong> avec sections configurables, ou en archive complète <strong>.zip</strong> (Excel + GeoJSON).
+              </p>
+              <figure class="manual-media-card">
+                <img src="manual/tool_exporter.png" alt="Options d'export TeZeLoMa" loading="lazy">
+                <figcaption>Les 4 formats d'export principaux et l'archive ZIP complète.</figcaption>
+              </figure>
+            </section>
+
+            <section class="manual-section" id="manual-sec-offline" data-manual-keywords="sources dictionnaire hors ligne enregistre ordinateur internet">
+              <div class="manual-sec-header">
+                <h3>9. 📚 Sources de Données &amp; Fonctionnement Hors-Ligne</h3>
+                <button type="button" class="btn btn-secondary btn-sm manual-jump-btn" data-manual-action="tool-sources">📚 Ouvrir Sources →</button>
+              </div>
+              <ul>
+                <li><strong>Traçabilité :</strong> le dictionnaire des sources détaille l'origine de chaque indicateur (BDNB/CSTB, ADEME, DGFiP MAJIC, ICU, loyers, API Entreprises).</li>
+                <li><strong>Fonctionnement hors-ligne :</strong> une fois chargés, les paquets de données sont enregistrés sur cet ordinateur. Vous pouvez rouvrir vos territoires et travailler sans connexion Internet (seule l'interrogation en direct des dirigeants via l'API Gouv nécessite Internet).</li>
+              </ul>
+              <figure class="manual-media-card">
+                <img src="manual/tool_sources.png" alt="Dictionnaire des informations et traçabilité des sources" loading="lazy">
+                <figcaption>Dictionnaire interactif et traçabilité des données publiques.</figcaption>
+              </figure>
+            </section>
+
+            <section class="manual-section" id="manual-sec-troubleshooting" data-manual-keywords="depannage memoire fluidite lenteur limite batiments vider cache stockage localstorage performance">
+              <div class="manual-sec-header">
+                <h3>10. 🛠️ Dépannage &amp; Gestion de la mémoire</h3>
+                <button type="button" class="btn btn-secondary btn-sm manual-jump-btn" data-manual-action="open-territory">📦 Gérer les données →</button>
+              </div>
+              <ul>
+                <li><strong>Fluidité et mémoire d'affichage (carte) :</strong> dessiner des dizaines de milliers de polygones en même temps consomme de la mémoire graphique. Dans <em>⚙️ Affichage</em> (en bas de la carte), ajustez <strong>Limite bât.</strong> (<code>1 500</code>, <code>3 000</code>, <code>5 000</code> ou <code>Tous les bât.</code>). Lorsque le plafond est atteint, le badge <strong>⚠️ Limité</strong> vous prévient : zoomez sur un quartier ou réduisez vos filtres pour voir tous les bâtiments de la zone.</li>
+                <li><strong>Espace disque et cache local :</strong> les paquets de données téléchargés (Cache API / Service Worker) ainsi que vos profils personnalisés, filtres et enquêtes de terrain (<code>localStorage</code>) sont enregistrés sur cet ordinateur.</li>
+                <li><strong>Forcer un rechargement ou libérer de la mémoire :</strong> si un territoire semble obsolète ou bloqué au chargement, ouvrez <strong>📦 Données chargées</strong> en haut du panneau gauche puis cliquez sur <strong>🗑️ Vider le cache local</strong>.</li>
+                <li><strong>Interrogation des dirigeants (API Gouv) :</strong> si la fiche d'un bailleur reste en attente, vérifiez votre connexion Internet ou réessayez quelques instants plus tard (l'annuaire officiel <code>recherche-entreprises.api.gouv.fr</code> peut limiter temporairement les requêtes rapides).</li>
+              </ul>
+            </section>
+
+          </div>
+        </div>
       </div>
 
     </main>

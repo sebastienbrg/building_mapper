@@ -36,6 +36,7 @@ L'application fonctionne désormais de façon **100% autonome et côté client**
 │   └── test_all_tabs.py      # Suite de tests Playwright couvrant tous les onglets
 ├── src-tauri/                # Configuration Tauri pour packaging desktop natif
 ├── data/                     # Données brutes, traitées et chunks par code postal
+├── USER_MANUAL.md            # Manuel utilisateur complet (interface, profils, outils, exports)
 ├── ASSESSMENT_AND_PLAN.md    # Analyse technique initiale et historique du projet
 └── STANDALONE_ARCHITECTURE.md # Architecture détaillée de l'application autonome
 ```

@@ -3500,7 +3500,7 @@ function initMap(initialViewport = null) {
             'https://c.tile.openstreetmap.fr/osmfr/{z}/{x}/{y}.png',
           ],
           tileSize: 256,
-          attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a> contributors, &copy; OpenStreetMap France',
+          attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a>',
         },
       },
       layers: [
@@ -3508,7 +3508,7 @@ function initMap(initialViewport = null) {
           id: 'map-background',
           type: 'background',
           paint: {
-            'background-color': '#ffffff',
+            'background-color': '#f8fafc',
           },
         },
         {
@@ -3518,8 +3518,10 @@ function initMap(initialViewport = null) {
           minzoom: 0,
           maxzoom: 20,
           paint: {
-            'raster-opacity': 0.88,
-            'raster-saturation': -0.2,
+            'raster-opacity': 0.7025,
+            'raster-brightness-min': 0,
+            'raster-contrast': -0.0525,
+            'raster-saturation': -0.56,
           },
         },
       ],
@@ -3540,7 +3542,26 @@ function initMap(initialViewport = null) {
   state.map.addControl(new maplibregl.AttributionControl({ compact: true }), 'bottom-right');
   state.map.addControl(new maplibregl.ScaleControl({ unit: 'metric' }), 'bottom-right');
 
+  const collapseDefaultAttribution = () => {
+    const attribEl = state.map?.getContainer().querySelector('.maplibregl-ctrl-attrib.maplibregl-compact');
+    if (attribEl && !attribEl.dataset.userToggled) {
+      attribEl.classList.remove('maplibregl-compact-show');
+      attribEl.removeAttribute('open');
+    }
+  };
+  state.map.getContainer().addEventListener('click', (e) => {
+    const btn = e.target.closest?.('.maplibregl-ctrl-attrib-button');
+    if (btn) {
+      const attribEl = btn.closest('.maplibregl-ctrl-attrib');
+      if (attribEl) attribEl.dataset.userToggled = '1';
+    }
+  });
+  state.map.on('sourcedata', collapseDefaultAttribution);
+  state.map.once('idle', collapseDefaultAttribution);
+
   state.map.on('load', () => {
+    collapseDefaultAttribution();
+
     // Add empty GeoJSON source for buildings
     state.map.addSource('buildings-source', {
       type: 'geojson',
@@ -3737,14 +3758,14 @@ function tryAttachPostalZones() {
         [
           'case',
           ['get', 'selected'],
-          0.88, // Hovered AND selected: strong, saturated, highly visible
-          0.70  // Hovered and unselected: clearly highlighted alpha
+          0.58, // Hovered AND selected
+          0.42  // Hovered and unselected
         ],
         [
           'case',
           ['get', 'selected'],
-          0.55, // Selected (not hovered)
-          0.28  // Unselected (idle)
+          0.36, // Selected (not hovered)
+          0.18  // Unselected (idle)
         ]
       ],
     },
@@ -3773,21 +3794,21 @@ function tryAttachPostalZones() {
         [
           'case',
           ['get', 'selected'],
-          4.5,
-          3.2
+          5.0,
+          3.8
         ],
         [
           'case',
           ['get', 'selected'],
-          3.0,
-          1.2
+          3.4,
+          2.0
         ]
       ],
       'line-opacity': [
         'case',
         ['boolean', ['feature-state', 'hover'], false],
         1.0,
-        0.85
+        0.95
       ],
     },
   });
@@ -4246,9 +4267,6 @@ function enterTerritorySelectionMode(centerLocation = null) {
   const selBar = document.getElementById('territory-selection-bar');
   if (selBar) selBar.classList.add('active');
 
-  const modeIndicator = document.getElementById('territory-mode-indicator');
-  if (modeIndicator) modeIndicator.classList.add('active');
-
   if (state.map?.getLayer('postal-zones-fill')) {
     state.map.setLayoutProperty('postal-zones-fill', 'visibility', 'visible');
     state.map.setLayoutProperty('postal-zones-stroke', 'visibility', 'visible');
@@ -4297,9 +4315,6 @@ function exitTerritorySelectionMode() {
   clearPostalZoneHover();
   const selBar = document.getElementById('territory-selection-bar');
   if (selBar) selBar.classList.remove('active');
-
-  const modeIndicator = document.getElementById('territory-mode-indicator');
-  if (modeIndicator) modeIndicator.classList.remove('active');
 
   if (state.map?.getLayer('postal-zones-fill')) {
     state.map.setLayoutProperty('postal-zones-fill', 'visibility', 'none');
@@ -4916,6 +4931,7 @@ function applyFilters() {
     ? filtered.slice(0, maxPolygons)
     : filtered;
   updateMapSource(mapBuildings);
+  updateDisplayLimitWarning(filtered.length);
 
   // Synchronize active view
   if (state.activeTab === 'buildings') {
@@ -5031,20 +5047,87 @@ function updateMapSource(buildings) {
   });
 }
 
+function updateDisplayLimitWarning(filteredCount) {
+  const maxPolygons = state.maxPolygons;
+  const isLimited = Boolean(maxPolygons && maxPolygons < filteredCount);
+  const tooltipText = isLimited
+    ? `Affichage limité à ${maxPolygons.toLocaleString('fr-FR')} bâtiments sur ${filteredCount.toLocaleString('fr-FR')} correspondants. Le contrôle « ⚙️ Affichage » (en bas de la carte) permet de tout afficher (« Tous les bât. »), mais attention : afficher des dizaines de milliers de bâtiments peut ralentir la carte.`
+    : '';
+
+  const kpiWarn = document.getElementById('kpi-limit-warning');
+  if (kpiWarn) {
+    kpiWarn.style.display = isLimited ? 'inline-flex' : 'none';
+    if (isLimited) {
+      kpiWarn.setAttribute('data-tooltip', tooltipText);
+      kpiWarn.setAttribute('aria-label', tooltipText);
+    } else {
+      kpiWarn.removeAttribute('data-tooltip');
+      kpiWarn.removeAttribute('aria-label');
+    }
+  }
+
+  const displayWarn = document.getElementById('display-limit-warning');
+  if (displayWarn) {
+    displayWarn.style.display = isLimited ? 'inline-flex' : 'none';
+    if (isLimited) {
+      displayWarn.setAttribute('data-tooltip', tooltipText);
+      displayWarn.setAttribute('aria-label', tooltipText);
+    } else {
+      displayWarn.removeAttribute('data-tooltip');
+      displayWarn.removeAttribute('aria-label');
+    }
+  }
+
+  const fitBtn = document.getElementById('btn-fit-matches');
+  if (fitBtn) {
+    fitBtn.disabled = !filteredCount || filteredCount === 0;
+    fitBtn.title = filteredCount > 0
+      ? `Recadrer la carte sur les ${filteredCount.toLocaleString('fr-FR')} bâtiments correspondants`
+      : 'Aucun bâtiment correspondant à cadrer';
+  }
+}
+
+function fitMapToMatches() {
+  if (!state.map || !state.filteredBuildings || state.filteredBuildings.length === 0) return;
+  let minLng = Infinity, minLat = Infinity, maxLng = -Infinity, maxLat = -Infinity;
+  let hasCoords = false;
+
+  for (let i = 0; i < state.filteredBuildings.length; i++) {
+    const center = getGeometryCenter(state.filteredBuildings[i].geometry);
+    if (!center) continue;
+    const [lng, lat] = center;
+    if (lng < minLng) minLng = lng;
+    if (lat < minLat) minLat = lat;
+    if (lng > maxLng) maxLng = lng;
+    if (lat > maxLat) maxLat = lat;
+    hasCoords = true;
+  }
+
+  if (!hasCoords) return;
+  state.map.resize();
+  state.map.fitBounds([[minLng, minLat], [maxLng, maxLat]], {
+    padding: { top: 70, bottom: 70, left: 70, right: 70 },
+    maxZoom: 17,
+    duration: 700,
+    essential: true,
+  });
+}
+
 function setMapDim(dimPct) {
-  if (!state.map || !state.map.isStyleLoaded() || !state.map.getLayer('osm-tiles-layer')) return;
+  if (!state.map || !state.map.getLayer('osm-tiles-layer')) return;
   const factor = Math.max(0, Math.min(100, dimPct)) / 100;
-  
-  // As dimPct increases (0% -> 100%), the map becomes progressively more and more white:
-  // 1. Lower opacity reveals the pure white background layer beneath
-  const opacity = Math.max(0.02, 1.0 - factor * 0.95);
-  // 2. Increase brightness-min to wash out dark streets and text into pure white
-  const brightnessMin = factor * 0.85;
-  // 3. Desaturate to eliminate distracting colored features
-  const saturation = -Math.min(1.0, factor * 1.2);
+
+  // Positron-style neutralization:
+  // 1. Strongly desaturate first so map colors don't compete with data overlays
+  const saturation = -Math.min(1.0, factor * 1.6);
+  // 2. Slightly soften contrast while keeping street lines & labels crisp (brightness-min stays 0)
+  const contrast = -factor * 0.15;
+  // 3. Gently fade opacity over the #f8fafc background layer
+  const opacity = Math.max(0.05, 1.0 - factor * 0.85);
 
   state.map.setPaintProperty('osm-tiles-layer', 'raster-opacity', opacity);
-  state.map.setPaintProperty('osm-tiles-layer', 'raster-brightness-min', brightnessMin);
+  state.map.setPaintProperty('osm-tiles-layer', 'raster-brightness-min', 0);
+  state.map.setPaintProperty('osm-tiles-layer', 'raster-contrast', contrast);
   state.map.setPaintProperty('osm-tiles-layer', 'raster-saturation', saturation);
 }
 
@@ -5062,13 +5145,13 @@ function updateLegend() {
     if (selectWrap) selectWrap.style.display = 'none';
     if (title) {
       title.style.display = 'block';
-      title.textContent = 'Statut des Chunks & Territoires';
+      title.textContent = 'Statut des secteurs';
     }
     items.innerHTML = `
-      <div class="legend-item"><span class="legend-color" style="background: #8b5cf6;"></span><span>Sélectionné</span></div>
-      <div class="legend-item"><span class="legend-color" style="background: #10b981;"></span><span>En cache local</span></div>
-      <div class="legend-item"><span class="legend-color" style="background: #0ea5e9;"></span><span>Prêt (téléchargeable)</span></div>
-      <div class="legend-item"><span class="legend-color" style="background: #f59e0b;"></span><span>À la demande (ETL)</span></div>
+      <div class="legend-item"><span class="legend-color" style="background: #8b5cf6;"></span><span>Chargé</span></div>
+      <div class="legend-item"><span class="legend-color" style="background: #10b981;"></span><span>Disponible sur l'ordinateur</span></div>
+      <div class="legend-item"><span class="legend-color" style="background: #0ea5e9;"></span><span>Téléchargeable</span></div>
+      <div class="legend-item"><span class="legend-color" style="background: #f59e0b;"></span><span>À demander à Télézoma</span></div>
     `;
     return;
   }
@@ -6395,6 +6478,7 @@ const TOOL_TITLES = {
   fieldwork: '📋 Enquête de Terrain (.xlsx)',
   export: '📥 Exporter la sélection',
   sources: '📚 Sources de données',
+  manual: '📖 Manuel Utilisateur',
 };
 
 function initTabs() {
@@ -6411,8 +6495,8 @@ function initTabs() {
     const overlay = document.createElement('div');
     overlay.className = 'modal-overlay tool-dialog-overlay';
     overlay.id = `tool-dialog-${id}`;
-    const fullBtnHtml = id === 'sources'
-      ? `<button type="button" class="tool-dialog-fullscreen" id="btn-sources-fullscreen" aria-pressed="false" aria-label="Plein écran" title="Agrandir en plein écran">⛶</button>`
+    const fullBtnHtml = (id === 'sources' || id === 'manual')
+      ? `<button type="button" class="tool-dialog-fullscreen" id="btn-${id}-fullscreen" aria-pressed="false" aria-label="Plein écran" title="Agrandir en plein écran">⛶</button>`
       : '';
     overlay.innerHTML = `
       <div class="modal-content tool-dialog-content" role="dialog" aria-modal="true">
@@ -6460,6 +6544,105 @@ function initTabs() {
       openTool('export');
     });
   }
+
+  document.getElementById('btn-open-manual')?.addEventListener('click', () => {
+    openTool('manual');
+  });
+  initManualTool();
+}
+
+function initManualTool() {
+  const tocItems = document.querySelectorAll('.manual-toc-item');
+  const sections = document.querySelectorAll('.manual-section');
+  const contentEl = document.getElementById('manual-content');
+  const searchInput = document.getElementById('manual-search-input');
+
+  const setActiveToc = (sectionId) => {
+    tocItems.forEach(b => {
+      b.classList.toggle('active', b.getAttribute('data-manual-target') === sectionId);
+    });
+  };
+
+  tocItems.forEach(btn => {
+    btn.addEventListener('click', () => {
+      const targetId = btn.getAttribute('data-manual-target');
+      const targetEl = document.getElementById(targetId);
+      if (!targetEl) return;
+      if (searchInput && searchInput.value) {
+        searchInput.value = '';
+        sections.forEach(s => { s.style.display = ''; });
+      }
+      setActiveToc(targetId);
+      targetEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  });
+
+  if (contentEl) {
+    let scrollTicking = false;
+    contentEl.addEventListener('scroll', () => {
+      if (scrollTicking) return;
+      scrollTicking = true;
+      requestAnimationFrame(() => {
+        scrollTicking = false;
+        const visibleSecs = Array.from(sections).filter(s => s.style.display !== 'none');
+        if (!visibleSecs.length) return;
+        const atBottom = contentEl.scrollTop + contentEl.clientHeight >= contentEl.scrollHeight - 16;
+        if (atBottom) {
+          setActiveToc(visibleSecs[visibleSecs.length - 1].id);
+          return;
+        }
+        const containerTop = contentEl.getBoundingClientRect().top;
+        let currentId = visibleSecs[0].id;
+        for (const sec of visibleSecs) {
+          const offset = sec.getBoundingClientRect().top - containerTop;
+          if (offset <= 48) {
+            currentId = sec.id;
+          } else {
+            break;
+          }
+        }
+        setActiveToc(currentId);
+      });
+    }, { passive: true });
+  }
+
+  if (searchInput) {
+    searchInput.addEventListener('input', () => {
+      const q = searchInput.value.trim().toLowerCase();
+      sections.forEach(sec => {
+        if (!q) {
+          sec.style.display = '';
+          return;
+        }
+        const hay = `${sec.textContent || ''} ${sec.getAttribute('data-manual-keywords') || ''}`.toLowerCase();
+        sec.style.display = hay.includes(q) ? '' : 'none';
+      });
+    });
+  }
+
+  document.querySelectorAll('.manual-jump-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const action = btn.getAttribute('data-manual-action');
+      closeTool();
+      if (action === 'open-territory') {
+        document.getElementById('btn-sidebar-donnees-chargees')?.click();
+      } else if (action === 'open-profiles') {
+        document.getElementById('btn-open-filter-catalog')?.click();
+      } else if (action === 'tab-map') {
+        switchTab('map');
+      } else if (action === 'tab-buildings') {
+        switchTab('buildings');
+      } else if (action === 'tab-landlords') {
+        switchTab('landlords');
+      } else if (action === 'tool-fieldwork') {
+        openTool('fieldwork');
+      } else if (action === 'tool-export') {
+        openTool('export');
+      } else if (action === 'tool-sources') {
+        openTool('sources');
+      }
+    });
+  });
 }
 
 function openTool(toolId) {
@@ -11304,6 +11487,11 @@ function initEventListeners() {
       scheduleSaveSession();
     });
   }
+
+  // Fit Map to Filtered Matches Button
+  document.getElementById('btn-fit-matches')?.addEventListener('click', () => {
+    fitMapToMatches();
+  });
 
   // Max Polygons Select
   const maxPolySelect = document.getElementById('select-max-polygons');
